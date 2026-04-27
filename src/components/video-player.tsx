@@ -327,7 +327,7 @@ export default function VideoPlayer() {
         )}
 
         {/* Play/Pause Center Overlay */}
-        {!isLoading && !error && (
+        {!isLoading && !streamError && (
           <div
             className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
             onClick={(e) => e.stopPropagation()}
