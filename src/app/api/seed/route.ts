@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import { seedMatches } from '@/lib/seed';
 
+/**
+ * Seed endpoint - no longer creates fake matches.
+ * Match data is now fetched in real-time from the football API.
+ */
 export async function POST() {
-  try {
-    await seedMatches();
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to seed' }, { status: 500 });
-  }
+  return NextResponse.json({
+    success: true,
+    message: 'Live match data is now fetched in real-time from the football API. No seeding needed.',
+  });
 }

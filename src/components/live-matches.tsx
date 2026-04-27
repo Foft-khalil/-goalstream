@@ -15,7 +15,7 @@ export default function LiveMatches() {
     fetchFootballMatches,
   } = useAppStore();
 
-  const [countdown, setCountdown] = useState(120); // 2 min countdown to next refresh
+  const [countdown, setCountdown] = useState(60); // 1 min countdown to next refresh
   const lastUpdatedRef = useRef<string | null>(null);
 
   // Fetch on mount
@@ -23,22 +23,21 @@ export default function LiveMatches() {
     fetchFootballMatches();
   }, [fetchFootballMatches]);
 
-  // Auto-refresh every 2 minutes
+  // Auto-refresh every 60 seconds for live data freshness
   useEffect(() => {
     const interval = setInterval(() => {
       fetchFootballMatches();
-    }, 2 * 60 * 1000);
+    }, 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchFootballMatches]);
 
   // Countdown timer - resets when lastUpdated changes
   useEffect(() => {
-    // Reset countdown if lastUpdated changed
     if (footballLastUpdated !== lastUpdatedRef.current) {
       lastUpdatedRef.current = footballLastUpdated;
     }
     const startTime = Date.now();
-    const duration = 120; // 2 minutes
+    const duration = 60; // 1 minute
     const timer = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const remaining = Math.max(0, duration - elapsed);
@@ -49,7 +48,7 @@ export default function LiveMatches() {
 
   const handleRetry = useCallback(() => {
     fetchFootballMatches();
-    setCountdown(120);
+    setCountdown(60);
   }, [fetchFootballMatches]);
 
   const liveMatches = footballMatches.filter((m) => m.status === 'live');
@@ -75,6 +74,7 @@ export default function LiveMatches() {
         </div>
         <p className="text-sm text-muted-foreground mb-1">Chargement des matchs en direct...</p>
         <p className="text-xs text-muted-foreground/60">Recherche des scores en temps réel</p>
+        <p className="text-[10px] text-muted-foreground/40 mt-2">Cela peut prendre 10-20 secondes</p>
       </div>
     );
   }
@@ -125,7 +125,9 @@ export default function LiveMatches() {
           {liveMatches.length > 0 ? (
             <>
               <Wifi className="h-3 w-3 text-green-500" />
-              <span className="text-green-500 font-medium">En direct</span>
+              <span className="text-green-500 font-medium">
+                {liveMatches.length} match{liveMatches.length !== 1 ? 'es' : ''} en direct
+              </span>
             </>
           ) : (
             <>
@@ -285,6 +287,11 @@ export default function LiveMatches() {
           </div>
         </section>
       )}
+
+      {/* Data source info */}
+      <div className="text-center text-[10px] text-muted-foreground/40 pt-2">
+        Données en temps réel via recherche IA — mise à jour automatique toutes les 60s
+      </div>
     </div>
   );
 }

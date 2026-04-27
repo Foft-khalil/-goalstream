@@ -8,7 +8,7 @@ export interface CachedData<T> {
   timestamp: number;
 }
 
-const CACHE_TTL = 3 * 60 * 1000; // 3 minutes in milliseconds (shorter for live data freshness)
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes in milliseconds (short for live data freshness)
 
 const cache = new Map<string, CachedData<unknown>>();
 
