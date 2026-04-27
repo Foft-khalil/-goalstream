@@ -6,7 +6,9 @@ import ChannelCard from '@/components/channel-card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, RefreshCw, Tv, Globe, Filter } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Loader2, Search, RefreshCw, Tv, Globe, Wifi, WifiOff, CheckCircle2, XCircle } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -16,27 +18,40 @@ import {
 } from '@/components/ui/select';
 
 const COUNTRIES = [
-  { code: '', label: 'All Countries' },
+  { code: '', label: 'Tous les pays' },
   { code: 'fr', label: '🇫🇷 France' },
-  { code: 'ma', label: '🇲🇦 Morocco' },
-  { code: 'dz', label: '🇩🇿 Algeria' },
-  { code: 'sn', label: '🇸🇳 Senegal' },
-  { code: 'tn', label: '🇹🇳 Tunisia' },
-  { code: 'eg', label: '🇪🇬 Egypt' },
-  { code: 'uk', label: '🇬🇧 United Kingdom' },
-  { code: 'us', label: '🇺🇸 United States' },
-  { code: 'es', label: '🇪🇸 Spain' },
-  { code: 'de', label: '🇩🇪 Germany' },
-  { code: 'it', label: '🇮🇹 Italy' },
-  { code: 'br', label: '🇧🇷 Brazil' },
-  { code: 'ar', label: '🇦🇷 Argentina' },
-  { code: 'sa', label: '🇸🇦 Saudi Arabia' },
-  { code: 'tr', label: '🇹🇷 Turkey' },
+  { code: 'ma', label: '🇲🇦 Maroc' },
+  { code: 'dz', label: '🇩🇿 Algérie' },
+  { code: 'sn', label: '🇸🇳 Sénégal' },
+  { code: 'tn', label: '🇹🇳 Tunisie' },
+  { code: 'eg', label: '🇪🇬 Égypte' },
+  { code: 'uk', label: '🇬🇧 Royaume-Uni' },
+  { code: 'us', label: '🇺🇸 États-Unis' },
+  { code: 'es', label: '🇪🇸 Espagne' },
+  { code: 'de', label: '🇩🇪 Allemagne' },
+  { code: 'it', label: '🇮🇹 Italie' },
+  { code: 'br', label: '🇧🇷 Brésil' },
+  { code: 'ar', label: '🇦🇷 Argentine' },
+  { code: 'sa', label: '🇸🇦 Arabie Saoudite' },
+  { code: 'tr', label: '🇹🇷 Turquie' },
   { code: 'ir', label: '🇮🇷 Iran' },
 ];
 
 export default function ChannelsList() {
-  const { channels, channelsLoading, fetchChannels, channelSearch, setChannelSearch, channelCountry, setChannelCountry } = useAppStore();
+  const {
+    channels,
+    channelsLoading,
+    fetchChannels,
+    channelSearch,
+    setChannelSearch,
+    channelCountry,
+    setChannelCountry,
+    onlineOnly,
+    setOnlineOnly,
+    checkingChannels,
+    checkChannelsHealth,
+  } = useAppStore();
+
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 30;
 
@@ -55,8 +70,17 @@ export default function ChannelsList() {
           ch.group.toLowerCase().includes(search)
       );
     }
+    // Online-only filter
+    if (onlineOnly) {
+      result = result.filter((ch) => ch.status === 'online');
+    }
     return result;
-  }, [channels, channelSearch]);
+  }, [channels, channelSearch, onlineOnly]);
+
+  // Stats
+  const onlineCount = channels.filter((ch) => ch.status === 'online').length;
+  const offlineCount = channels.filter((ch) => ch.status === 'offline').length;
+  const uncheckedCount = channels.filter((ch) => ch.status === 'unknown' || !ch.status).length;
 
   // Get unique groups for filtering
   const groups = useMemo(() => {
@@ -86,6 +110,20 @@ export default function ChannelsList() {
     setPage(0);
   };
 
+  // Batch health check - check visible channels
+  const handleCheckAll = () => {
+    const urlsToCheck = displayChannels
+      .filter((ch) => ch.status === 'unknown' || !ch.status)
+      .map((ch) => ch.url);
+
+    if (urlsToCheck.length === 0) {
+      // Re-check all visible
+      checkChannelsHealth(displayChannels.map((ch) => ch.url));
+    } else {
+      checkChannelsHealth(urlsToCheck);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Search & Filters */}
@@ -94,7 +132,7 @@ export default function ChannelsList() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search channels..."
+            placeholder="Rechercher une chaîne..."
             value={channelSearch}
             onChange={(e) => {
               setChannelSearch(e.target.value);
@@ -104,12 +142,12 @@ export default function ChannelsList() {
           />
         </div>
 
-        {/* Country & Group Filters */}
+        {/* Country & Refresh */}
         <div className="flex gap-2">
           <Select value={channelCountry || 'all'} onValueChange={handleCountryChange}>
             <SelectTrigger className="flex-1 bg-card/80 border-border/50 h-9 text-sm">
               <Globe className="h-4 w-4 mr-1.5 shrink-0" />
-              <SelectValue placeholder="Country" />
+              <SelectValue placeholder="Pays" />
             </SelectTrigger>
             <SelectContent>
               {COUNTRIES.map((c) => (
@@ -131,6 +169,66 @@ export default function ChannelsList() {
           </Button>
         </div>
 
+        {/* Online Only Toggle + Health Check Button */}
+        <div className="flex items-center justify-between gap-3 bg-card/50 rounded-lg p-2.5 border border-border/30">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="online-only"
+              checked={onlineOnly}
+              onCheckedChange={setOnlineOnly}
+              className="data-[state=checked]:bg-green-600"
+            />
+            <Label htmlFor="online-only" className="text-xs font-medium cursor-pointer flex items-center gap-1.5">
+              <Wifi className="h-3.5 w-3.5 text-green-500" />
+              En ligne uniquement
+            </Label>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCheckAll}
+            disabled={checkingChannels}
+            className="h-7 text-[11px] gap-1.5 bg-background/50 border-border/50"
+          >
+            {checkingChannels ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Vérification...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-3 w-3" />
+                Tester
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Stats */}
+        {(onlineCount > 0 || offlineCount > 0) && (
+          <div className="flex items-center gap-3 text-[11px] text-muted-foreground px-1">
+            {onlineCount > 0 && (
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500" />
+                {onlineCount} en ligne
+              </span>
+            )}
+            {offlineCount > 0 && (
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-red-500" />
+                {offlineCount} hors ligne
+              </span>
+            )}
+            {uncheckedCount > 0 && (
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-gray-500" />
+                {uncheckedCount} non testé{uncheckedCount > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Group Tags */}
         {groups.length > 0 && (
           <div className="flex gap-1.5 flex-wrap">
@@ -142,7 +240,7 @@ export default function ChannelsList() {
                 setPage(0);
               }}
             >
-              All
+              Tout
             </Badge>
             {groups.slice(0, 10).map((group) => (
               <Badge
@@ -159,7 +257,7 @@ export default function ChannelsList() {
             ))}
             {groups.length > 10 && (
               <span className="text-[10px] text-muted-foreground self-center">
-                +{groups.length - 10} more
+                +{groups.length - 10} plus
               </span>
             )}
           </div>
@@ -170,21 +268,32 @@ export default function ChannelsList() {
       {channelsLoading && channels.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">Loading channels...</p>
+          <p className="text-sm text-muted-foreground">Chargement des chaînes...</p>
         </div>
       ) : displayChannels.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Tv className="h-12 w-12 text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">No channels found</p>
+          <p className="text-sm text-muted-foreground">Aucune chaîne trouvée</p>
           <p className="text-xs text-muted-foreground/70 mt-1">
-            Try adjusting your search or filters
+            {onlineOnly ? 'Essayez de désactiver le filtre "En ligne uniquement"' : 'Ajustez votre recherche ou vos filtres'}
           </p>
+          {onlineOnly && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setOnlineOnly(false)}
+              className="mt-3"
+            >
+              <WifiOff className="h-3.5 w-3.5 mr-1.5" />
+              Afficher toutes les chaînes
+            </Button>
+          )}
         </div>
       ) : (
         <>
           <div className="flex items-center justify-between px-1">
             <p className="text-xs text-muted-foreground">
-              {filteredChannels.length} channel{filteredChannels.length !== 1 ? 's' : ''} found
+              {filteredChannels.length} chaîne{filteredChannels.length !== 1 ? 's' : ''} trouvée{filteredChannels.length !== 1 ? 's' : ''}
             </p>
           </div>
           <div className="grid gap-2">
@@ -201,7 +310,7 @@ export default function ChannelsList() {
                 onClick={() => setPage(page + 1)}
                 className="bg-card/80 border-border/50"
               >
-                Load More Channels
+                Charger plus de chaînes
               </Button>
             </div>
           )}

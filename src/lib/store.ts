@@ -9,6 +9,7 @@ interface Channel {
   group: string;
   url: string;
   country: string;
+  status?: 'online' | 'offline' | 'checking' | 'unknown';
 }
 
 interface Match {
@@ -29,6 +30,9 @@ interface Match {
   updatedAt: string;
 }
 
+// Cache for channel health status (persists across store updates)
+const channelHealthCache = new Map<string, 'online' | 'offline'>();
+
 interface AppState {
   // Navigation
   currentView: ViewType;
@@ -47,6 +51,12 @@ interface AppState {
   channelsLoading: boolean;
   channelsError: string | null;
   fetchChannels: (search?: string, country?: string) => Promise<void>;
+
+  // Channel health check
+  checkingChannels: boolean;
+  onlineOnly: boolean;
+  setOnlineOnly: (value: boolean) => void;
+  checkChannelsHealth: (channelUrls: string[]) => Promise<void>;
 
   // Matches
   matches: Match[];
@@ -104,9 +114,70 @@ export const useAppStore = create<AppState>((set, get) => ({
       const res = await fetch(`/api/channels?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to fetch channels');
       const data = await res.json();
-      set({ channels: data, channelsLoading: false });
+
+      // Apply cached health status
+      const channelsWithStatus = data.map((ch: Channel) => ({
+        ...ch,
+        status: channelHealthCache.get(ch.url) || 'unknown',
+      }));
+
+      set({ channels: channelsWithStatus, channelsLoading: false });
     } catch (error: any) {
       set({ channelsError: error.message, channelsLoading: false });
+    }
+  },
+
+  // Channel health check
+  checkingChannels: false,
+  onlineOnly: false,
+  setOnlineOnly: (value) => set({ onlineOnly: value }),
+  checkChannelsHealth: async (channelUrls: string[]) => {
+    set({ checkingChannels: true });
+
+    // Mark channels as "checking"
+    const { channels } = get();
+    set({
+      channels: channels.map((ch) =>
+        channelUrls.includes(ch.url) ? { ...ch, status: 'checking' as const } : ch
+      ),
+    });
+
+    try {
+      // Check in batches of 10
+      for (let i = 0; i < channelUrls.length; i += 10) {
+        const batch = channelUrls.slice(i, i + 10);
+        const res = await fetch('/api/channels-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ urls: batch }),
+        });
+
+        if (!res.ok) continue;
+
+        const results: { url: string; status: 'online' | 'offline'; statusCode: number }[] =
+          await res.json();
+
+        // Update cache
+        for (const result of results) {
+          channelHealthCache.set(result.url, result.status);
+        }
+
+        // Update channel status in store
+        const currentChannels = get().channels;
+        set({
+          channels: currentChannels.map((ch) => {
+            const result = results.find((r) => r.url === ch.url);
+            if (result) {
+              return { ...ch, status: result.status };
+            }
+            return ch;
+          }),
+        });
+      }
+    } catch (error) {
+      console.error('Error checking channels health:', error);
+    } finally {
+      set({ checkingChannels: false });
     }
   },
 

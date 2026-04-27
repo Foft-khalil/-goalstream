@@ -1,13 +1,13 @@
 'use client';
 
 import Hls from 'hls.js';
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { X, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { X, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Loader2, RefreshCw, Tv, ArrowRight } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 
 export default function VideoPlayer() {
-  const { playerVisible, playerStreamUrl, playerChannelName, playerChannelLogo, closePlayer } =
+  const { playerVisible, playerStreamUrl, playerChannelName, playerChannelLogo, closePlayer, channels, openPlayer } =
     useAppStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -16,6 +16,7 @@ export default function VideoPlayer() {
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const retryCountRef = useRef(0);
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Derive loading/error state from stream URL changes
@@ -34,6 +35,11 @@ export default function VideoPlayer() {
       controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
     }
   }, [isPlaying]);
+
+  // Get alternative online channels for the current channel's group
+  const alternativeChannels = channels.filter(
+    (ch) => ch.url !== playerStreamUrl && ch.status === 'online'
+  ).slice(0, 3);
 
   // Setup HLS player when stream URL changes
   useEffect(() => {
@@ -68,15 +74,20 @@ export default function VideoPlayer() {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              setStreamState({ url: playerStreamUrl, status: 'error', errorMsg: 'Network error - stream may be offline' });
-              hls.destroy();
+              // Try to recover network errors once before giving up
+              if (retryCountRef.current < 1) {
+                retryCountRef.current += 1;
+                hls.startLoad();
+              } else {
+                setStreamState({ url: playerStreamUrl, status: 'error', errorMsg: 'Erreur réseau — cette chaîne est probablement hors ligne' });
+                hls.destroy();
+              }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              setStreamState({ url: playerStreamUrl, status: 'error', errorMsg: 'Media error - trying to recover...' });
               hls.recoverMediaError();
               break;
             default:
-              setStreamState({ url: playerStreamUrl, status: 'error', errorMsg: 'Stream error - cannot play this channel' });
+              setStreamState({ url: playerStreamUrl, status: 'error', errorMsg: 'Erreur de lecture — ce flux ne peut pas être lu' });
               hls.destroy();
               break;
           }
@@ -91,9 +102,8 @@ export default function VideoPlayer() {
         video.play().then(() => setIsPlaying(true)).catch(() => {});
       });
     } else {
-      // HLS not supported - schedule state update via callback to avoid effect sync setState
       queueMicrotask(() => {
-        setStreamState({ url: playerStreamUrl, status: 'error', errorMsg: 'HLS is not supported in this browser' });
+        setStreamState({ url: playerStreamUrl, status: 'error', errorMsg: 'HLS non supporté par ce navigateur' });
       });
     }
 
@@ -116,6 +126,8 @@ export default function VideoPlayer() {
       document.body.style.overflow = '';
     };
   }, [playerVisible]);
+
+
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -142,6 +154,22 @@ export default function VideoPlayer() {
       await document.exitFullscreen();
       setIsFullscreen(false);
     }
+  };
+
+  const handleRetry = () => {
+    retryCountRef.current = 0;
+    // Force re-setup by briefly clearing the stream state
+    setStreamState({ url: '', status: 'loading' });
+    setTimeout(() => {
+      setStreamState({ url: playerStreamUrl, status: 'loading' });
+    }, 100);
+  };
+
+  const handleSwitchChannel = (channel: { url: string; name: string; logo?: string }) => {
+    retryCountRef.current = 0;
+    setStreamState({ url: '', status: 'loading' });
+    // Use openPlayer to switch to new channel
+    openPlayer(channel.url, channel.name, channel.logo || undefined);
   };
 
   if (!playerVisible) return null;
@@ -195,21 +223,66 @@ export default function VideoPlayer() {
           <div className="absolute inset-0 flex items-center justify-center bg-black/60">
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="h-12 w-12 text-white animate-spin" />
-              <p className="text-white/80 text-sm">Loading stream...</p>
+              <p className="text-white/80 text-sm">Chargement du flux...</p>
+              <p className="text-white/40 text-xs">Si la chaîne ne charge pas, elle est probablement hors ligne</p>
             </div>
           </div>
         )}
 
         {/* Error Overlay */}
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-            <div className="flex flex-col items-center gap-3 text-center p-4">
-              <div className="text-red-400 text-4xl">&#9888;</div>
-              <p className="text-white font-medium">{error}</p>
-              <p className="text-white/60 text-sm">This channel may be offline or unavailable</p>
-              <Button variant="outline" onClick={closePlayer} className="mt-2">
-                Go Back
-              </Button>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-4">
+            <div className="flex flex-col items-center gap-4 text-center max-w-md">
+              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
+                <Tv className="h-8 w-8 text-red-400" />
+              </div>
+              <div>
+                <p className="text-white font-semibold text-lg mb-1">Chaîne indisponible</p>
+                <p className="text-white/60 text-sm">{error}</p>
+                <p className="text-white/40 text-xs mt-2">
+                  Les flux IPTV gratuits sont souvent instables. Essayez une autre chaîne.
+                </p>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col gap-2 w-full max-w-xs">
+                <Button onClick={handleRetry} className="bg-white/10 hover:bg-white/20 text-white gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Réessayer
+                </Button>
+
+                {alternativeChannels.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-white/50 text-xs mb-2">Autres chaînes disponibles :</p>
+                    <div className="space-y-1.5">
+                      {alternativeChannels.map((ch) => (
+                        <button
+                          key={ch.url}
+                          onClick={() => handleSwitchChannel(ch)}
+                          className="w-full flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
+                        >
+                          {ch.logo && (
+                            <img
+                              src={ch.logo}
+                              alt=""
+                              className="w-6 h-6 rounded object-contain shrink-0"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <span className="text-white text-sm truncate flex-1">{ch.name}</span>
+                          <ArrowRight className="h-3.5 w-3.5 text-white/40 shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <Button variant="outline" onClick={closePlayer} className="mt-1">
+                  Retour
+                </Button>
+              </div>
             </div>
           </div>
         )}
