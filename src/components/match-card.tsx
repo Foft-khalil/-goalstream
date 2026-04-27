@@ -1,9 +1,8 @@
 'use client';
 
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Play, Tv, Clock, Loader2, Radio } from 'lucide-react';
+import { Play, Tv, Clock, Loader2, Radio, ChevronRight } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useState } from 'react';
 
@@ -32,23 +31,15 @@ export default function MatchCard({ match }: MatchCardProps) {
   const [foundChannels, setFoundChannels] = useState<Array<{ name: string; url: string; logo: string; group: string; relevance: number }> | null>(null);
   const [showChannels, setShowChannels] = useState(false);
 
-  const statusConfig: Record<string, { label: string; variant: 'default' | 'destructive' | 'secondary' | 'outline'; pulse: boolean }> = {
-    live: { label: 'LIVE', variant: 'destructive', pulse: true },
-    upcoming: { label: 'À VENIR', variant: 'secondary', pulse: false },
-    finished: { label: 'TERMINÉ', variant: 'outline', pulse: false },
-  };
-
-  const config = statusConfig[match.status] || statusConfig.upcoming;
+  const isLive = match.status === 'live';
   const matchDate = match.matchDate ? new Date(match.matchDate) : null;
   const timeStr = matchDate ? matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-  const dateStr = matchDate ? matchDate.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) : '';
 
   const handleWatch = () => {
     if (match.streamUrl) {
       openPlayer(match.streamUrl, match.channelName || `${match.homeTeam} vs ${match.awayTeam}`, match.channelLogo || undefined);
       return;
     }
-    // Find channels for this match
     findAndShowChannels();
   };
 
@@ -84,196 +75,161 @@ export default function MatchCard({ match }: MatchCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden border-border/50 bg-card/80 backdrop-blur-sm hover:bg-card transition-colors">
-      {/* Competition & Status Bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-b border-border/30">
-        <span className="text-xs text-muted-foreground font-medium truncate">
-          {match.competition || 'Amical'}
-        </span>
-        <div className="flex items-center gap-1.5">
-          {match.status === 'live' && match.minute != null && (
-            <span className="text-[10px] text-red-400 font-semibold tabular-nums">
-              {match.minute}&apos;
-            </span>
+    <div
+      className={`group relative rounded-xl overflow-hidden transition-all duration-200 ${
+        isLive
+          ? 'bg-gradient-to-r from-red-950/30 via-card to-red-950/20 border border-red-500/20 shadow-lg shadow-red-500/5'
+          : 'bg-card/80 border border-border/40 hover:border-border/70 hover:bg-card'
+      }`}
+    >
+      <div className="px-4 py-3.5">
+        {/* Top row: competition + time/status */}
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[11px] text-muted-foreground/60 font-medium">
+            {match.competition || 'Amical'}
+          </span>
+          {isLive ? (
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-[11px] font-bold text-red-500 tracking-wide">
+                {match.minute != null ? `${match.minute}'` : 'LIVE'}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3 text-muted-foreground/40" />
+              <span className="text-[11px] font-semibold text-muted-foreground">{timeStr}</span>
+            </div>
           )}
-          <Badge
-            variant={config.variant}
-            className={`text-[10px] px-2 py-0 h-5 font-bold ${config.pulse ? 'animate-pulse' : ''}`}
-          >
-            {config.label}
-          </Badge>
         </div>
-      </div>
 
-      {/* Teams & Score */}
-      <div className="p-4">
-        <div className="flex items-center justify-between gap-3">
-          {/* Home Team */}
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+        {/* Teams row */}
+        <div className="flex items-center gap-3">
+          {/* Home team */}
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
             {match.homeLogo ? (
               <img
                 src={match.homeLogo}
                 alt={match.homeTeam}
-                className="w-10 h-10 rounded-full object-contain bg-muted/50 p-1 shrink-0"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
+                className="w-9 h-9 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0">
+              <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center text-[11px] font-bold shrink-0">
                 {match.homeTeam.slice(0, 2).toUpperCase()}
               </div>
             )}
             <span className="font-semibold text-sm truncate">{match.homeTeam}</span>
           </div>
 
-          {/* Score / Time */}
-          <div className="flex flex-col items-center shrink-0 px-2">
-            {match.status === 'live' || match.status === 'finished' ? (
-              <div className="text-xl font-bold tabular-nums">
-                <span className={match.status === 'live' ? 'text-destructive' : ''}>
-                  {match.homeScore ?? 0}
-                </span>
-                <span className="text-muted-foreground mx-1">-</span>
-                <span className={match.status === 'live' ? 'text-destructive' : ''}>
-                  {match.awayScore ?? 0}
-                </span>
+          {/* Score or VS */}
+          <div className="flex flex-col items-center shrink-0 px-1">
+            {isLive ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-lg font-black tabular-nums text-red-400">{match.homeScore ?? 0}</span>
+                <span className="text-xs text-muted-foreground/40 font-medium">-</span>
+                <span className="text-lg font-black tabular-nums text-red-400">{match.awayScore ?? 0}</span>
               </div>
             ) : (
-              <div className="flex flex-col items-center">
-                <Clock className="h-4 w-4 text-muted-foreground mb-0.5" />
-                <span className="text-sm font-semibold">{timeStr}</span>
+              <div className="px-3 py-1 rounded-md bg-muted/40 border border-border/20">
+                <span className="text-xs font-bold text-muted-foreground/60 tracking-wider">VS</span>
               </div>
             )}
           </div>
 
-          {/* Away Team */}
-          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-            <span className="font-semibold text-sm truncate">{match.awayTeam}</span>
+          {/* Away team */}
+          <div className="flex items-center gap-2.5 flex-1 min-w-0 justify-end">
+            <span className="font-semibold text-sm truncate text-right">{match.awayTeam}</span>
             {match.awayLogo ? (
               <img
                 src={match.awayLogo}
                 alt={match.awayTeam}
-                className="w-10 h-10 rounded-full object-contain bg-muted/50 p-1 shrink-0"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
+                className="w-9 h-9 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-xs font-bold shrink-0">
+              <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center text-[11px] font-bold shrink-0">
                 {match.awayTeam.slice(0, 2).toUpperCase()}
               </div>
             )}
           </div>
         </div>
 
-        {/* Date & Watch Button */}
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/30">
-          <span className="text-xs text-muted-foreground">{dateStr}</span>
-
+        {/* Watch button */}
+        <div className="mt-3 pt-2.5 border-t border-border/20">
           <Button
             size="sm"
             onClick={handleWatch}
             disabled={findingStream}
-            className={`h-7 gap-1.5 text-xs text-white ${
-              match.status === 'live'
-                ? 'bg-red-600 hover:bg-red-700 animate-pulse'
-                : 'bg-green-600 hover:bg-green-700'
+            className={`w-full h-8 gap-2 text-xs font-semibold rounded-lg transition-all ${
+              isLive
+                ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-600/20'
+                : 'bg-green-600 hover:bg-green-700 text-white shadow-sm shadow-green-600/20'
             }`}
           >
             {findingStream ? (
               <>
-                <Loader2 className="h-3 w-3 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Recherche...
               </>
-            ) : match.status === 'live' ? (
+            ) : isLive ? (
               <>
-                <Radio className="h-3 w-3 fill-current" />
+                <Radio className="h-3.5 w-3.5 fill-current" />
                 Regarder en direct
               </>
             ) : (
               <>
-                <Play className="h-3 w-3 fill-current" />
-                Regarder
+                <Play className="h-3.5 w-3.5 fill-current" />
+                Regarder le match
               </>
             )}
           </Button>
         </div>
-
-        {/* Channel Selector - shown when searching for streams */}
-        {showChannels && (
-          <div className="mt-3 pt-3 border-t border-border/30">
-            {findingStream ? (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                <span>Recherche de canaux de diffusion...</span>
-              </div>
-            ) : foundChannels && foundChannels.length > 0 ? (
-              <div className="space-y-1.5">
-                <p className="text-[10px] text-muted-foreground font-medium mb-1.5 flex items-center gap-1">
-                  <Tv className="h-3 w-3" />
-                  Canaux disponibles ({foundChannels.length})
-                </p>
-                <div className="max-h-40 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                  {foundChannels.map((channel, idx) => (
-                    <button
-                      key={`${channel.name}-${idx}`}
-                      onClick={() => handleSelectChannel(channel)}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg bg-muted/50 hover:bg-muted/80 border border-border/30 transition-colors text-left"
-                    >
-                      {channel.logo ? (
-                        <img
-                          src={channel.logo}
-                          alt=""
-                          className="w-6 h-6 rounded object-contain shrink-0"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-6 h-6 rounded bg-muted flex items-center justify-center shrink-0">
-                          <Tv className="h-3 w-3 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <span className="text-xs font-medium truncate block">{channel.name}</span>
-                        {channel.group && (
-                          <span className="text-[10px] text-muted-foreground truncate block">{channel.group}</span>
-                        )}
-                      </div>
-                      <Play className="h-3 w-3 text-green-500 shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : foundChannels && foundChannels.length === 0 ? (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-                <Tv className="h-3.5 w-3.5" />
-                <span>Aucun canal de diffusion trouvé pour ce match</span>
-              </div>
-            ) : null}
-          </div>
-        )}
-
-        {/* Channel Info (if already assigned) */}
-        {match.channelName && match.streamUrl && !showChannels && (
-          <div className="flex items-center gap-2 mt-2">
-            {match.channelLogo && (
-              <img
-                src={match.channelLogo}
-                alt=""
-                className="w-4 h-4 rounded object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            )}
-            <span className="text-xs text-muted-foreground">{match.channelName}</span>
-          </div>
-        )}
       </div>
-    </Card>
+
+      {/* Channel Selector - slide down */}
+      {showChannels && (
+        <div className="border-t border-border/20 bg-muted/20 px-4 py-3">
+          {findingStream ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-green-500" />
+              <span>Recherche de canaux de diffusion...</span>
+            </div>
+          ) : foundChannels && foundChannels.length > 0 ? (
+            <div>
+              <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider mb-2">
+                Chaînes disponibles
+              </p>
+              <div className="max-h-36 overflow-y-auto space-y-1">
+                {foundChannels.map((channel, idx) => (
+                  <button
+                    key={`${channel.name}-${idx}`}
+                    onClick={() => handleSelectChannel(channel)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted/60 transition-colors text-left group/ch"
+                  >
+                    {channel.logo ? (
+                      <img
+                        src={channel.logo}
+                        alt=""
+                        className="w-6 h-6 rounded object-contain shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div className="w-6 h-6 rounded bg-muted/60 flex items-center justify-center shrink-0">
+                        <Tv className="h-3 w-3 text-muted-foreground/50" />
+                      </div>
+                    )}
+                    <span className="text-xs font-medium truncate flex-1">{channel.name}</span>
+                    <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover/ch:text-green-500 transition-colors shrink-0" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : foundChannels && foundChannels.length === 0 ? (
+            <p className="text-xs text-muted-foreground/50 py-1">Aucun canal trouvé pour ce match</p>
+          ) : null}
+        </div>
+      )}
+    </div>
   );
 }

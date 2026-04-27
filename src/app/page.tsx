@@ -6,47 +6,10 @@ import LiveMatches from '@/components/live-matches';
 import ChannelsList from '@/components/channels-list';
 import AdminDashboard from '@/components/admin-dashboard';
 import VideoPlayer from '@/components/video-player';
-import { Zap, Tv, Shield, Trophy, Menu, X } from 'lucide-react';
+import { Zap, Tv, Shield, Trophy, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
-
-function NavItem({
-  view,
-  currentView,
-  icon,
-  label,
-  onClick,
-  badge,
-}: {
-  view: ViewType;
-  currentView: ViewType;
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  badge?: number;
-}) {
-  const isActive = currentView === view;
-  return (
-    <button
-      onClick={onClick}
-      className={`flex flex-col sm:flex-row items-center gap-1 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-all text-xs sm:text-sm ${
-        isActive
-          ? 'bg-green-600/20 text-green-400 font-semibold'
-          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-      }`}
-    >
-      {icon}
-      <span>{label}</span>
-      {badge !== undefined && badge > 0 && (
-        <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 min-w-[16px]">
-          {badge}
-        </Badge>
-      )}
-    </button>
-  );
-}
 
 function AppHeader() {
   const { currentView, setCurrentView, footballMatches } = useAppStore();
@@ -55,36 +18,51 @@ function AppHeader() {
   const liveCount = footballMatches.filter((m) => m.status === 'live').length;
 
   const navItems = [
-    { view: 'live' as ViewType, icon: <Zap className="h-4 w-4" />, label: 'Live', badge: liveCount },
-    { view: 'channels' as ViewType, icon: <Tv className="h-4 w-4" />, label: 'Channels' },
+    { view: 'live' as ViewType, icon: <Zap className="h-4 w-4" />, label: 'Matchs' },
+    { view: 'channels' as ViewType, icon: <Tv className="h-4 w-4" />, label: 'Chaînes' },
     { view: 'admin' as ViewType, icon: <Shield className="h-4 w-4" />, label: 'Admin' },
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50">
+    <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-xl border-b border-border/30">
       <div className="max-w-5xl mx-auto px-4">
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-              <Trophy className="h-4 w-4 text-white" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-sm shadow-green-500/20">
+              <Trophy className="h-4.5 w-4.5 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold leading-tight">GoalStream</h1>
-              <p className="text-[10px] text-muted-foreground leading-tight">Free Football Live</p>
+              <h1 className="text-base font-extrabold leading-tight tracking-tight">GoalStream</h1>
+              <p className="text-[9px] text-muted-foreground/60 leading-tight font-medium uppercase tracking-wider">Football en direct</p>
             </div>
           </div>
 
           {/* Desktop Nav */}
-          <nav className="hidden sm:flex items-center gap-1">
-            {navItems.map((item) => (
-              <NavItem
-                key={item.view}
-                {...item}
-                currentView={currentView}
-                onClick={() => setCurrentView(item.view)}
-              />
-            ))}
+          <nav className="hidden sm:flex items-center bg-muted/40 rounded-xl p-1 gap-0.5">
+            {navItems.map((item) => {
+              const isActive = currentView === item.view;
+              return (
+                <button
+                  key={item.view}
+                  onClick={() => setCurrentView(item.view)}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    isActive
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                  {item.view === 'live' && liveCount > 0 && (
+                    <span className="ml-0.5 flex items-center gap-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-[10px] font-bold text-red-500">{liveCount}</span>
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
 
           {/* Mobile Menu */}
@@ -95,24 +73,39 @@ function AppHeader() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-64">
-              <div className="flex items-center gap-2 mb-6 mt-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                  <Trophy className="h-4 w-4 text-white" />
+              <div className="flex items-center gap-2.5 mb-8 mt-4">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                  <Trophy className="h-4.5 w-4.5 text-white" />
                 </div>
-                <h2 className="font-bold">GoalStream</h2>
+                <h2 className="font-extrabold tracking-tight">GoalStream</h2>
               </div>
               <nav className="space-y-1">
-                {navItems.map((item) => (
-                  <NavItem
-                    key={item.view}
-                    {...item}
-                    currentView={currentView}
-                    onClick={() => {
-                      setCurrentView(item.view);
-                      setMobileMenuOpen(false);
-                    }}
-                  />
-                ))}
+                {navItems.map((item) => {
+                  const isActive = currentView === item.view;
+                  return (
+                    <button
+                      key={item.view}
+                      onClick={() => {
+                        setCurrentView(item.view);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        isActive
+                          ? 'bg-green-500/10 text-green-600'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                      }`}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                      {item.view === 'live' && liveCount > 0 && (
+                        <span className="ml-auto flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                          <span className="text-[10px] font-bold text-red-500">{liveCount}</span>
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </nav>
             </SheetContent>
           </Sheet>
@@ -127,30 +120,35 @@ function MobileBottomNav() {
   const liveCount = footballMatches.filter((m) => m.status === 'live').length;
 
   const navItems = [
-    { view: 'live' as ViewType, icon: <Zap className="h-5 w-5" />, label: 'Live', badge: liveCount },
-    { view: 'channels' as ViewType, icon: <Tv className="h-5 w-5" />, label: 'Channels' },
+    { view: 'live' as ViewType, icon: <Zap className="h-5 w-5" />, label: 'Matchs' },
+    { view: 'channels' as ViewType, icon: <Tv className="h-5 w-5" />, label: 'Chaînes' },
     { view: 'admin' as ViewType, icon: <Shield className="h-5 w-5" />, label: 'Admin' },
   ];
 
   return (
-    <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/90 backdrop-blur-xl border-t border-border/50 safe-area-bottom">
-      <div className="flex items-center justify-around h-16">
+    <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border/30 safe-area-bottom">
+      <div className="flex items-center justify-around h-16 px-2">
         {navItems.map((item) => {
           const isActive = currentView === item.view;
           return (
             <button
               key={item.view}
               onClick={() => setCurrentView(item.view)}
-              className={`flex flex-col items-center gap-0.5 px-4 py-2 relative ${
-                isActive ? 'text-green-500' : 'text-muted-foreground'
+              className={`flex flex-col items-center gap-0.5 px-5 py-2 rounded-xl transition-all relative ${
+                isActive
+                  ? 'text-green-500'
+                  : 'text-muted-foreground/60'
               }`}
             >
               {item.icon}
-              <span className="text-[10px] font-medium">{item.label}</span>
-              {item.badge !== undefined && item.badge > 0 && (
-                <span className="absolute -top-0.5 right-2 bg-red-500 text-white text-[9px] rounded-full h-4 min-w-[16px] flex items-center justify-center px-1 font-bold">
-                  {item.badge}
+              <span className="text-[10px] font-semibold">{item.label}</span>
+              {item.view === 'live' && liveCount > 0 && (
+                <span className="absolute top-0.5 right-3 flex items-center justify-center">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                 </span>
+              )}
+              {isActive && (
+                <span className="absolute -bottom-2 w-8 h-0.5 rounded-full bg-green-500" />
               )}
             </button>
           );
@@ -163,7 +161,6 @@ function MobileBottomNav() {
 export default function Home() {
   const { currentView, fetchMatches, fetchChannels, fetchFootballMatches } = useAppStore();
 
-  // Initial data fetch
   useEffect(() => {
     fetchMatches();
     fetchChannels();
@@ -174,25 +171,25 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-background">
       <AppHeader />
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-4 pb-20 sm:pb-4">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-5 pb-20 sm:pb-5">
         {currentView === 'live' && <LiveMatches />}
         {currentView === 'channels' && <ChannelsList />}
         {currentView === 'admin' && <AdminDashboard />}
       </main>
 
       {/* Footer */}
-      <footer className="hidden sm:block border-t border-border/30 bg-muted/20">
+      <footer className="hidden sm:block border-t border-border/20 bg-muted/10">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            GoalStream — Free football streaming via IPTV
+          <p className="text-[11px] text-muted-foreground/50 font-medium">
+            GoalStream — Streaming football gratuit via IPTV
           </p>
-          <p className="text-xs text-muted-foreground">
-            Streams sourced from{' '}
+          <p className="text-[11px] text-muted-foreground/50">
+            Flux issus de{' '}
             <a
               href="https://github.com/iptv-org/iptv"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-green-500 hover:underline"
+              className="text-green-500/70 hover:text-green-500 hover:underline"
             >
               iptv-org
             </a>
