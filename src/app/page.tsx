@@ -8,7 +8,7 @@ import AdminDashboard from '@/components/admin-dashboard';
 import VideoPlayer from '@/components/video-player';
 import { Zap, Tv, Shield, Trophy, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
 
 function AppHeader() {
@@ -73,11 +73,12 @@ function AppHeader() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-64">
+              <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
               <div className="flex items-center gap-2.5 mb-8 mt-4">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
                   <Trophy className="h-4.5 w-4.5 text-white" />
                 </div>
-                <h2 className="font-extrabold tracking-tight">GoalStream</h2>
+                <span className="font-extrabold tracking-tight">GoalStream</span>
               </div>
               <nav className="space-y-1">
                 {navItems.map((item) => {
