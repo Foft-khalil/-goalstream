@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useAppStore } from '@/lib/store';
 import MatchCard from '@/components/match-card';
-import { Loader2, Zap, Calendar, Trophy, RefreshCw, AlertCircle, Clock, Wifi, WifiOff } from 'lucide-react';
+import { Loader2, Zap, Calendar, Trophy, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function LiveMatches() {
@@ -15,8 +15,9 @@ export default function LiveMatches() {
     fetchFootballMatches,
   } = useAppStore();
 
-  const [countdown, setCountdown] = useState(60); // 1 min countdown to next refresh
+  const [countdown, setCountdown] = useState(60);
   const lastUpdatedRef = useRef<string | null>(null);
+  const [showFinished, setShowFinished] = useState(false);
 
   // Fetch on mount
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function LiveMatches() {
       lastUpdatedRef.current = footballLastUpdated;
     }
     const startTime = Date.now();
-    const duration = 60; // 1 minute
+    const duration = 60;
     const timer = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       const remaining = Math.max(0, duration - elapsed);
@@ -54,6 +55,22 @@ export default function LiveMatches() {
   const liveMatches = footballMatches.filter((m) => m.status === 'live');
   const upcomingMatches = footballMatches.filter((m) => m.status === 'upcoming');
   const finishedMatches = footballMatches.filter((m) => m.status === 'finished');
+
+  // Split upcoming matches: today vs this week
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
+  const todayUpcoming = upcomingMatches.filter((m) => {
+    if (!m.matchDate) return true; // Keep if no date
+    const matchDateStr = new Date(m.matchDate).toISOString().split('T')[0];
+    return matchDateStr === todayStr;
+  });
+
+  const weekUpcoming = upcomingMatches.filter((m) => {
+    if (!m.matchDate) return false;
+    const matchDateStr = new Date(m.matchDate).toISOString().split('T')[0];
+    return matchDateStr !== todayStr;
+  });
 
   // Format last updated time
   const lastUpdatedStr = footballLastUpdated
@@ -72,8 +89,8 @@ export default function LiveMatches() {
             <Zap className="h-10 w-10 text-green-500" />
           </div>
         </div>
-        <p className="text-sm text-muted-foreground mb-1">Chargement des matchs en direct...</p>
-        <p className="text-xs text-muted-foreground/60">Recherche des scores en temps réel</p>
+        <p className="text-sm text-muted-foreground mb-1">Chargement des matchs...</p>
+        <p className="text-xs text-muted-foreground/60">Recherche des matchs du jour et de la semaine</p>
         <p className="text-[10px] text-muted-foreground/40 mt-2">Cela peut prendre 10-20 secondes</p>
       </div>
     );
@@ -101,7 +118,7 @@ export default function LiveMatches() {
         <Trophy className="h-16 w-16 text-muted-foreground/30 mb-4" />
         <h3 className="text-lg font-semibold mb-2">Aucun match trouvé</h3>
         <p className="text-sm text-muted-foreground mb-1">
-          Aucun match trouvé pour aujourd&apos;hui.
+          Aucun match trouvé pour aujourd&apos;hui et cette semaine.
         </p>
         <p className="text-xs text-muted-foreground/60 mb-4">
           Les matchs apparaîtront automatiquement quand ils seront disponibles.
@@ -237,7 +254,7 @@ export default function LiveMatches() {
         </div>
       )}
 
-      {/* Live Matches */}
+      {/* More Live Matches */}
       {liveMatches.length > 1 && (
         <section>
           <div className="flex items-center gap-2 mb-3 px-1">
@@ -252,45 +269,73 @@ export default function LiveMatches() {
         </section>
       )}
 
-      {/* Upcoming Matches */}
-      {upcomingMatches.length > 0 && (
+      {/* Today's Upcoming Matches */}
+      {todayUpcoming.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-3 px-1">
             <Calendar className="h-5 w-5 text-amber-500" />
-            <h2 className="text-lg font-bold">À venir</h2>
-            <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
-              {upcomingMatches.length}
+            <h2 className="text-lg font-bold">Aujourd&apos;hui</h2>
+            <span className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full font-medium">
+              {todayUpcoming.length}
             </span>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            {upcomingMatches.map((match) => (
+            {todayUpcoming.map((match) => (
               <MatchCard key={match.id} match={match} />
             ))}
           </div>
         </section>
       )}
 
-      {/* Finished Matches */}
-      {finishedMatches.length > 0 && (
+      {/* This Week's Upcoming Matches */}
+      {weekUpcoming.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-3 px-1">
-            <Trophy className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-lg font-bold text-muted-foreground">Terminés</h2>
-            <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
-              {finishedMatches.length}
+            <Calendar className="h-5 w-5 text-blue-500" />
+            <h2 className="text-lg font-bold">Cette semaine</h2>
+            <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+              {weekUpcoming.length}
             </span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 opacity-70">
-            {finishedMatches.map((match) => (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {weekUpcoming.map((match) => (
               <MatchCard key={match.id} match={match} />
             ))}
           </div>
+        </section>
+      )}
+
+      {/* Finished Matches (collapsed by default) */}
+      {finishedMatches.length > 0 && (
+        <section>
+          <button
+            onClick={() => setShowFinished(!showFinished)}
+            className="flex items-center gap-2 mb-3 px-1 text-muted-foreground hover:text-foreground transition-colors w-full"
+          >
+            <Trophy className="h-5 w-5" />
+            <h2 className="text-lg font-bold">Terminés</h2>
+            <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
+              {finishedMatches.length}
+            </span>
+            {showFinished ? (
+              <ChevronUp className="h-4 w-4 ml-1" />
+            ) : (
+              <ChevronDown className="h-4 w-4 ml-1" />
+            )}
+          </button>
+          {showFinished && (
+            <div className="grid gap-3 sm:grid-cols-2 opacity-70">
+              {finishedMatches.map((match) => (
+                <MatchCard key={match.id} match={match} />
+              ))}
+            </div>
+          )}
         </section>
       )}
 
       {/* Data source info */}
       <div className="text-center text-[10px] text-muted-foreground/40 pt-2">
-        Données en temps réel via recherche IA — mise à jour automatique toutes les 60s
+        Programme des matchs via recherche IA — mise à jour automatique toutes les 60s
       </div>
     </div>
   );

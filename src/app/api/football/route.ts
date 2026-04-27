@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import ZAI from 'z-ai-web-dev-sdk';
-import { db } from '@/lib/db';
 import { getCached, getCachedStale, setCache, getCacheAge } from '@/lib/football/cache';
 import type { FootballMatch, FootballMatchesResponse } from '@/lib/football/types';
 
@@ -63,45 +62,29 @@ function generateLogoUrl(teamName: string, color: string): string {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(teamName.slice(0, 2).toUpperCase())}&background=${color}&color=fff&size=64&bold=true`;
 }
 
-/**
- * Enrich matches with stream assignments from the database.
- */
-async function enrichWithStreams(matches: FootballMatch[]): Promise<FootballMatch[]> {
-  if (matches.length === 0) return matches;
-  try {
-    const dbMatches = await db.match.findMany({ where: { streamUrl: { not: null } } });
-    const streamMap = new Map<string, { streamUrl: string; channelName: string | null; channelLogo: string | null }>();
-    for (const dbMatch of dbMatches) {
-      const key = `${dbMatch.homeTeam.toLowerCase()}|${dbMatch.awayTeam.toLowerCase()}`;
-      streamMap.set(key, { streamUrl: dbMatch.streamUrl!, channelName: dbMatch.channelName, channelLogo: dbMatch.channelLogo });
-    }
-    return matches.map((match) => {
-      const key = `${match.homeTeam.toLowerCase()}|${match.awayTeam.toLowerCase()}`;
-      const stream = streamMap.get(key);
-      return { ...match, streamUrl: stream?.streamUrl ?? null, channelName: stream?.channelName ?? null, channelLogo: stream?.channelLogo ?? null };
-    });
-  } catch { return matches; }
-}
-
-const SYSTEM_PROMPT = `You are a football live scores data extraction assistant. You will be given search result snippets about football matches. Extract ALL real football/soccer matches mentioned and return a JSON array.
+const SYSTEM_PROMPT = `You are a football match data extraction assistant. You will be given search result snippets about football matches. Extract ALL real football/soccer matches mentioned and return a JSON array.
 
 Each match object must have:
 - id (string, like "team1_vs_team2")
 - homeTeam (string, full team name - translate abbreviations: OL→Lyon, PSG→Paris Saint-Germain, FCB→Barcelona, OMA→Marseille, MUFC→Manchester United)
 - awayTeam (string, full team name)
-- homeScore (number or null if not started)
-- awayScore (number or null if not started)
+- homeScore (number or null - MUST be null if match has NOT started yet)
+- awayScore (number or null - MUST be null if match has NOT started yet)
 - status: "live" | "upcoming" | "finished"
 - minute (number or null, ONLY for live matches. "HT"→45)
 - competition (string, league name in English)
-- matchDate (ISO date string, use today if not specified)
+- matchDate (ISO date string with time if available, e.g. "2025-03-04T21:00:00Z")
 
-STATUS RULES (CRITICAL):
-- "live" = CURRENTLY PLAYING NOW. Must show minute (45', 67') or "HT" or "LIVE" or "en direct".
-- "finished" = ENDED. Shows "FT", "Full Time", "Terminé", "Final", "AET", or completed score WITHOUT live indicator.
-- "upcoming" = NOT STARTED. Shows kickoff time, no score.
-- A score WITHOUT a live/minute indicator = FINISHED, NOT LIVE.
-- "FT" near a score = FINISHED.
+STATUS RULES (CRITICAL - FOLLOW EXACTLY):
+- "live" = CURRENTLY PLAYING RIGHT NOW. Must show a minute (e.g. 45', 67') or "HT" or "LIVE" or "en direct" indicator. A live match MUST have at least one score that is a number (0 is valid).
+- "finished" = MATCH HAS ENDED. Shows "FT", "Full Time", "Terminé", "Final", "AET", or completed score WITHOUT any live/minute indicator.
+- "upcoming" = MATCH HAS NOT STARTED. Shows kickoff time ONLY, NO score. homeScore and awayScore MUST be null for upcoming matches.
+
+SCORE RULES (CRITICAL - DO NOT INVENT SCORES):
+- For "upcoming" matches: homeScore MUST be null, awayScore MUST be null. NEVER assign a score like 0-0 to an upcoming match.
+- For "live" matches: Both homeScore and awayScore MUST be numbers (0 is valid).
+- For "finished" matches: Both homeScore and awayScore MUST be numbers.
+- If you are NOT 100% CERTAIN about the score, set homeScore and awayScore to null and status to "upcoming".
 
 RULES:
 - Extract from all languages
@@ -111,7 +94,8 @@ RULES:
 - If you can only identify one team, skip that match
 - Translate abbreviations to full names
 - Include the competition/league name when available. If not clearly stated, use "Football"
-- Do NOT invent matches
+- Do NOT invent matches that are not mentioned in the search results
+- Do NOT invent scores - if a score is not explicitly shown, set it to null
 - Return ONLY the raw JSON array, no markdown or explanation`;
 
 /**
@@ -160,28 +144,47 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Check if a match date is within today and the next 7 days
+ */
+function isWithinWeek(matchDate: string | null): boolean {
+  if (!matchDate) return true; // Keep matches without dates
+  try {
+    const date = new Date(matchDate);
+    const now = new Date();
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    return date >= yesterday && date <= weekFromNow;
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Fetch football match data using z-ai-web-dev-sdk.
- * Strategy: 3 focused web searches (sequential with delays) + LLM extraction.
- * Designed to avoid rate limiting (429 errors).
+ * Strategy: Focused web searches for fixtures + live scores + LLM extraction.
  */
 async function fetchMatchData(): Promise<FootballMatch[]> {
   const zai = await ZAI.create();
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
-  const timeStr = today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const timeStr = today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
 
-  console.log(`[Football API] Fetching match data for ${todayStr} at ${timeStr}...`);
+  // Calculate end of week
+  const weekEnd = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const weekEndStr = weekEnd.toISOString().split('T')[0];
 
-  // Use 3 targeted searches instead of 6 parallel ones to avoid 429
+  console.log(`[Football API] Fetching match data for ${todayStr} to ${weekEndStr} at ${timeStr}...`);
+
+  // Use targeted searches for fixtures and live scores
   const searchQueries = [
-    `live football scores today ${todayStr} premier league ligue 1 la liga serie a bundesliga`,
-    `match en direct football scores aujourd'hui ${todayStr} résultats`,
-    `football fixtures today kickoff times results ${todayStr}`,
+    `football fixtures today ${todayStr} kickoff times premier league ligue 1 la liga serie a bundesliga champions league`,
+    `match football aujourd'hui programme ${todayStr} horaires ligue 1`,
+    `live football scores today ${todayStr} results en direct`,
   ];
 
   const allSnippets: string[] = [];
 
-  // Run searches SEQUENTIALLY with 2-second delays to avoid rate limiting
+  // Run searches SEQUENTIALLY with delays to avoid rate limiting
   for (let i = 0; i < searchQueries.length; i++) {
     try {
       console.log(`[Football API] Search ${i + 1}/${searchQueries.length}...`);
@@ -205,13 +208,12 @@ async function fetchMatchData(): Promise<FootballMatch[]> {
 
       // Delay between searches (skip for last one)
       if (i < searchQueries.length - 1) {
-        await sleep(2000);
+        await sleep(2500);
       }
     } catch (err: any) {
       if (err?.message?.includes('429')) {
         console.warn(`[Football API] Rate limited on search ${i + 1}, waiting 5s...`);
         await sleep(5000);
-        // Retry once
         try {
           const results = await zai.functions.invoke('web_search', {
             query: searchQueries[i],
@@ -246,16 +248,21 @@ async function fetchMatchData(): Promise<FootballMatch[]> {
   // LLM extraction
   console.log('[Football API] Extracting match data with LLM...');
 
-  const userPrompt = `Today is ${todayStr}. Current time: ${timeStr}.
+  const userPrompt = `Today is ${todayStr}. Current time: ${timeStr} (Paris timezone). This week goes until ${weekEndStr}.
 
 SEARCH RESULTS (from multiple languages):
 ${allSnippets.join('\n\n')}
 
-Extract ALL real football/soccer matches. Pay attention to status:
-- "live" = CURRENTLY PLAYING (shows minute or LIVE indicator)
-- "finished" = ENDED (shows FT, Full Time, Terminé, Final, or completed score without live indicator)  
-- "upcoming" = NOT STARTED (shows future time, no score)
-Do NOT mark finished matches as "live". Return ONLY a JSON array.`;
+Extract ALL real football/soccer matches mentioned. Pay STRICT attention to status:
+- "live" = CURRENTLY PLAYING RIGHT NOW (shows minute like 45', 67' or LIVE indicator). MUST have scores as numbers.
+- "finished" = MATCH HAS ENDED (shows FT, Full Time, Terminé, Final, or completed score WITHOUT live indicator). MUST have scores as numbers.  
+- "upcoming" = NOT STARTED (shows future kickoff time, NO score). homeScore and awayScore MUST be null.
+
+CRITICAL: Do NOT invent scores! If a match hasn't started yet, set homeScore and awayScore to null.
+CRITICAL: A match showing just a time like "21:00" with no score is "upcoming" with null scores.
+CRITICAL: Only mark a match as "live" if there is CLEAR evidence it is currently playing (minute shown, "LIVE"/"en direct" indicator).
+
+Return ONLY a JSON array.`;
 
   try {
     const completion = await zai.chat.completions.create({
@@ -270,7 +277,7 @@ Do NOT mark finished matches as "live". Return ONLY a JSON array.`;
     console.log('[Football API] LLM response length:', llmContent.length);
 
     const matches = parseMatchesResponse(llmContent);
-    console.log(`[Football API] Extracted ${matches.length} matches`);
+    console.log(`[Football API] Extracted ${matches.length} raw matches`);
 
     // Deduplicate
     const seen = new Set<string>();
@@ -281,8 +288,7 @@ Do NOT mark finished matches as "live". Return ONLY a JSON array.`;
       return true;
     });
 
-    // Validate: live match should have score or minute
-    // Also filter out matches with placeholder team names
+    // Validate and clean up
     const validated = dedupedMatches
       .filter((match) => {
         // Filter out matches with placeholder team names
@@ -292,14 +298,38 @@ Do NOT mark finished matches as "live". Return ONLY a JSON array.`;
         if (badNames.some((bad) => lowerHome.includes(bad) || lowerAway.includes(bad))) {
           return false;
         }
+        // Filter out matches older than yesterday or more than a week away
+        if (!isWithinWeek(match.matchDate)) return false;
         return true;
       })
       .map((match) => {
+        // Force upcoming status if no score and no minute (LLM might have gotten it wrong)
         if (match.status === 'live' && match.homeScore === null && match.awayScore === null && match.minute === null) {
           return { ...match, status: 'upcoming' as const };
         }
+        // Force upcoming if score is null but status is finished (shouldn't happen but safety check)
+        if (match.status === 'finished' && (match.homeScore === null || match.awayScore === null)) {
+          return { ...match, status: 'upcoming' as const, homeScore: null, awayScore: null };
+        }
+        // Ensure upcoming matches have null scores
+        if (match.status === 'upcoming') {
+          return { ...match, homeScore: null, awayScore: null, minute: null };
+        }
         return match;
       });
+
+    // Sort: live first, then upcoming by date, then finished
+    const statusOrder = { live: 0, upcoming: 1, finished: 2 };
+    validated.sort((a, b) => {
+      const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+      if (statusDiff !== 0) return statusDiff;
+      // Within same status, sort by date
+      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : Infinity;
+      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : Infinity;
+      return dateA - dateB;
+    });
+
+    console.log(`[Football API] Returning ${validated.length} validated matches (live: ${validated.filter(m => m.status === 'live').length}, upcoming: ${validated.filter(m => m.status === 'upcoming').length}, finished: ${validated.filter(m => m.status === 'finished').length})`);
 
     return validated;
   } catch (err: any) {
@@ -326,10 +356,9 @@ export async function GET() {
 
     // Fetch fresh data
     const matches = await fetchMatchData();
-    const enrichedMatches = await enrichWithStreams(matches);
 
     const response: FootballMatchesResponse = {
-      matches: enrichedMatches,
+      matches,
       lastUpdated: new Date().toISOString(),
       source: 'ai-search',
     };
