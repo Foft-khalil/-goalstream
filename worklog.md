@@ -55,3 +55,41 @@ Stage Summary:
 - API successfully extracts matches: Ligue 1, Premier League, La Liga, Serie A, Bundesliga, Champions League
 - Live matches section now shows real-time scores and upcoming fixtures
 - Cache reduced to 3 minutes, auto-refresh every 2 minutes on frontend
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Fix live matches showing already-passed matches, improve real-time accuracy and API reliability
+
+Work Log:
+- Read all project files to understand current state
+- Identified main problems:
+  1. 6 parallel web_search + page_reader + LLM = 429 rate limit errors
+  2. LLM sometimes misclassifies finished matches as "live"
+  3. Some match extractions had "Opponent" as team name
+  4. page_reader blocked (403) on major live score sites (ESPN, FlashScore, Soccerway)
+- Rewrote /src/app/api/football/route.ts with major improvements:
+  - Reduced from 6 parallel searches to 3 sequential searches with 2s delays
+  - Added 429 rate limit retry logic (5s backoff + single retry)
+  - Removed page_reader approach (blocked by all live score sites)
+  - Improved LLM system prompt with strict status classification rules
+  - Added "Opponent"/"Unknown"/"TBD"/"TBA" team name filtering
+  - Added competition fallback ("Football" instead of "Unknown")
+  - Post-validation: live match without score AND minute → reclassified as upcoming
+- Reduced cache TTL from 3min to 2min for fresher data
+- Updated LiveMatches component:
+  - Auto-refresh every 60s (was 2min)
+  - Added "Cela peut prendre 10-20 secondes" loading hint
+  - Added "Données en temps réel via recherche IA" footer info
+  - Better live count indicator with proper plural
+- Deactivated fake seed data in /src/lib/seed.ts and /src/app/api/seed/route.ts
+- Deleted old fake seeded matches from SQLite database
+- Added more team colors (Manchester United, Inter, Milan, etc.)
+
+Stage Summary:
+- API now reliably returns real-time match data without 429 errors
+- Sequential searches with delays solve rate limiting
+- LLM prompt improvements reduce misclassification of finished matches as "live"
+- Fake seed data completely removed
+- Auto-refresh reduced to 60s for near-real-time updates
+- Tested successfully: 12 real matches returned with correct statuses (upcoming/finished)
