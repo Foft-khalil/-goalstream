@@ -21,3 +21,20 @@ Stage Summary:
 - Video player auto-cycles through available channels on stream failure
 - Better error UI with list of alternative channels to try
 - Lint passes clean, dev server running
+---
+Task ID: 1
+Agent: main
+Task: Fix no matches showing - replaced web_search with ESPN API + fixed Regarder button
+
+Work Log:
+- Replaced web_search+LLM with ESPN free public API (was getting 429 rate limited)
+- ESPN API: 18 leagues, parallel fetch, ~1.6s, structured JSON with logos/scores/status
+- Increased cache TTL from 2 to 5 minutes, auto-refresh from 60s to 120s
+- Fixed VideoPlayer streamError variable reference bug
+- Fixed SheetTitle accessibility error
+
+Stage Summary:
+- Football API now uses ESPN API (no auth, no rate limits, fast)
+- Matches display correctly with real data
+- Regarder button flow works end-to-end
+

@@ -25,7 +25,7 @@ export default function LiveMatches() {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchFootballMatches();
-    }, 60 * 1000);
+    }, 120 * 1000); // Refresh every 2 min (cache handles dedup)
     return () => clearInterval(interval);
   }, [fetchFootballMatches]);
 
@@ -34,7 +34,7 @@ export default function LiveMatches() {
       lastUpdatedRef.current = footballLastUpdated;
     }
     const startTime = Date.now();
-    const duration = 60;
+    const duration = 120;
     const timer = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       setCountdown(Math.max(0, duration - elapsed));
@@ -220,7 +220,7 @@ export default function LiveMatches() {
 
       {/* Footer info */}
       <div className="text-center text-[10px] text-muted-foreground/30 pt-1">
-        Programme du jour — mise à jour auto toutes les 60s
+        Programme du jour — mise à jour auto toutes les 2 min
       </div>
     </div>
   );

@@ -265,7 +265,7 @@ export default function VideoPlayer() {
         )}
 
         {/* Error Overlay */}
-        {error && (
+        {streamError && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-4">
             <div className="flex flex-col items-center gap-4 text-center max-w-md">
               <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
@@ -273,7 +273,7 @@ export default function VideoPlayer() {
               </div>
               <div>
                 <p className="text-white font-semibold text-lg mb-1">Chaîne indisponible</p>
-                <p className="text-white/60 text-sm">{error}</p>
+                <p className="text-white/60 text-sm">{streamError}</p>
                 <p className="text-white/40 text-xs mt-2">
                   Les flux IPTV gratuits sont souvent instables.
                 </p>
