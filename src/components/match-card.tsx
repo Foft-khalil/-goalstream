@@ -25,28 +25,40 @@ interface MatchCardProps {
   };
 }
 
+export interface FoundChannel {
+  name: string;
+  url: string;
+  logo: string;
+  group: string;
+  relevance: number;
+}
+
 export default function MatchCard({ match }: MatchCardProps) {
   const { openPlayer } = useAppStore();
   const [findingStream, setFindingStream] = useState(false);
-  const [foundChannels, setFoundChannels] = useState<Array<{ name: string; url: string; logo: string; group: string; relevance: number }> | null>(null);
+  const [foundChannels, setFoundChannels] = useState<FoundChannel[]>([]);
   const [showChannels, setShowChannels] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isLive = match.status === 'live';
   const matchDate = match.matchDate ? new Date(match.matchDate) : null;
   const timeStr = matchDate ? matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
-  const handleWatch = () => {
+  const handleWatch = async () => {
     if (match.streamUrl) {
+      // Direct stream URL available
       openPlayer(match.streamUrl, match.channelName || `${match.homeTeam} vs ${match.awayTeam}`, match.channelLogo || undefined);
       return;
     }
-    findAndShowChannels();
+    // Find channels for this match
+    await findAndShowChannels();
   };
 
   const findAndShowChannels = async () => {
     if (findingStream) return;
     setFindingStream(true);
     setShowChannels(true);
+    setError(null);
     try {
       const res = await fetch('/api/match-stream', {
         method: 'POST',
@@ -60,18 +72,68 @@ export default function MatchCard({ match }: MatchCardProps) {
 
       if (!res.ok) throw new Error('Failed to find channels');
       const data = await res.json();
-      setFoundChannels(data.channels || []);
+      const channels = data.channels || [];
+      setFoundChannels(channels);
+
+      if (channels.length === 0) {
+        setError('Aucune chaîne trouvée');
+      }
     } catch (err) {
       console.error('Error finding channels:', err);
+      setError('Erreur lors de la recherche');
       setFoundChannels([]);
     } finally {
       setFindingStream(false);
     }
   };
 
-  const handleSelectChannel = (channel: { name: string; url: string; logo: string }) => {
-    openPlayer(channel.url, channel.name, channel.logo || undefined);
-    setShowChannels(false);
+  const handleSelectChannel = (channel: FoundChannel) => {
+    // Open player with this channel AND pass all found channels as alternatives
+    openPlayer(
+      channel.url,
+      channel.name,
+      channel.logo || undefined,
+      foundChannels.filter((ch) => ch.url !== channel.url)
+    );
+  };
+
+  // Try to auto-play the first channel directly
+  const handleQuickPlay = async () => {
+    if (findingStream) return;
+    setFindingStream(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/match-stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          homeTeam: match.homeTeam,
+          awayTeam: match.awayTeam,
+          competition: match.competition,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to find channels');
+      const data = await res.json();
+      const channels: FoundChannel[] = data.channels || [];
+
+      if (channels.length > 0) {
+        // Open player with first channel, pass rest as alternatives
+        const first = channels[0];
+        const alternatives = channels.slice(1);
+        openPlayer(first.url, first.name, first.logo || undefined, alternatives);
+      } else {
+        setError('Aucune chaîne trouvée');
+        // Show channel picker so user can see the result
+        setFoundChannels(channels);
+        setShowChannels(true);
+      }
+    } catch (err) {
+      console.error('Error finding channels:', err);
+      setError('Erreur lors de la recherche');
+    } finally {
+      setFindingStream(false);
+    }
   };
 
   return (
@@ -155,13 +217,13 @@ export default function MatchCard({ match }: MatchCardProps) {
           </div>
         </div>
 
-        {/* Watch button */}
-        <div className="mt-3 pt-2.5 border-t border-border/20">
+        {/* Watch buttons */}
+        <div className="mt-3 pt-2.5 border-t border-border/20 flex gap-2">
           <Button
             size="sm"
-            onClick={handleWatch}
+            onClick={handleQuickPlay}
             disabled={findingStream}
-            className={`w-full h-8 gap-2 text-xs font-semibold rounded-lg transition-all ${
+            className={`flex-1 h-8 gap-2 text-xs font-semibold rounded-lg transition-all ${
               isLive
                 ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-600/20'
                 : 'bg-green-600 hover:bg-green-700 text-white shadow-sm shadow-green-600/20'
@@ -180,54 +242,65 @@ export default function MatchCard({ match }: MatchCardProps) {
             ) : (
               <>
                 <Play className="h-3.5 w-3.5 fill-current" />
-                Regarder le match
+                Regarder
               </>
             )}
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (foundChannels.length > 0 && showChannels) {
+                setShowChannels(false);
+              } else {
+                handleWatch();
+              }
+            }}
+            disabled={findingStream}
+            className="h-8 px-3 rounded-lg border-border/40 text-xs"
+          >
+            <Tv className="h-3.5 w-3.5" />
+          </Button>
         </div>
+
+        {/* Error message */}
+        {error && !findingStream && (
+          <div className="mt-2 text-[11px] text-red-400/80 text-center">
+            {error}
+          </div>
+        )}
       </div>
 
       {/* Channel Selector - slide down */}
-      {showChannels && (
+      {showChannels && foundChannels.length > 0 && (
         <div className="border-t border-border/20 bg-muted/20 px-4 py-3">
-          {findingStream ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-green-500" />
-              <span>Recherche de canaux de diffusion...</span>
-            </div>
-          ) : foundChannels && foundChannels.length > 0 ? (
-            <div>
-              <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider mb-2">
-                Chaînes disponibles
-              </p>
-              <div className="max-h-36 overflow-y-auto space-y-1">
-                {foundChannels.map((channel, idx) => (
-                  <button
-                    key={`${channel.name}-${idx}`}
-                    onClick={() => handleSelectChannel(channel)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted/60 transition-colors text-left group/ch"
-                  >
-                    {channel.logo ? (
-                      <img
-                        src={channel.logo}
-                        alt=""
-                        className="w-6 h-6 rounded object-contain shrink-0"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    ) : (
-                      <div className="w-6 h-6 rounded bg-muted/60 flex items-center justify-center shrink-0">
-                        <Tv className="h-3 w-3 text-muted-foreground/50" />
-                      </div>
-                    )}
-                    <span className="text-xs font-medium truncate flex-1">{channel.name}</span>
-                    <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover/ch:text-green-500 transition-colors shrink-0" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : foundChannels && foundChannels.length === 0 ? (
-            <p className="text-xs text-muted-foreground/50 py-1">Aucun canal trouvé pour ce match</p>
-          ) : null}
+          <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider mb-2">
+            Chaînes disponibles ({foundChannels.length})
+          </p>
+          <div className="max-h-40 overflow-y-auto space-y-1">
+            {foundChannels.map((channel, idx) => (
+              <button
+                key={`${channel.name}-${idx}`}
+                onClick={() => handleSelectChannel(channel)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted/60 transition-colors text-left group/ch"
+              >
+                {channel.logo ? (
+                  <img
+                    src={channel.logo}
+                    alt=""
+                    className="w-6 h-6 rounded object-contain shrink-0"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded bg-muted/60 flex items-center justify-center shrink-0">
+                    <Tv className="h-3 w-3 text-muted-foreground/50" />
+                  </div>
+                )}
+                <span className="text-xs font-medium truncate flex-1">{channel.name}</span>
+                <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover/ch:text-green-500 transition-colors shrink-0" />
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

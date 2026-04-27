@@ -60,7 +60,8 @@ interface AppState {
   playerStreamUrl: string;
   playerChannelName: string;
   playerChannelLogo: string;
-  openPlayer: (url: string, name: string, logo?: string) => void;
+  playerAlternatives: Array<{ name: string; url: string; logo: string }>;
+  openPlayer: (url: string, name: string, logo?: string, alternatives?: Array<{ name: string; url: string; logo: string }>) => void;
   closePlayer: () => void;
 
   // Channels
@@ -109,12 +110,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   playerStreamUrl: '',
   playerChannelName: '',
   playerChannelLogo: '',
-  openPlayer: (url, name, logo) =>
+  playerAlternatives: [],
+  openPlayer: (url, name, logo, alternatives) =>
     set({
       playerVisible: true,
       playerStreamUrl: url,
       playerChannelName: name,
       playerChannelLogo: logo || '',
+      playerAlternatives: alternatives || [],
     }),
   closePlayer: () =>
     set({
@@ -122,6 +125,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       playerStreamUrl: '',
       playerChannelName: '',
       playerChannelLogo: '',
+      playerAlternatives: [],
     }),
 
   // Channels

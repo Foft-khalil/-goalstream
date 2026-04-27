@@ -1,13 +1,15 @@
 'use client';
 
 import Hls from 'hls.js';
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { X, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Loader2, RefreshCw, Tv, ArrowRight } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { X, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Loader2, RefreshCw, Tv, SkipForward } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 
+type StreamStatus = 'loading' | 'ready' | 'error';
+
 export default function VideoPlayer() {
-  const { playerVisible, playerStreamUrl, playerChannelName, playerChannelLogo, closePlayer, channels, openPlayer } =
+  const { playerVisible, playerStreamUrl, playerChannelName, playerChannelLogo, playerAlternatives, closePlayer, openPlayer } =
     useAppStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -18,15 +20,16 @@ export default function VideoPlayer() {
   const [showControls, setShowControls] = useState(true);
   const retryCountRef = useRef(0);
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+  const currentAltIndexRef = useRef(0);
 
-  // Derive loading/error state from stream URL changes
-  const [streamState, setStreamState] = useState<{ url: string; status: 'loading' | 'ready' | 'error'; errorMsg?: string }>({
-    url: '',
-    status: 'loading',
-  });
+  // Track ready/error state with associated URL so they auto-reset when URL changes
+  const [readyUrl, setReadyUrl] = useState<string>('');
+  const [errorInfo, setErrorInfo] = useState<{ url: string; msg: string } | null>(null);
 
-  const isLoading = playerVisible && playerStreamUrl && streamState.url === playerStreamUrl && streamState.status === 'loading';
-  const error = playerVisible && playerStreamUrl && streamState.url === playerStreamUrl && streamState.status === 'error' ? streamState.errorMsg : null;
+  // Compute derived state - auto-reset when URL changes
+  const streamReady = readyUrl === playerStreamUrl && !!playerStreamUrl;
+  const streamError = errorInfo?.url === playerStreamUrl ? errorInfo.msg : null;
+  const isLoading = playerVisible && !!playerStreamUrl && !streamReady && !streamError;
 
   const hideControlsAfterDelay = useCallback(() => {
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -36,16 +39,34 @@ export default function VideoPlayer() {
     }
   }, [isPlaying]);
 
-  // Get alternative online channels for the current channel's group
-  const alternativeChannels = channels.filter(
-    (ch) => ch.url !== playerStreamUrl && ch.status === 'online'
-  ).slice(0, 3);
+  // Auto-switch to next alternative channel
+  const tryNextChannel = useCallback(() => {
+    const alternatives = playerAlternatives;
+    if (!alternatives || alternatives.length === 0) return false;
 
-  // Setup HLS player when stream URL changes
+    if (currentAltIndexRef.current < alternatives.length) {
+      const next = alternatives[currentAltIndexRef.current];
+      currentAltIndexRef.current += 1;
+      console.log(`[VideoPlayer] Auto-switching to: ${next.name}`);
+      retryCountRef.current = 0;
+      openPlayer(next.url, next.name, next.logo || undefined, alternatives.filter((a) => a.url !== next.url));
+      return true;
+    }
+    return false;
+  }, [playerAlternatives, openPlayer]);
+
+  // Reset state when URL changes - use a key approach instead of setState in effect
+  const streamKey = useMemo(() => playerStreamUrl, [playerStreamUrl]);
+
+  // Setup HLS player
   useEffect(() => {
     if (!playerVisible || !videoRef.current || !playerStreamUrl) return;
 
     const video = videoRef.current;
+    const currentUrl = playerStreamUrl;
+
+    // State auto-resets when URL changes (via derived computation above)
+    retryCountRef.current = 0;
 
     // Destroy previous HLS instance
     if (hlsRef.current) {
@@ -60,13 +81,19 @@ export default function VideoPlayer() {
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         startLevel: -1,
+        manifestLoadingTimeOut: 10000,
+        manifestLoadingMaxRetry: 1,
+        levelLoadingTimeOut: 10000,
+        levelLoadingMaxRetry: 1,
+        fragLoadingTimeOut: 10000,
+        fragLoadingMaxRetry: 1,
       });
 
-      hls.loadSource(playerStreamUrl);
+      hls.loadSource(currentUrl);
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setStreamState({ url: playerStreamUrl, status: 'ready' });
+        setReadyUrl(currentUrl);
         video.play().then(() => setIsPlaying(true)).catch(() => {});
       });
 
@@ -74,12 +101,12 @@ export default function VideoPlayer() {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              // Try to recover network errors once before giving up
               if (retryCountRef.current < 1) {
                 retryCountRef.current += 1;
                 hls.startLoad();
               } else {
-                setStreamState({ url: playerStreamUrl, status: 'error', errorMsg: 'Erreur réseau — cette chaîne est probablement hors ligne' });
+                if (tryNextChannel()) return;
+                setErrorInfo({ url: currentUrl, msg: 'Flux indisponible — chaîne probablement hors ligne' });
                 hls.destroy();
               }
               break;
@@ -87,7 +114,8 @@ export default function VideoPlayer() {
               hls.recoverMediaError();
               break;
             default:
-              setStreamState({ url: playerStreamUrl, status: 'error', errorMsg: 'Erreur de lecture — ce flux ne peut pas être lu' });
+              if (tryNextChannel()) return;
+              setErrorInfo({ url: currentUrl, msg: 'Erreur de lecture — ce flux ne peut pas être lu' });
               hls.destroy();
               break;
           }
@@ -96,15 +124,23 @@ export default function VideoPlayer() {
 
       hlsRef.current = hls;
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = playerStreamUrl;
-      video.addEventListener('loadedmetadata', () => {
-        setStreamState({ url: playerStreamUrl, status: 'ready' });
+      video.src = currentUrl;
+      const onLoaded = () => {
+        setReadyUrl(currentUrl);
         video.play().then(() => setIsPlaying(true)).catch(() => {});
-      });
+      };
+      const onError = () => {
+        if (tryNextChannel()) return;
+        setErrorInfo({ url: currentUrl, msg: 'Flux indisponible' });
+      };
+      video.addEventListener('loadedmetadata', onLoaded);
+      video.addEventListener('error', onError);
     } else {
-      queueMicrotask(() => {
-        setStreamState({ url: playerStreamUrl, status: 'error', errorMsg: 'HLS non supporté par ce navigateur' });
-      });
+      if (!tryNextChannel()) {
+        queueMicrotask(() => {
+          setErrorInfo({ url: currentUrl, msg: 'HLS non supporté par ce navigateur' });
+        });
+      }
     }
 
     return () => {
@@ -113,12 +149,13 @@ export default function VideoPlayer() {
         hlsRef.current = null;
       }
     };
-  }, [playerVisible, playerStreamUrl]);
+  }, [playerVisible, streamKey, tryNextChannel]);
 
   // Lock body scroll when player is open
   useEffect(() => {
     if (playerVisible) {
       document.body.style.overflow = 'hidden';
+      currentAltIndexRef.current = 0;
     } else {
       document.body.style.overflow = '';
     }
@@ -126,8 +163,6 @@ export default function VideoPlayer() {
       document.body.style.overflow = '';
     };
   }, [playerVisible]);
-
-
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -158,17 +193,12 @@ export default function VideoPlayer() {
 
   const handleRetry = () => {
     retryCountRef.current = 0;
-    // Force re-setup by briefly clearing the stream state
-    setStreamState({ url: '', status: 'loading' });
-    setTimeout(() => {
-      setStreamState({ url: playerStreamUrl, status: 'loading' });
-    }, 100);
+    setReadyUrl('');
+    setErrorInfo(null);
   };
 
   const handleSwitchChannel = (channel: { url: string; name: string; logo?: string }) => {
     retryCountRef.current = 0;
-    setStreamState({ url: '', status: 'loading' });
-    // Use openPlayer to switch to new channel
     openPlayer(channel.url, channel.name, channel.logo || undefined);
   };
 
@@ -201,6 +231,11 @@ export default function VideoPlayer() {
             />
           )}
           <h2 className="text-white font-semibold text-lg truncate">{playerChannelName}</h2>
+          {playerAlternatives && playerAlternatives.length > 0 && (
+            <span className="text-white/40 text-xs ml-auto">
+              +{playerAlternatives.length} autre{playerAlternatives.length > 1 ? 's' : ''} chaîne{playerAlternatives.length > 1 ? 's' : ''}
+            </span>
+          )}
         </div>
       </div>
 
@@ -224,7 +259,7 @@ export default function VideoPlayer() {
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="h-12 w-12 text-white animate-spin" />
               <p className="text-white/80 text-sm">Chargement du flux...</p>
-              <p className="text-white/40 text-xs">Si la chaîne ne charge pas, elle est probablement hors ligne</p>
+              <p className="text-white/40 text-xs">Si la chaîne ne charge pas, on essaie la suivante automatiquement</p>
             </div>
           </div>
         )}
@@ -240,7 +275,7 @@ export default function VideoPlayer() {
                 <p className="text-white font-semibold text-lg mb-1">Chaîne indisponible</p>
                 <p className="text-white/60 text-sm">{error}</p>
                 <p className="text-white/40 text-xs mt-2">
-                  Les flux IPTV gratuits sont souvent instables. Essayez une autre chaîne.
+                  Les flux IPTV gratuits sont souvent instables.
                 </p>
               </div>
 
@@ -251,17 +286,17 @@ export default function VideoPlayer() {
                   Réessayer
                 </Button>
 
-                {alternativeChannels.length > 0 && (
+                {playerAlternatives && playerAlternatives.length > 0 && (
                   <div className="mt-2">
-                    <p className="text-white/50 text-xs mb-2">Autres chaînes disponibles :</p>
-                    <div className="space-y-1.5">
-                      {alternativeChannels.map((ch) => (
+                    <p className="text-white/50 text-xs mb-2">Autres chaînes :</p>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {playerAlternatives.map((ch, idx) => (
                         <button
-                          key={ch.url}
+                          key={`${ch.url}-${idx}`}
                           onClick={() => handleSwitchChannel(ch)}
-                          className="w-full flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
+                          className="w-full flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
                         >
-                          {ch.logo && (
+                          {ch.logo ? (
                             <img
                               src={ch.logo}
                               alt=""
@@ -270,16 +305,20 @@ export default function VideoPlayer() {
                                 (e.target as HTMLImageElement).style.display = 'none';
                               }}
                             />
+                          ) : (
+                            <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center shrink-0">
+                              <Tv className="h-3 w-3 text-white/50" />
+                            </div>
                           )}
                           <span className="text-white text-sm truncate flex-1">{ch.name}</span>
-                          <ArrowRight className="h-3.5 w-3.5 text-white/40 shrink-0" />
+                          <SkipForward className="h-3.5 w-3.5 text-white/40 shrink-0" />
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <Button variant="outline" onClick={closePlayer} className="mt-1">
+                <Button variant="outline" onClick={closePlayer} className="mt-1 border-white/20 text-white hover:bg-white/10">
                   Retour
                 </Button>
               </div>
