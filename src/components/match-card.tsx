@@ -17,10 +17,11 @@ interface MatchCardProps {
     awayScore: number | null;
     status: string;
     competition: string | null;
-    matchDate: string;
-    streamUrl: string | null;
-    channelName: string | null;
-    channelLogo: string | null;
+    matchDate: string | null;
+    streamUrl?: string | null;
+    channelName?: string | null;
+    channelLogo?: string | null;
+    minute?: number | null;
   };
 }
 
@@ -29,14 +30,14 @@ export default function MatchCard({ match }: MatchCardProps) {
 
   const statusConfig: Record<string, { label: string; variant: 'default' | 'destructive' | 'secondary' | 'outline'; pulse: boolean }> = {
     live: { label: 'LIVE', variant: 'destructive', pulse: true },
-    upcoming: { label: 'UPCOMING', variant: 'secondary', pulse: false },
-    finished: { label: 'FINISHED', variant: 'outline', pulse: false },
+    upcoming: { label: 'À VENIR', variant: 'secondary', pulse: false },
+    finished: { label: 'TERMINÉ', variant: 'outline', pulse: false },
   };
 
   const config = statusConfig[match.status] || statusConfig.upcoming;
-  const matchDate = new Date(match.matchDate);
-  const timeStr = matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const dateStr = matchDate.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+  const matchDate = match.matchDate ? new Date(match.matchDate) : null;
+  const timeStr = matchDate ? matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const dateStr = matchDate ? matchDate.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) : '';
 
   const handleWatch = () => {
     if (match.streamUrl) {
@@ -49,14 +50,21 @@ export default function MatchCard({ match }: MatchCardProps) {
       {/* Competition & Status Bar */}
       <div className="flex items-center justify-between px-4 py-2 bg-muted/30 border-b border-border/30">
         <span className="text-xs text-muted-foreground font-medium truncate">
-          {match.competition || 'Friendly'}
+          {match.competition || 'Amical'}
         </span>
-        <Badge
-          variant={config.variant}
-          className={`text-[10px] px-2 py-0 h-5 font-bold ${config.pulse ? 'animate-pulse' : ''}`}
-        >
-          {config.label}
-        </Badge>
+        <div className="flex items-center gap-1.5">
+          {match.status === 'live' && match.minute != null && (
+            <span className="text-[10px] text-red-400 font-semibold tabular-nums">
+              {match.minute}&apos;
+            </span>
+          )}
+          <Badge
+            variant={config.variant}
+            className={`text-[10px] px-2 py-0 h-5 font-bold ${config.pulse ? 'animate-pulse' : ''}`}
+          >
+            {config.label}
+          </Badge>
+        </div>
       </div>
 
       {/* Teams & Score */}
@@ -134,12 +142,12 @@ export default function MatchCard({ match }: MatchCardProps) {
               className="h-7 gap-1.5 text-xs bg-green-600 hover:bg-green-700 text-white"
             >
               <Play className="h-3 w-3 fill-current" />
-              Watch Live
+              Regarder
             </Button>
           ) : (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Tv className="h-3 w-3" />
-              No stream
+              Pas de flux
             </span>
           )}
         </div>

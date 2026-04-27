@@ -30,6 +30,23 @@ interface Match {
   updatedAt: string;
 }
 
+export interface FootballMatch {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  status: 'live' | 'upcoming' | 'finished';
+  minute: number | null;
+  competition: string | null;
+  homeLogo: string | null;
+  awayLogo: string | null;
+  matchDate: string | null;
+  streamUrl?: string | null;
+  channelName?: string | null;
+  channelLogo?: string | null;
+}
+
 // Cache for channel health status (persists across store updates)
 const channelHealthCache = new Map<string, 'online' | 'offline'>();
 
@@ -58,11 +75,18 @@ interface AppState {
   setOnlineOnly: (value: boolean) => void;
   checkChannelsHealth: (channelUrls: string[]) => Promise<void>;
 
-  // Matches
+  // Matches (DB - used by admin dashboard)
   matches: Match[];
   matchesLoading: boolean;
   matchesError: string | null;
   fetchMatches: () => Promise<void>;
+
+  // Football matches (API - real data)
+  footballMatches: FootballMatch[];
+  footballLoading: boolean;
+  footballError: string | null;
+  footballLastUpdated: string | null;
+  fetchFootballMatches: () => Promise<void>;
 
   // Admin
   isAdmin: boolean;
@@ -181,7 +205,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  // Matches
+  // Matches (DB)
   matches: [],
   matchesLoading: false,
   matchesError: null,
@@ -194,6 +218,27 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ matches: data, matchesLoading: false });
     } catch (error: any) {
       set({ matchesError: error.message, matchesLoading: false });
+    }
+  },
+
+  // Football matches (API - real data)
+  footballMatches: [],
+  footballLoading: false,
+  footballError: null,
+  footballLastUpdated: null,
+  fetchFootballMatches: async () => {
+    set({ footballLoading: true, footballError: null });
+    try {
+      const res = await fetch('/api/football');
+      if (!res.ok) throw new Error('Échec du chargement des matchs');
+      const data = await res.json();
+      set({
+        footballMatches: data.matches || [],
+        footballLoading: false,
+        footballLastUpdated: data.lastUpdated || new Date().toISOString(),
+      });
+    } catch (error: any) {
+      set({ footballError: error.message, footballLoading: false });
     }
   },
 

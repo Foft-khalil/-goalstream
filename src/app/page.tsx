@@ -49,10 +49,10 @@ function NavItem({
 }
 
 function AppHeader() {
-  const { currentView, setCurrentView, matches } = useAppStore();
+  const { currentView, setCurrentView, footballMatches } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const liveCount = matches.filter((m) => m.status === 'live').length;
+  const liveCount = footballMatches.filter((m) => m.status === 'live').length;
 
   const navItems = [
     { view: 'live' as ViewType, icon: <Zap className="h-4 w-4" />, label: 'Live', badge: liveCount },
@@ -123,8 +123,8 @@ function AppHeader() {
 }
 
 function MobileBottomNav() {
-  const { currentView, setCurrentView, matches } = useAppStore();
-  const liveCount = matches.filter((m) => m.status === 'live').length;
+  const { currentView, setCurrentView, footballMatches } = useAppStore();
+  const liveCount = footballMatches.filter((m) => m.status === 'live').length;
 
   const navItems = [
     { view: 'live' as ViewType, icon: <Zap className="h-5 w-5" />, label: 'Live', badge: liveCount },
@@ -161,13 +161,14 @@ function MobileBottomNav() {
 }
 
 export default function Home() {
-  const { currentView, fetchMatches, fetchChannels } = useAppStore();
+  const { currentView, fetchMatches, fetchChannels, fetchFootballMatches } = useAppStore();
 
   // Initial data fetch
   useEffect(() => {
     fetchMatches();
     fetchChannels();
-  }, [fetchMatches, fetchChannels]);
+    fetchFootballMatches();
+  }, [fetchMatches, fetchChannels, fetchFootballMatches]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
