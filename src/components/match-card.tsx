@@ -32,6 +32,7 @@ export interface FoundChannel {
   logo: string;
   group: string;
   relevance: number;
+  broadcaster?: string;
 }
 
 export default function MatchCard({ match }: MatchCardProps) {
@@ -41,10 +42,14 @@ export default function MatchCard({ match }: MatchCardProps) {
   const [foundChannels, setFoundChannels] = useState<FoundChannel[]>([]);
   const [showChannels, setShowChannels] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [broadcasterInfo, setBroadcasterInfo] = useState<string | null>(null);
 
   const isLive = match.status === 'live';
   const matchDate = match.matchDate ? new Date(match.matchDate) : null;
   const timeStr = matchDate ? matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const dateStr = matchDate ? matchDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
+  const isToday = matchDate ? new Date().toDateString() === matchDate.toDateString() : false;
+  const isTomorrow = matchDate ? new Date(Date.now() + 86400000).toDateString() === matchDate.toDateString() : false;
   const homeFav = isTeamFavorite(match.homeTeam);
   const awayFav = isTeamFavorite(match.awayTeam);
 
@@ -71,6 +76,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam,
           competition: match.competition,
+          matchDate: match.matchDate,
         }),
       });
 
@@ -78,6 +84,13 @@ export default function MatchCard({ match }: MatchCardProps) {
       const data = await res.json();
       const channels = data.channels || [];
       setFoundChannels(channels);
+
+      // Show broadcaster info if available
+      if (data.broadcasters && data.broadcasters.length > 0) {
+        setBroadcasterInfo(data.broadcasters.join(', '));
+      } else if (data.message) {
+        setBroadcasterInfo(null);
+      }
 
       if (channels.length === 0) {
         setError('Aucune chaîne trouvée');
@@ -114,12 +127,18 @@ export default function MatchCard({ match }: MatchCardProps) {
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam,
           competition: match.competition,
+          matchDate: match.matchDate,
         }),
       });
 
       if (!res.ok) throw new Error('Failed to find channels');
       const data = await res.json();
       const channels: FoundChannel[] = data.channels || [];
+
+      // Store broadcaster info
+      if (data.broadcasters && data.broadcasters.length > 0) {
+        setBroadcasterInfo(data.broadcasters.join(', '));
+      }
 
       if (channels.length > 0) {
         // Open player with first channel, pass rest as alternatives
@@ -149,7 +168,7 @@ export default function MatchCard({ match }: MatchCardProps) {
       }`}
     >
       <div className="px-4 py-3.5">
-        {/* Top row: competition + time/status */}
+        {/* Top row: competition + date/time/status */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-[11px] text-muted-foreground/60 font-medium">
             {match.competition || 'Amical'}
@@ -164,7 +183,9 @@ export default function MatchCard({ match }: MatchCardProps) {
           ) : (
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3 text-muted-foreground/40" />
-              <span className="text-[11px] font-semibold text-muted-foreground">{timeStr}</span>
+              <span className="text-[11px] font-semibold text-muted-foreground">
+                {isToday ? `Aujourd'hui ${timeStr}` : isTomorrow ? `Demain ${timeStr}` : `${dateStr} ${timeStr}`}
+              </span>
             </div>
           )}
         </div>
@@ -287,14 +308,31 @@ export default function MatchCard({ match }: MatchCardProps) {
             {error}
           </div>
         )}
+
+        {/* Broadcaster info */}
+        {broadcasterInfo && !error && (
+          <div className="mt-2 flex items-center gap-1.5 justify-center">
+            <Tv className="h-3 w-3 text-green-500/60" />
+            <span className="text-[10px] text-green-500/70 font-medium">
+              Diffusé sur: {broadcasterInfo}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Channel Selector - slide down */}
       {showChannels && foundChannels.length > 0 && (
         <div className="border-t border-border/20 bg-muted/20 px-4 py-3">
-          <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider mb-2">
-            Chaînes disponibles ({foundChannels.length})
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider">
+              Chaînes disponibles ({foundChannels.length})
+            </p>
+            {broadcasterInfo && (
+              <span className="text-[9px] text-green-500/60 font-medium">
+                📺 {broadcasterInfo}
+              </span>
+            )}
+          </div>
           <div className="max-h-40 overflow-y-auto space-y-1">
             {foundChannels.map((channel, idx) => (
               <button
@@ -314,7 +352,12 @@ export default function MatchCard({ match }: MatchCardProps) {
                     <Tv className="h-3 w-3 text-muted-foreground/50" />
                   </div>
                 )}
-                <span className="text-xs font-medium truncate flex-1">{channel.name}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-medium truncate block">{channel.name}</span>
+                  {channel.broadcaster && (
+                    <span className="text-[9px] text-green-500/50">via {channel.broadcaster}</span>
+                  )}
+                </div>
                 <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover/ch:text-green-500 transition-colors shrink-0" />
               </button>
             ))}

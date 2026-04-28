@@ -119,3 +119,31 @@ Stage Summary:
 - Roster uses current season endpoint
 - All data verified correct across multiple teams/leagues
 
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix missing match date display + wrong IPTV channel for "Regarder" button
+
+Work Log:
+- Problem 1: Match cards only showed time (e.g., "15:00") but not the full date
+  - Added date formatting: "Aujourd'hui 15:00", "Demain 20:00", or "28 avr. 15:00"
+  - Updated MatchCard component to calculate isToday/isTomorrow and display accordingly
+- Problem 2: "Regarder" button found wrong IPTV channels because keyword matching was too basic
+  - The old approach only searched for team names in IPTV channel names, which rarely match
+  - New approach: 3-step pipeline:
+    1. Web search (z-ai-web-dev-sdk) to find the REAL broadcaster for the match
+    2. Known broadcaster database per competition (Canal+/beIN for Ligue 1, Sky Sports/NBC for PL, etc.)
+    3. Map broadcaster names to IPTV channel names (e.g., "beIN Sports" → "beIN SPORTS Xtra (1080p)")
+  - Broadcaster matches are prioritized over keyword matches
+  - Added broadcaster info display: "Diffusé sur: Canal+, beIN Sports" shown on the match card
+  - Channel list shows which broadcaster each IPTV channel maps to (e.g., "via beIN SPORTS")
+  - Added matchDate to the API request for better search context
+- Tested: PSG vs Marseille → beIN SPORTS; Arsenal vs Man City → Sky Sports/NBC; Real Madrid vs Bayern → TNT Sports/Paramount+
+- Lint passes clean
+
+Stage Summary:
+- Match dates now clearly displayed (today/tomorrow/full date)
+- "Regarder" button now finds the CORRECT broadcaster channel via web search
+- Broadcaster info shown on the card ("Diffusé sur: Canal+, beIN Sports")
+- IPTV channels matched to real broadcasters for accurate stream selection
+
