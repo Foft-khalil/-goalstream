@@ -581,3 +581,58 @@ Stage Summary:
 - Offline channels labeled with "⛔ Hors ligne" for user clarity
 - Health cache has 30-minute TTL — prevents stale "offline" marks from persisting too long
 - Lint passes clean, dev server running
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Add more IPTV sources
+
+Work Log:
+- Added 16 new country-specific IPTV playlists to IPTV_SOURCES array in src/lib/iptv.ts:
+  - European: at (Austria), be (Belgium), nl (Netherlands), ch (Switzerland), cz (Czech), dk (Denmark), se (Sweden), no (Norway), ua (Ukraine), rs (Serbia)
+  - MENA & Africa: eg (Egypt), ma (Morocco), za (South Africa)
+  - Americas: mx (Mexico)
+  - Middle East: sa (Saudi Arabia), il (Israel)
+- Added 6 new language playlists: nld (Dutch), pol (Polish), ron (Romanian), hun (Hungarian), ell (Greek), rus (Russian)
+- Added 5 new country codes to COUNTRY_PLAYLIST_MAP: pl, ro, hu, gr, ru
+- Total IPTV sources: 21 → 43 (doubled coverage)
+
+Stage Summary:
+- IPTV source count doubled from 21 to 43
+- Coverage expanded for Champions League, Europa League teams
+- New regions: Eastern Europe, Scandinavia, MENA, additional Americas
+
+---
+Task ID: 2+3 (completed by sub-agent)
+Agent: full-stack-developer
+Task: Fix PSG-BAY channel matching and dead IPTV streams
+
+Work Log:
+- Improved Canal+ matching with stricter filtering (regex for Canal + number pattern)
+- Changed generic 'canal' keyword to 'canal+' in competition keywords
+- Added 35+ new team country hints for Champions League coverage
+- Expanded BROADCASTER_TO_IPTV with Canal+ and RMC Sport variants
+- Added health status persistence from match-stream API
+- Increased offline penalty from -40 to -100 in finalScore
+- Cap maximum 3 offline channels in results
+- Rewrote channel-health.ts with 30-minute TTL per entry
+
+Stage Summary:
+- Canal+ matching much more precise (no more Canal 32 false positives)
+- Dead streams strongly demoted and capped at 3 in results
+- Health status auto-expires after 30 minutes (streams can come back)
+- Health check results now persisted for cross-request reuse
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: GitHub push
+
+Work Log:
+- Attempted git push to https://github.com/Foft-khalil/-goalstream.git
+- Failed: No GitHub credentials/token available in environment
+- Changes committed locally
+
+Stage Summary:
+- All changes committed locally (commit a526b6e)
+- Push requires GitHub authentication - user needs to set up credentials
