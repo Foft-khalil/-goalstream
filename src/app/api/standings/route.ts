@@ -44,7 +44,7 @@ async function fetchStandingsForLeague(code: string) {
   return res.json();
 }
 
-function parseStandings(data: any, leagueName: string, leagueFlag: string) {
+function parseStandings(data: any, leagueName: string, leagueFlag: string, code: string) {
   try {
     const children = data.children || [];
     const season = children[0];
@@ -61,6 +61,8 @@ function parseStandings(data: any, leagueName: string, leagueFlag: string) {
       }
 
       return {
+        teamId: entry.team.id,
+        leagueCode: code,
         rank: entry.note?.rank ?? 0,
         team: entry.team.displayName,
         shortName: entry.team.shortDisplayName || entry.team.abbreviation,
@@ -84,7 +86,7 @@ function parseStandings(data: any, leagueName: string, leagueFlag: string) {
     // Re-rank
     teams.forEach((t, i) => { t.rank = i + 1; });
 
-    return { league: leagueName, flag: leagueFlag, season: seasonName, teams };
+    return { league: leagueName, flag: leagueFlag, season: seasonName, leagueCode: code, teams };
   } catch {
     return null;
   }
@@ -113,7 +115,7 @@ export async function GET(request: Request) {
     const results = await Promise.allSettled(
       leaguesToFetch.map(async (l) => {
         const data = await fetchStandingsForLeague(l.code);
-        return parseStandings(data, l.name, l.flag);
+        return parseStandings(data, l.name, l.flag, l.code);
       })
     );
 

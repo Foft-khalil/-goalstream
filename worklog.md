@@ -63,3 +63,32 @@ Stage Summary:
 - Favorites persist in localStorage across sessions
 - 4-tab navigation: Matchs → Favoris → Chaînes → Classement
 
+---
+Task ID: 3
+Agent: Main Agent
+Task: Add team detail view when clicking on a team in standings (Classement)
+
+Work Log:
+- Updated standings API to include teamId and leagueCode in team data
+- Created /api/team/[id] route using ESPN Core API (sports.core.api.espn.com)
+  - Team info: name, logo, color, venue (with city), coach, abbreviation
+  - Roster: players with name, position, number, age, nationality
+  - Schedule: upcoming and finished matches with scores, opponent, home/away
+  - Stats: matches played, wins, draws, losses, goals for/against, goal diff
+  - Form: last 5 results (W/D/L)
+- Created TeamDetailDialog component with 3 tabs:
+  - Infos: venue, coach, founded, abbreviation + season statistics grid
+  - Effectif (Roster): grouped by position (GK, DEF, MID, ATT) with numbers and nationality
+  - Calendrier (Schedule): live, upcoming, and finished matches with scores
+- Updated standings-view.tsx: teams are now clickable, opens dialog on click
+- Added ❤️ favorite toggle in team detail dialog header
+- Form badges (V/N/D) with color coding (green/amber/red)
+- Match rows show date, home/away badge, opponent logo, score with result colors
+- Lint passes clean, app running on port 3000
+
+Stage Summary:
+- Clicking any team in the standings opens a detailed dialog
+- Shows: team info, full roster, match calendar, season stats, recent form
+- Data fetched from ESPN Core API (richer data than site API)
+- Integrated with favorites - can add team to favorites from dialog
+

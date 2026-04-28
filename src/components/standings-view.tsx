@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Loader2, Trophy, ChevronDown, ChevronUp, RefreshCw, AlertCircle } from 'lucide-react';
+import { Loader2, Trophy, RefreshCw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import TeamDetailDialog from '@/components/team-detail-dialog';
 
 interface StandingTeam {
+  teamId: string;
+  leagueCode: string;
   rank: number;
   team: string;
   shortName: string;
@@ -25,6 +28,7 @@ interface LeagueStanding {
   league: string;
   flag: string;
   season: string;
+  leagueCode: string;
   teams: StandingTeam[];
 }
 
@@ -66,6 +70,14 @@ export default function StandingsView() {
   const [error, setError] = useState<string | null>(null);
   const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set(['fra.1']));
 
+  // Team detail dialog state
+  const [selectedTeam, setSelectedTeam] = useState<{
+    teamId: string;
+    leagueCode: string;
+    teamName: string;
+    teamLogo: string | null;
+  } | null>(null);
+
   const fetchStandings = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -92,6 +104,15 @@ export default function StandingsView() {
       if (next.has(code)) next.delete(code);
       else next.add(code);
       return next;
+    });
+  };
+
+  const handleTeamClick = (team: StandingTeam) => {
+    setSelectedTeam({
+      teamId: team.teamId,
+      leagueCode: team.leagueCode,
+      teamName: team.team,
+      teamLogo: team.logo,
     });
   };
 
@@ -139,7 +160,7 @@ export default function StandingsView() {
             Classements
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {standings.length} championnat{standings.length !== 1 ? 's' : ''}
+            {standings.length} championnat{standings.length !== 1 ? 's' : ''} · Cliquez sur une équipe
           </p>
         </div>
         <Button
@@ -214,7 +235,8 @@ export default function StandingsView() {
                 {league.teams.map((team) => (
                   <div
                     key={team.team}
-                    className={`grid grid-cols-[28px_1fr_32px_32px_32px_32px_40px] gap-0 px-2.5 py-2 items-center text-xs hover:bg-muted/20 transition-colors ${
+                    onClick={() => handleTeamClick(team)}
+                    className={`grid grid-cols-[28px_1fr_32px_32px_32px_32px_40px] gap-0 px-2.5 py-2 items-center text-xs hover:bg-green-500/5 transition-colors cursor-pointer ${
                       team.rank <= 3
                         ? 'bg-green-500/[0.03]'
                         : team.rank >= league.teams.length - 2
@@ -247,7 +269,7 @@ export default function StandingsView() {
                           {team.shortName.slice(0, 2)}
                         </div>
                       )}
-                      <span className="font-medium truncate text-[11px]">{team.shortName}</span>
+                      <span className="font-medium truncate text-[11px] hover:text-green-500 transition-colors">{team.shortName}</span>
                     </div>
 
                     {/* Stats */}
@@ -289,8 +311,20 @@ export default function StandingsView() {
 
       {/* Footer */}
       <div className="text-center text-[10px] text-muted-foreground/30 pt-1">
-        Classements — données ESPN
+        Classements — données ESPN · Cliquez sur une équipe pour voir les détails
       </div>
+
+      {/* Team Detail Dialog */}
+      {selectedTeam && (
+        <TeamDetailDialog
+          teamId={selectedTeam.teamId}
+          leagueCode={selectedTeam.leagueCode}
+          teamName={selectedTeam.teamName}
+          teamLogo={selectedTeam.teamLogo}
+          open={!!selectedTeam}
+          onClose={() => setSelectedTeam(null)}
+        />
+      )}
     </div>
   );
 }
