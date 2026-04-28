@@ -24,7 +24,7 @@ const IPTV_SOURCES = [
   { url: 'https://iptv-org.github.io/iptv/categories/sports.m3u', label: 'sports' },
   // Football-specific category
   { url: 'https://iptv-org.github.io/iptv/categories/football.m3u', label: 'football' },
-  // Country-specific playlists (more targeted than language playlists)
+  // Country-specific playlists (major football nations first, then others)
   { url: 'https://iptv-org.github.io/iptv/countries/fr.m3u', label: 'country-fr' },
   { url: 'https://iptv-org.github.io/iptv/countries/gb.m3u', label: 'country-gb' },
   { url: 'https://iptv-org.github.io/iptv/countries/de.m3u', label: 'country-de' },
@@ -35,7 +35,27 @@ const IPTV_SOURCES = [
   { url: 'https://iptv-org.github.io/iptv/countries/tr.m3u', label: 'country-tr' },
   { url: 'https://iptv-org.github.io/iptv/countries/br.m3u', label: 'country-br' },
   { url: 'https://iptv-org.github.io/iptv/countries/ar.m3u', label: 'country-ar' },
-  // Language-specific playlists (supplementary)
+  // Additional European countries for Champions League / Europa League coverage
+  { url: 'https://iptv-org.github.io/iptv/countries/at.m3u', label: 'country-at' },
+  { url: 'https://iptv-org.github.io/iptv/countries/be.m3u', label: 'country-be' },
+  { url: 'https://iptv-org.github.io/iptv/countries/nl.m3u', label: 'country-nl' },
+  { url: 'https://iptv-org.github.io/iptv/countries/ch.m3u', label: 'country-ch' },
+  { url: 'https://iptv-org.github.io/iptv/countries/cz.m3u', label: 'country-cz' },
+  { url: 'https://iptv-org.github.io/iptv/countries/dk.m3u', label: 'country-dk' },
+  { url: 'https://iptv-org.github.io/iptv/countries/se.m3u', label: 'country-se' },
+  { url: 'https://iptv-org.github.io/iptv/countries/no.m3u', label: 'country-no' },
+  { url: 'https://iptv-org.github.io/iptv/countries/ua.m3u', label: 'country-ua' },
+  { url: 'https://iptv-org.github.io/iptv/countries/rs.m3u', label: 'country-rs' },
+  // MENA & Africa — beIN Sports coverage
+  { url: 'https://iptv-org.github.io/iptv/countries/eg.m3u', label: 'country-eg' },
+  { url: 'https://iptv-org.github.io/iptv/countries/ma.m3u', label: 'country-ma' },
+  { url: 'https://iptv-org.github.io/iptv/countries/za.m3u', label: 'country-za' },
+  // Americas
+  { url: 'https://iptv-org.github.io/iptv/countries/mx.m3u', label: 'country-mx' },
+  // Middle East
+  { url: 'https://iptv-org.github.io/iptv/countries/sa.m3u', label: 'country-sa' },
+  { url: 'https://iptv-org.github.io/iptv/countries/il.m3u', label: 'country-il' },
+  // Language-specific playlists (supplementary — broader coverage)
   { url: 'https://iptv-org.github.io/iptv/languages/fra.m3u', label: 'fra' },
   { url: 'https://iptv-org.github.io/iptv/languages/eng.m3u', label: 'eng' },
   { url: 'https://iptv-org.github.io/iptv/languages/ara.m3u', label: 'ara' },
@@ -44,6 +64,13 @@ const IPTV_SOURCES = [
   { url: 'https://iptv-org.github.io/iptv/languages/ita.m3u', label: 'ita' },
   { url: 'https://iptv-org.github.io/iptv/languages/por.m3u', label: 'por' },
   { url: 'https://iptv-org.github.io/iptv/languages/tur.m3u', label: 'tur' },
+  // Additional language playlists for better coverage
+  { url: 'https://iptv-org.github.io/iptv/languages/nld.m3u', label: 'nld' },
+  { url: 'https://iptv-org.github.io/iptv/languages/pol.m3u', label: 'pol' },
+  { url: 'https://iptv-org.github.io/iptv/languages/ron.m3u', label: 'ron' },
+  { url: 'https://iptv-org.github.io/iptv/languages/hun.m3u', label: 'hun' },
+  { url: 'https://iptv-org.github.io/iptv/languages/ell.m3u', label: 'ell' },
+  { url: 'https://iptv-org.github.io/iptv/languages/rus.m3u', label: 'rus' },
 ];
 
 // Country code mapping for team-based country lookups
@@ -51,6 +78,9 @@ export const COUNTRY_PLAYLIST_MAP: Record<string, string> = {
   fr: 'fr', gb: 'gb', us: 'us', de: 'de', es: 'es', it: 'it',
   br: 'br', ar: 'ar', mx: 'mx', pt: 'pt', nl: 'nl', tr: 'tr',
   sa: 'sa', eg: 'eg', jp: 'jp', kr: 'kr',
+  at: 'at', be: 'be', ch: 'ch', ua: 'ua', rs: 'rs', cz: 'cz',
+  dk: 'dk', se: 'se', no: 'no', il: 'il', ma: 'ma', tn: 'tn', za: 'za',
+  pl: 'pl', ro: 'ro', hu: 'hu', gr: 'gr', ru: 'ru',
 };
 
 function parsePlaylistItems(items: any[], sourceLabel: string): ParsedChannel[] {

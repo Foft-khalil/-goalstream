@@ -530,3 +530,54 @@ Stage Summary:
 - Key fix: 2-second tolerance prevents visible clock jumps on minor ESPN updates
 - Key fix: track minute prop changes in addition to displayClock/period
 - Clock should now tick smoothly every second without freezing or jumping
+
+---
+Task ID: 2+3
+Agent: Main Agent
+Task: Fix PSG-BAY wrong channel matching + dead IPTV streams
+
+Work Log:
+- Problem 1: Canal+ keyword matching was too loose — "canal" matched "Canal 32", "Canal 6", etc.
+  - Improved Canal+ filter in `matchBroadcasterToIPTV()`: now also checks for 'canal sport', 'canal foot', 'canal liga'
+  - Added regex rejection for "Canal <number>" pattern (Canal 6, Canal 7, Canal 10, Canal 13, Canal 26, etc.)
+  - Applied same stricter filter in keyword matching step 6
+  - Updated keyword skip for generic 'canal' to also exclude 'canal plus', 'canal sport', 'canal foot', 'canal liga'
+- Problem 2: getCompetitionKeywords returned generic 'canal' keyword
+  - Changed 'canal' → 'canal+' for: ligue 1, champions league, europa league, conference league, euroleague
+  - This prevents matching random channels with "canal" in the name
+- Problem 3: Missing team country hints
+  - Added 35+ new teams: 'paris sg', 'fc bayern', 'bayer leverkusen', 'rb salzburg', 'red bull salzburg', 'salzburg', 'sturm graz', 'sporting cp', 'club brugge', 'anderlecht', 'shakhtar', 'dynamo kyiv', 'young boys', 'red star', 'partizan', 'sparta prague', 'slavia prague', 'copenhagen', 'brondby', 'malmo', 'bodo/glimt', 'rosenborg', 'maccabi', 'hapoel', 'al ahly', 'widad', 'rajah', 'es tunis', 'kaiser chiefs', 'orlando pirates', 'mamelodi', 'celtic', 'rangers'
+  - Added country sections: Austria (at), Belgium (be), Switzerland (ch), Ukraine (ua), Serbia (rs), Czech Republic (cz), Denmark (dk), Sweden (se), Norway (no), Israel (il), Morocco (ma), Tunisia (tn), South Africa (za)
+- Problem 4: BROADCASTER_TO_IPTV mapping needed more specific entries
+  - 'canal+': Added 'canal+ ligue 1', 'canal+ champions league', 'canal+ premier league'
+  - 'canal+ sport': Added 'canal+ liga', 'canal+ ligue 1', 'canal+ champions league'
+  - 'canal+ foot': Added 'canal+ ligue 1', 'canal+ champions league'
+  - 'rmc sport': Added 'rmc sport 1', 'rmc sport 2', 'rmc sport 3', 'rmc sport live'
+- Problem 5: Health status from match-stream checks was not persisted
+  - Imported `setChannelHealthBatch` from channel-health
+  - After `checkStreamsBatch` in step 8, results are now saved to the shared health map via `setChannelHealthBatch()`
+  - This means health check results from user clicks persist and are available to other routes
+- Problem 6: Dead streams not strongly demoted
+  - Increased offline penalty in `finalScore` from -40 to -100
+  - Added "⛔ Hors ligne" label to offline channels in the response
+- Problem 7: Too many offline channels shown
+  - Added cap of maximum 3 offline channels in final results
+  - After sorting, channels with health='offline' are filtered once count exceeds 3
+- Problem 8: Health status in-memory only with no expiry
+  - Rewrote `channel-health.ts` with timestamp tracking per entry
+  - Added 30-minute TTL (`HEALTH_TTL`) — entries expire and return 'unknown' after 30 min
+  - `getChannelHealth()` checks expiry, cleans up expired entries, returns 'unknown' for expired
+  - `setChannelHealth()` and `setChannelHealthBatch()` auto-record timestamp
+  - `getHealthSummary()` and `countOnline()` respect TTL expiry
+- Updated `src/lib/iptv.ts` COUNTRY_PLAYLIST_MAP with 13 new country codes: at, be, ch, ua, rs, cz, dk, se, no, il, ma, tn, za
+
+Stage Summary:
+- Canal+ matching now strictly requires "canal+", "c+", "canal plus", "canal sport", "canal foot", or "canal liga" — no more false positives on "Canal 6", "Canal 32" etc.
+- Competition keywords use 'canal+' instead of generic 'canal' — prevents matching random Canal channels
+- 35+ new team country hints added covering Champions League regulars across 13 new countries
+- More specific Canal+ and RMC Sport IPTV channel name patterns for better matching
+- Health check results from match-stream API now persist to shared health map for all routes
+- Dead streams heavily penalized (-100) and capped at 3 in results
+- Offline channels labeled with "⛔ Hors ligne" for user clarity
+- Health cache has 30-minute TTL — prevents stale "offline" marks from persisting too long
+- Lint passes clean, dev server running

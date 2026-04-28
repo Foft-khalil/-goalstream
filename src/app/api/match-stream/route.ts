@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchSportsChannels, fetchCountryChannelsBatch, checkStreamsBatch, isSportsChannel, isLocalAffiliate } from '@/lib/iptv';
-import { getChannelHealth } from '@/lib/channel-health';
+import { getChannelHealth, setChannelHealthBatch } from '@/lib/channel-health';
 import ZAI from 'z-ai-web-dev-sdk';
 
 /**
@@ -173,15 +173,16 @@ const COMPETITION_BROADCASTERS: Record<string, Array<{ broadcaster: string; coun
 // ─── Team → country mapping ────────────────────────────────────────────────────
 const TEAM_COUNTRY_HINT: Record<string, string> = {
   // France
-  'paris saint-germain': 'fr', 'psg': 'fr', 'marseille': 'fr', 'lyon': 'fr', 'lille': 'fr',
+  'paris saint-germain': 'fr', 'psg': 'fr', 'paris sg': 'fr', 'marseille': 'fr', 'lyon': 'fr', 'lille': 'fr',
   'lens': 'fr', 'monaco': 'fr', 'rennes': 'fr', 'nice': 'fr', 'strasbourg': 'fr',
   'nantes': 'fr', 'montpellier': 'fr', 'bordeaux': 'fr', 'toulouse': 'fr',
   'reims': 'fr', 'brest': 'fr', 'le havre': 'fr', 'auxerre': 'fr',
-  // England
+  // England / Scotland
   'manchester city': 'gb', 'manchester united': 'gb', 'liverpool': 'gb', 'arsenal': 'gb',
   'chelsea': 'gb', 'tottenham': 'gb', 'newcastle': 'gb', 'aston villa': 'gb',
   'west ham': 'gb', 'brighton': 'gb', 'crystal palace': 'gb', 'fulham': 'gb',
   'wolves': 'gb', 'bournemouth': 'gb', 'nottingham forest': 'gb', 'everton': 'gb',
+  'celtic': 'gb', 'rangers': 'gb',
   // Spain
   'real madrid': 'es', 'barcelona': 'es', 'atletico madrid': 'es', 'sevilla': 'es',
   'real betis': 'es', 'athletic bilbao': 'es', 'valencia': 'es', 'villarreal': 'es',
@@ -191,15 +192,43 @@ const TEAM_COUNTRY_HINT: Record<string, string> = {
   'napoli': 'it', 'roma': 'it', 'lazio': 'it', 'fiorentina': 'it', 'atalanta': 'it',
   'bologna': 'it', 'torino': 'it', 'monza': 'it',
   // Germany
-  'bayern munich': 'de', 'bayern': 'de', 'borussia dortmund': 'de', 'dortmund': 'de',
-  'rb leipzig': 'de', 'leverkusen': 'de', 'schalke': 'de', 'stuttgart': 'de',
+  'bayern munich': 'de', 'bayern': 'de', 'fc bayern': 'de', 'borussia dortmund': 'de', 'dortmund': 'de',
+  'rb leipzig': 'de', 'leverkusen': 'de', 'bayer leverkusen': 'de', 'schalke': 'de', 'stuttgart': 'de',
   'wolfsburg': 'de', 'frankfurt': 'de', 'freiburg': 'de', 'hoffenheim': 'de',
+  // Austria
+  'rb salzburg': 'at', 'red bull salzburg': 'at', 'salzburg': 'at', 'sturm graz': 'at',
   // Portugal
-  'benfica': 'pt', 'porto': 'pt', 'sporting': 'pt', 'braga': 'pt',
+  'benfica': 'pt', 'porto': 'pt', 'sporting': 'pt', 'sporting cp': 'pt', 'braga': 'pt',
   // Netherlands
   'ajax': 'nl', 'psv': 'nl', 'feyenoord': 'nl',
+  // Belgium
+  'club brugge': 'be', 'anderlecht': 'be',
   // Turkey
   'galatasaray': 'tr', 'fenerbahce': 'tr', 'besiktas': 'tr', 'trabzonspor': 'tr',
+  // Ukraine
+  'shakhtar': 'ua', 'dynamo kyiv': 'ua',
+  // Switzerland
+  'young boys': 'ch',
+  // Serbia
+  'red star': 'rs', 'partizan': 'rs',
+  // Czech Republic
+  'sparta prague': 'cz', 'slavia prague': 'cz',
+  // Denmark
+  'copenhagen': 'dk', 'brondby': 'dk',
+  // Sweden
+  'malmo': 'se',
+  // Norway
+  'bodo/glimt': 'no', 'rosenborg': 'no',
+  // Israel
+  'maccabi': 'il', 'hapoel': 'il',
+  // Egypt
+  'al ahly': 'eg',
+  // Morocco
+  'widad': 'ma', 'rajah': 'ma',
+  // Tunisia
+  'es tunis': 'tn',
+  // South Africa
+  'kaiser chiefs': 'za', 'orlando pirates': 'za', 'mamelodi': 'za',
   // Brazil
   'flamengo': 'br', 'palmeiras': 'br', 'sao paulo': 'br', 'corinthians': 'br',
   'gremio': 'br', 'internacional': 'br', 'fluminense': 'br', 'botafogo': 'br',
@@ -213,16 +242,16 @@ const TEAM_COUNTRY_HINT: Record<string, string> = {
 
 // ─── Broadcaster → IPTV channel name matching keywords ─────────────────────────
 const BROADCASTER_TO_IPTV: Record<string, string[]> = {
-  'canal+': ['canal+', 'canal plus', 'c+ sport', 'c+ foot'],
-  'canal+ sport': ['canal+ sport', 'canal sport', 'c+ sport', 'canal+ liga'],
-  'canal+ foot': ['canal+ foot', 'canal foot', 'c+ foot'],
+  'canal+': ['canal+', 'canal plus', 'c+ sport', 'c+ foot', 'canal+ ligue 1', 'canal+ champions league', 'canal+ premier league'],
+  'canal+ sport': ['canal+ sport', 'canal sport', 'c+ sport', 'canal+ liga', 'canal+ ligue 1', 'canal+ champions league'],
+  'canal+ foot': ['canal+ foot', 'canal foot', 'c+ foot', 'canal+ ligue 1', 'canal+ champions league'],
   'bein sports': ['bein', 'bein sport', 'bein 1', 'bein 2', 'bein 3', 'bein 4', 'bein 5', 'bein 6', 'bein 7', 'bein 8', 'bein xtra', 'bein connect'],
   'dazn': ['dazn', 'dazn 1', 'dazn 2', 'dazn 3', 'dazn 4'],
   'sky sports': ['sky sport', 'sky sports', 'sky premier', 'sky football', 'sky futbol', 'sky pl', 'sky f1'],
   'sky sport': ['sky sport', 'sky sports', 'sky bundesliga', 'sky calcio'],
   'bt sport': ['bt sport', 'tnt sport'],
   'tnt sports': ['tnt sport', 'tnt sports', 'bt sport'],
-  'rmc sport': ['rmc sport', 'rmc'],
+  'rmc sport': ['rmc sport', 'rmc sport 1', 'rmc sport 2', 'rmc sport 3', 'rmc sport live', 'rmc'],
   "l'equipe": ['equipe', "l'equipe", 'la chaine l\'equipe', 'l equipe'],
   'amazon prime': ['amazon', 'prime video'],
   'movistar+': ['movistar', 'movistar+', 'movistar liga', 'movistar futbol', 'movistar deportes'],
@@ -378,9 +407,16 @@ function matchBroadcasterToIPTV(
         if (nameLower.includes('dazn') && nameLower.includes('combat')) continue;
 
         // Skip channels with "Canal" but not "Canal+" or "C+" (e.g., "Canal 32" is not Canal+)
-        if (keywords.some(kw => kw.includes('canal+') || kw.includes('c+'))) {
-          if (nameLower.includes('canal') && !nameLower.includes('canal+') && !nameLower.includes('c+') && !nameLower.includes('canal plus')) {
-            continue; // "Canal 32" etc. is NOT Canal+
+        if (keywords.some(kw => kw.includes('canal+') || kw.includes('c+') || kw.includes('canal sport') || kw.includes('canal foot'))) {
+          if (nameLower.includes('canal') &&
+              !nameLower.includes('canal+') && !nameLower.includes('c+') &&
+              !nameLower.includes('canal plus') && !nameLower.includes('canal sport') &&
+              !nameLower.includes('canal foot') && !nameLower.includes('canal liga')) {
+            continue; // "Canal 32", "Canal 6", etc. are NOT Canal+
+          }
+          // Also reject channels matching the pattern "Canal <number>" (e.g., Canal 6, Canal 7, Canal 10, Canal 13, Canal 26)
+          if (/\bcanal\s+\d+/i.test(ch.name)) {
+            continue;
           }
         }
 
@@ -552,9 +588,11 @@ export async function POST(request: NextRequest) {
         return { name: ch.name, url: ch.url, logo: ch.logo, group: ch.group, country: ch.country, relevance: 0, health: getChannelHealth(ch.url) };
       }
 
-      // Skip "Canal 32" etc. that aren't Canal+
-      if (nameLower.includes('canal') && !nameLower.includes('canal+') && !nameLower.includes('c+') && !nameLower.includes('canal plus') && !nameLower.includes('canal sport') && !nameLower.includes('canal foot')) {
+      // Skip "Canal 32", "Canal 6", etc. that aren't Canal+
+      if (nameLower.includes('canal') && !nameLower.includes('canal+') && !nameLower.includes('c+') && !nameLower.includes('canal plus') && !nameLower.includes('canal sport') && !nameLower.includes('canal foot') && !nameLower.includes('canal liga')) {
         // Don't match generic "canal" keyword for non-Canal+ channels
+        // Also reject pattern "Canal <number>" (Canal 6, Canal 7, Canal 10, Canal 13, Canal 26, etc.)
+        if (/\bcanal\s+\d+/i.test(ch.name)) continue;
       }
 
       let score = 0;
@@ -565,7 +603,7 @@ export async function POST(request: NextRequest) {
       for (const term of searchTerms) {
         if (!term) continue;
         // Skip generic "canal" keyword matching for non-Canal+ channels
-        if (term === 'canal' && nameLower.includes('canal') && !nameLower.includes('canal+') && !nameLower.includes('c+')) continue;
+        if (term === 'canal' && nameLower.includes('canal') && !nameLower.includes('canal+') && !nameLower.includes('c+') && !nameLower.includes('canal plus') && !nameLower.includes('canal sport') && !nameLower.includes('canal foot') && !nameLower.includes('canal liga')) continue;
 
         if (nameLower.includes(term)) {
           score += term.length > 3 ? 10 : 5;
@@ -712,6 +750,13 @@ export async function POST(request: NextRequest) {
       try {
         const healthResults = await checkStreamsBatch(urlsToCheck, 5, 5000);
 
+        // Persist health results to the shared channel-health map
+        const healthBatchEntries: Array<{ url: string; status: 'online' | 'offline' }> = [];
+        for (const [url, isOnline] of healthResults) {
+          healthBatchEntries.push({ url, status: isOnline ? 'online' : 'offline' });
+        }
+        setChannelHealthBatch(healthBatchEntries);
+
         // Update health info and adjust relevance
         for (const ch of merged) {
           if (healthResults.has(ch.url)) {
@@ -742,7 +787,7 @@ export async function POST(request: NextRequest) {
       let score = ch.relevance;
       // Health bonus — strongly favor online channels
       if (ch.health === 'online') score += 50;
-      if (ch.health === 'offline') score -= 40; // Heavy penalty — dead streams are useless
+      if (ch.health === 'offline') score -= 100; // Very heavy penalty — dead streams are useless
       // Broadcaster match is a big positive signal
       if (ch.broadcaster) score += 15;
       // Geo-blocked penalty — these channels usually don't work
@@ -757,7 +802,22 @@ export async function POST(request: NextRequest) {
     // Sort all channels by the combined score (not by health groups)
     merged.sort((a, b) => finalScore(b) - finalScore(a));
 
-    const finalChannels = merged.slice(0, 12);
+    // Cap maximum offline channels shown to 3
+    let offlineCount = 0;
+    const finalChannels = merged.filter(ch => {
+      if (ch.health === 'offline') {
+        offlineCount++;
+        if (offlineCount > 3) return false;
+      }
+      return true;
+    }).slice(0, 12);
+
+    // Add "Hors ligne" label to offline channels
+    for (const ch of finalChannels) {
+      if (ch.health === 'offline') {
+        ch.name = ch.name + ' ⛔ Hors ligne';
+      }
+    }
 
     // If no specific match found, return country-specific sports channels
     if (finalChannels.length === 0) {
@@ -851,11 +911,11 @@ function getCompetitionKeywords(comp: string): string[] {
 
   const compMap: Record<string, string[]> = {
     // Football
-    'ligue 1': ['ligue 1', 'l1', 'canal', 'bein', 'amazon', 'dazn'],
+    'ligue 1': ['ligue 1', 'l1', 'canal+', 'bein', 'amazon', 'dazn'],
     'premier league': ['premier league', 'pl', 'sky sports', 'bt sport', 'nbc'],
-    'champions league': ['champions league', 'ucl', 'canal', 'bein', 'bt sport', 'rmc sport'],
-    'europa league': ['europa league', 'uel', 'canal', 'rmc sport'],
-    'conference league': ['conference league', 'canal', 'rmc sport'],
+    'champions league': ['champions league', 'ucl', 'canal+', 'bein', 'bt sport', 'rmc sport'],
+    'europa league': ['europa league', 'uel', 'canal+', 'rmc sport'],
+    'conference league': ['conference league', 'canal+', 'rmc sport'],
     'la liga': ['la liga', 'liga', 'movistar', 'bein', 'espn'],
     'serie a': ['serie a', 'dazn', 'sky sport'],
     'bundesliga': ['bundesliga', 'sky sport', 'dazn'],
@@ -865,7 +925,7 @@ function getCompetitionKeywords(comp: string): string[] {
     // Basketball
     'nba': ['nba', 'espn', 'tnt', 'nba tv', 'league pass', 'bein'],
     'ncaa': ['ncaa', 'espn', 'cbs', 'tbs', 'march madness'],
-    'euroleague': ['euroleague', 'euroleague tv', 'bein', 'canal'],
+    'euroleague': ['euroleague', 'euroleague tv', 'bein', 'canal+'],
     'wnba': ['wnba', 'nba tv', 'espn'],
   };
 
