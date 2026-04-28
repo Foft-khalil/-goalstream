@@ -4,9 +4,9 @@ import { useEffect } from 'react';
 import { useAppStore, ViewType } from '@/lib/store';
 import LiveMatches from '@/components/live-matches';
 import ChannelsList from '@/components/channels-list';
-import AdminDashboard from '@/components/admin-dashboard';
+import StandingsView from '@/components/standings-view';
 import VideoPlayer from '@/components/video-player';
-import { Zap, Tv, Shield, Trophy, Menu, Download, WifiOff } from 'lucide-react';
+import { Zap, Tv, BarChart3, Trophy, Menu, Download, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
@@ -22,7 +22,7 @@ function AppHeader() {
   const navItems = [
     { view: 'live' as ViewType, icon: <Zap className="h-4 w-4" />, label: 'Matchs' },
     { view: 'channels' as ViewType, icon: <Tv className="h-4 w-4" />, label: 'Chaînes' },
-    { view: 'admin' as ViewType, icon: <Shield className="h-4 w-4" />, label: 'Admin' },
+    { view: 'standings' as ViewType, icon: <BarChart3 className="h-4 w-4" />, label: 'Classement' },
   ];
 
   return (
@@ -159,7 +159,7 @@ function MobileBottomNav() {
   const navItems = [
     { view: 'live' as ViewType, icon: <Zap className="h-5 w-5" />, label: 'Matchs' },
     { view: 'channels' as ViewType, icon: <Tv className="h-5 w-5" />, label: 'Chaînes' },
-    { view: 'admin' as ViewType, icon: <Shield className="h-5 w-5" />, label: 'Admin' },
+    { view: 'standings' as ViewType, icon: <BarChart3 className="h-5 w-5" />, label: 'Classement' },
   ];
 
   return (
@@ -196,14 +196,13 @@ function MobileBottomNav() {
 }
 
 export default function Home() {
-  const { currentView, fetchMatches, fetchChannels, fetchFootballMatches } = useAppStore();
+  const { currentView, fetchChannels, fetchFootballMatches } = useAppStore();
   const { isOnline } = usePWA();
 
   useEffect(() => {
-    fetchMatches();
     fetchChannels();
     fetchFootballMatches();
-  }, [fetchMatches, fetchChannels, fetchFootballMatches]);
+  }, [fetchChannels, fetchFootballMatches]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -222,7 +221,7 @@ export default function Home() {
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-5 pb-20 sm:pb-5">
         {currentView === 'live' && <LiveMatches />}
         {currentView === 'channels' && <ChannelsList />}
-        {currentView === 'admin' && <AdminDashboard />}
+        {currentView === 'standings' && <StandingsView />}
       </main>
 
       {/* Footer */}
