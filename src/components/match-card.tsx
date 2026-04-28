@@ -2,8 +2,9 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Play, Tv, Clock, Loader2, Radio, ChevronRight } from 'lucide-react';
+import { Play, Tv, Clock, Loader2, Radio, ChevronRight, Heart } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useFavorites } from '@/hooks/use-favorites';
 import { useState } from 'react';
 
 interface MatchCardProps {
@@ -35,6 +36,7 @@ export interface FoundChannel {
 
 export default function MatchCard({ match }: MatchCardProps) {
   const { openPlayer } = useAppStore();
+  const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
   const [findingStream, setFindingStream] = useState(false);
   const [foundChannels, setFoundChannels] = useState<FoundChannel[]>([]);
   const [showChannels, setShowChannels] = useState(false);
@@ -43,6 +45,8 @@ export default function MatchCard({ match }: MatchCardProps) {
   const isLive = match.status === 'live';
   const matchDate = match.matchDate ? new Date(match.matchDate) : null;
   const timeStr = matchDate ? matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const homeFav = isTeamFavorite(match.homeTeam);
+  const awayFav = isTeamFavorite(match.awayTeam);
 
   const handleWatch = async () => {
     if (match.streamUrl) {
@@ -168,7 +172,7 @@ export default function MatchCard({ match }: MatchCardProps) {
         {/* Teams row */}
         <div className="flex items-center gap-3">
           {/* Home team */}
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             {match.homeLogo ? (
               <img
                 src={match.homeLogo}
@@ -181,7 +185,14 @@ export default function MatchCard({ match }: MatchCardProps) {
                 {match.homeTeam.slice(0, 2).toUpperCase()}
               </div>
             )}
-            <span className="font-semibold text-sm truncate">{match.homeTeam}</span>
+            <span className={`font-semibold text-sm truncate ${homeFav ? 'text-green-500' : ''}`}>{match.homeTeam}</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleTeamFavorite(match.homeTeam, match.homeLogo); }}
+              className="shrink-0 ml-auto"
+              title={homeFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            >
+              <Heart className={`h-3.5 w-3.5 transition-colors ${homeFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
+            </button>
           </div>
 
           {/* Score or VS */}
@@ -200,8 +211,15 @@ export default function MatchCard({ match }: MatchCardProps) {
           </div>
 
           {/* Away team */}
-          <div className="flex items-center gap-2.5 flex-1 min-w-0 justify-end">
-            <span className="font-semibold text-sm truncate text-right">{match.awayTeam}</span>
+          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleTeamFavorite(match.awayTeam, match.awayLogo); }}
+              className="shrink-0"
+              title={awayFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            >
+              <Heart className={`h-3.5 w-3.5 transition-colors ${awayFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
+            </button>
+            <span className={`font-semibold text-sm truncate text-right ${awayFav ? 'text-green-500' : ''}`}>{match.awayTeam}</span>
             {match.awayLogo ? (
               <img
                 src={match.awayLogo}

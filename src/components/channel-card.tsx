@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Play, Wifi, WifiOff, Globe, Loader2, AlertTriangle } from 'lucide-react';
+import { Play, Wifi, WifiOff, Globe, Loader2, AlertTriangle, Heart } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useFavorites } from '@/hooks/use-favorites';
 
 interface ChannelCardProps {
   channel: {
@@ -21,7 +22,9 @@ interface ChannelCardProps {
 
 export default function ChannelCard({ channel }: ChannelCardProps) {
   const { openPlayer } = useAppStore();
+  const { toggleChannelFavorite, isChannelFavorite } = useFavorites();
   const [testing, setTesting] = useState(false);
+  const isFav = isChannelFavorite(channel.url);
 
   const handleWatch = () => {
     openPlayer(channel.url, channel.name, channel.logo || undefined);
@@ -129,32 +132,44 @@ export default function ChannelCard({ channel }: ChannelCardProps) {
           </div>
         </div>
 
-        {/* Watch/Test Button */}
-        {isOffline ? (
-          <Button
-            size="sm"
-            onClick={handleQuickTest}
-            disabled={testing}
-            variant="outline"
-            className="h-8 gap-1 text-xs shrink-0 border-red-400/30 text-red-400 hover:bg-red-500/10"
+        {/* Actions */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleChannelFavorite({ name: channel.name, logo: channel.logo, url: channel.url, group: channel.group });
+            }}
+            className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted/50 transition-colors"
+            title={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           >
-            {testing ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Wifi className="h-3 w-3" />
-            )}
-            {testing ? 'Test...' : 'Retester'}
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            onClick={handleWatch}
-            className="h-8 gap-1 text-xs bg-green-600 hover:bg-green-700 text-white shrink-0"
-          >
-            <Play className="h-3 w-3 fill-current" />
-            Regarder
-          </Button>
-        )}
+            <Heart className={`h-4 w-4 transition-colors ${isFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/40 hover:text-green-500'}`} />
+          </button>
+          {isOffline ? (
+            <Button
+              size="sm"
+              onClick={handleQuickTest}
+              disabled={testing}
+              variant="outline"
+              className="h-8 gap-1 text-xs shrink-0 border-red-400/30 text-red-400 hover:bg-red-500/10"
+            >
+              {testing ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Wifi className="h-3 w-3" />
+              )}
+              {testing ? 'Test...' : 'Retester'}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={handleWatch}
+              className="h-8 gap-1 text-xs bg-green-600 hover:bg-green-700 text-white shrink-0"
+            >
+              <Play className="h-3 w-3 fill-current" />
+              Regarder
+            </Button>
+          )}
+        </div>
       </div>
     </Card>
   );

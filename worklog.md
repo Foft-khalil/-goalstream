@@ -38,3 +38,28 @@ Stage Summary:
 - Matches display correctly with real data
 - Regarder button flow works end-to-end
 
+---
+Task ID: 2
+Agent: Main Agent
+Task: Replace Admin tab with Favorites feature (very important for user engagement)
+
+Work Log:
+- Created useFavorites hook (useSyncExternalStore + localStorage persistence)
+- Created FavoritesView component showing favorited teams' matches and favorited channels
+- Added ❤️ heart toggle buttons to MatchCard (both home and away teams)
+- Added ❤️ heart toggle buttons to ChannelCard
+- Updated ViewType in store to include 'favorites'
+- Updated page.tsx with 4-tab navigation: Matchs, Favoris, Chaînes, Classement
+- Favoris tab shows: favorited teams as pills, relevant matches (live/upcoming/finished), favorited channels
+- Badge count on Favoris tab shows total favorites count
+- Clean empty state with guidance on how to add favorites
+- "Tout effacer" button with confirmation dialog
+- Lint passes clean, app running on port 3000
+
+Stage Summary:
+- Admin tab completely replaced with Favoris (Favorites) feature
+- Users can now save favorite teams and channels for quick access
+- Favorite team matches are automatically filtered and shown in the Favoris tab
+- Favorites persist in localStorage across sessions
+- 4-tab navigation: Matchs → Favoris → Chaînes → Classement
+

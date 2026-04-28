@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ViewType = 'live' | 'channels' | 'standings';
+export type ViewType = 'live' | 'channels' | 'standings' | 'favorites';
 
 interface Channel {
   tvgId: string;

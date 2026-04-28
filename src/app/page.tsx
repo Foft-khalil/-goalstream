@@ -5,22 +5,26 @@ import { useAppStore, ViewType } from '@/lib/store';
 import LiveMatches from '@/components/live-matches';
 import ChannelsList from '@/components/channels-list';
 import StandingsView from '@/components/standings-view';
+import FavoritesView from '@/components/favorites-view';
 import VideoPlayer from '@/components/video-player';
-import { Zap, Tv, BarChart3, Trophy, Menu, Download, WifiOff } from 'lucide-react';
+import { Zap, Tv, BarChart3, Trophy, Menu, Download, WifiOff, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
 import { usePWA } from '@/hooks/use-pwa';
+import { useFavorites } from '@/hooks/use-favorites';
 
 function AppHeader() {
   const { currentView, setCurrentView, footballMatches } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { installPrompt, installApp, isOnline } = usePWA();
+  const { totalFavorites } = useFavorites();
 
   const liveCount = footballMatches.filter((m) => m.status === 'live').length;
 
   const navItems = [
     { view: 'live' as ViewType, icon: <Zap className="h-4 w-4" />, label: 'Matchs' },
+    { view: 'favorites' as ViewType, icon: <Heart className="h-4 w-4" />, label: 'Favoris' },
     { view: 'channels' as ViewType, icon: <Tv className="h-4 w-4" />, label: 'Chaînes' },
     { view: 'standings' as ViewType, icon: <BarChart3 className="h-4 w-4" />, label: 'Classement' },
   ];
@@ -66,7 +70,7 @@ function AppHeader() {
                 <button
                   key={item.view}
                   onClick={() => setCurrentView(item.view)}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                     isActive
                       ? 'bg-background text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -78,6 +82,11 @@ function AppHeader() {
                     <span className="ml-0.5 flex items-center gap-0.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                       <span className="text-[10px] font-bold text-red-500">{liveCount}</span>
+                    </span>
+                  )}
+                  {item.view === 'favorites' && totalFavorites > 0 && (
+                    <span className="ml-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-green-500/15 text-[10px] font-bold text-green-500">
+                      {totalFavorites}
                     </span>
                   )}
                 </button>
@@ -140,6 +149,11 @@ function AppHeader() {
                           <span className="text-[10px] font-bold text-red-500">{liveCount}</span>
                         </span>
                       )}
+                      {item.view === 'favorites' && totalFavorites > 0 && (
+                        <span className="ml-auto flex items-center justify-center w-5 h-5 rounded-full bg-green-500/15 text-[10px] font-bold text-green-500">
+                          {totalFavorites}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -154,10 +168,12 @@ function AppHeader() {
 
 function MobileBottomNav() {
   const { currentView, setCurrentView, footballMatches } = useAppStore();
+  const { totalFavorites } = useFavorites();
   const liveCount = footballMatches.filter((m) => m.status === 'live').length;
 
   const navItems = [
     { view: 'live' as ViewType, icon: <Zap className="h-5 w-5" />, label: 'Matchs' },
+    { view: 'favorites' as ViewType, icon: <Heart className="h-5 w-5" />, label: 'Favoris' },
     { view: 'channels' as ViewType, icon: <Tv className="h-5 w-5" />, label: 'Chaînes' },
     { view: 'standings' as ViewType, icon: <BarChart3 className="h-5 w-5" />, label: 'Classement' },
   ];
@@ -171,7 +187,7 @@ function MobileBottomNav() {
             <button
               key={item.view}
               onClick={() => setCurrentView(item.view)}
-              className={`flex flex-col items-center gap-0.5 px-5 py-2 rounded-xl transition-all relative ${
+              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all relative ${
                 isActive
                   ? 'text-green-500'
                   : 'text-muted-foreground/60'
@@ -180,8 +196,13 @@ function MobileBottomNav() {
               {item.icon}
               <span className="text-[10px] font-semibold">{item.label}</span>
               {item.view === 'live' && liveCount > 0 && (
-                <span className="absolute top-0.5 right-3 flex items-center justify-center">
+                <span className="absolute top-0.5 right-2 flex items-center justify-center">
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                </span>
+              )}
+              {item.view === 'favorites' && totalFavorites > 0 && (
+                <span className="absolute top-0.5 right-1 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-green-500 text-[8px] font-bold text-white">
+                  {totalFavorites > 9 ? '9+' : totalFavorites}
                 </span>
               )}
               {isActive && (
@@ -220,6 +241,7 @@ export default function Home() {
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-5 pb-20 sm:pb-5">
         {currentView === 'live' && <LiveMatches />}
+        {currentView === 'favorites' && <FavoritesView />}
         {currentView === 'channels' && <ChannelsList />}
         {currentView === 'standings' && <StandingsView />}
       </main>
