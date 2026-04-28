@@ -280,8 +280,11 @@ export async function GET(request: NextRequest) {
     const cached = getCached<BasketballMatchesResponse>(cacheKey, hasLive);
     if (cached) {
       const age = getCacheAge(cacheKey);
+      // Update lastUpdated timestamp so client chronometers don't drift
+      const now = new Date().toISOString();
+      const freshResponse = { ...cached, lastUpdated: now };
       console.log(`[Basketball API] Returning cached data (age: ${age}s, ${cached.matches.length} matches, live: ${hasLive})`);
-      return NextResponse.json(cached, {
+      return NextResponse.json(freshResponse, {
         headers: { 'X-Cache': 'HIT', 'X-Cache-Age': String(age) },
       });
     }

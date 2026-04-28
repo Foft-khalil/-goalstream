@@ -8,7 +8,7 @@ export interface CachedData<T> {
 }
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes for non-live data
-const LIVE_CACHE_TTL = 45 * 1000; // 45 seconds for live match data
+const LIVE_CACHE_TTL = 15 * 1000; // 15 seconds for live match data
 
 const cache = new Map<string, CachedData<unknown>>();
 

@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 
 /**
  * LiveMatchClock — displays a real-time ticking chronometer for football matches.
  *
  * It extrapolates the ESPN displayClock forward in real-time between API updates,
- * giving the user a sense of how much time has passed.
+ * giving the user a sense of how much time has elapsed with a running MM:SS display.
  *
  * Props:
  * - displayClock: ESPN's raw clock string, e.g. "32:45"
@@ -27,7 +27,7 @@ interface LiveMatchClockProps {
 }
 
 /**
- * Parse displayClock like "32:45" into total seconds.
+ * Parse displayClock like "32:45" into total seconds within the current period.
  */
 function parseClockToSeconds(clock: string): number {
   const parts = clock.split(':');
@@ -38,31 +38,19 @@ function parseClockToSeconds(clock: string): number {
 }
 
 /**
- * Format total seconds back into "MM:SS".
+ * Format total seconds into "MM:SS".
  */
-function formatSeconds(secs: number): string {
+function formatClock(secs: number): string {
   const m = Math.floor(secs / 60);
   const s = Math.floor(secs % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 /**
- * Get the display minute from total elapsed seconds, accounting for period.
- */
-function getDisplayMinute(totalSeconds: number, period: number | null): number {
-  const baseMinute = Math.floor(totalSeconds / 60);
-  // Add period offset: period 2 starts at 45:00
-  if (period && period > 1) {
-    return baseMinute + 45 * (period - 1);
-  }
-  return baseMinute;
-}
-
-/**
  * Get a French period label.
  */
 function getPeriodLabel(period: number | null, isHalftime: boolean, statusDescription: string | null): string | null {
-  if (isHalftime) return 'MT';
+  if (isHalftime) return 'MI-TEMPS';
 
   const desc = statusDescription?.toLowerCase() || '';
 
@@ -89,86 +77,117 @@ export default function LiveMatchClock({
   lastUpdated,
   minute,
 }: LiveMatchClockProps) {
-  const [tick, setTick] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  const rafRef = useRef<number | null>(null);
 
-  // Calculate the base seconds from the ESPN displayClock
-  const baseSeconds = useMemo(() => {
+  // Calculate the base seconds from the ESPN displayClock (within current period)
+  const basePeriodSeconds = useMemo(() => {
     if (displayClock) {
       return parseClockToSeconds(displayClock);
     }
-    // Fallback: use minute
+    // Fallback: use minute to derive period seconds
     if (minute != null) {
+      if (period === 2) {
+        // If in 2nd period, the minute is total, so period seconds = (minute - 45) * 60
+        return Math.max(0, (minute - 45) * 60);
+      }
       return minute * 60;
     }
     return 0;
-  }, [displayClock, minute]);
+  }, [displayClock, minute, period]);
 
+  // Tick every second using requestAnimationFrame for smooth display
   useEffect(() => {
     if (isHalftime) {
-      // At halftime, no ticking needed
-      return;
+      // At halftime, still tick to show how long halftime has been
+      const timer = setInterval(() => {
+        setNow(Date.now());
+      }, 1000);
+      return () => clearInterval(timer);
     }
 
-    // Tick every second
+    // Use setInterval for 1-second updates (more battery-friendly than rAF for this)
     const timer = setInterval(() => {
-      setTick(t => t + 1);
+      setNow(Date.now());
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, [isHalftime]);
 
-  // Calculate current elapsed time
-  const elapsedSeconds = useMemo(() => {
-    if (isHalftime) return baseSeconds;
-    const updateAge = lastUpdated ? (Date.now() - lastUpdated) / 1000 : 0;
-    return baseSeconds + Math.max(0, Math.floor(updateAge));
-  }, [baseSeconds, lastUpdated, isHalftime, tick]);
+  // Calculate how many seconds have elapsed since the last API update
+  const elapsedSinceUpdate = lastUpdated ? Math.max(0, Math.floor((now - lastUpdated) / 1000)) : 0;
 
-  // Cap at reasonable values
-  // 1st half: max ~48 min (45 + stoppage), 2nd half: max ~95 min
-  const maxSeconds = (period === 1) ? 48 * 60 : 96 * 60;
-  const cappedSeconds = Math.min(elapsedSeconds, maxSeconds);
+  // Current period elapsed seconds (extrapolated forward)
+  const currentPeriodSeconds = basePeriodSeconds + (isHalftime ? 0 : elapsedSinceUpdate);
 
-  const displayMinute = getDisplayMinute(cappedSeconds, period);
-  const clockStr = formatSeconds(cappedSeconds % 3600); // Reset for period display
+  // Cap at reasonable values per period
+  // 1st half: max ~48 min (45 + stoppage), 2nd half: max ~48 min per period
+  const maxPeriodSeconds = 48 * 60;
+  const cappedPeriodSeconds = Math.min(currentPeriodSeconds, maxPeriodSeconds);
+
+  // Total match minute (for display)
+  const periodOffset = period && period > 1 ? 45 * (period - 1) : 0;
+  const totalMinute = Math.floor(cappedPeriodSeconds / 60) + periodOffset;
+
+  // Clock string shows the period time (MM:SS within the current half)
+  const clockStr = formatClock(cappedPeriodSeconds);
+
+  // Check for added time
+  const isAddedTime = (period === 1 && cappedPeriodSeconds > 45 * 60) ||
+                      (period === 2 && cappedPeriodSeconds > 45 * 60);
+  const addedTimeMinute = isAddedTime
+    ? Math.floor(cappedPeriodSeconds / 60) - 45
+    : 0;
+
   const periodLabel = getPeriodLabel(period, isHalftime, statusDescription);
 
-  // Check for added time (over 45:00 in 1st half or over 90:00 in 2nd half)
-  const isAddedTime = (period === 1 && cappedSeconds > 45 * 60) ||
-                      (period === 2 && cappedSeconds > 90 * 60);
-
+  // ─── HALFTIME DISPLAY ─────────────────────────────────────────────────
   if (isHalftime) {
     return (
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/20">
           <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
           <span className="text-[11px] font-bold text-amber-400 tracking-wide">
-            MT
+            45:00
           </span>
         </div>
-        <span className="text-[10px] text-muted-foreground/50 font-medium">
+        <span className="text-[10px] text-amber-500/60 font-semibold">
           Mi-temps
         </span>
       </div>
     );
   }
 
+  // ─── LIVE CLOCK DISPLAY ──────────────────────────────────────────────
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5">
+      {/* Main chronometer */}
+      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/15 border border-red-500/20">
         <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-        <span className="text-[11px] font-bold text-red-500 tracking-wide tabular-nums">
-          {displayMinute}'
+        <span className="text-[12px] font-black text-red-500 tracking-wide tabular-nums font-mono">
+          {totalMinute}&apos;
         </span>
       </div>
+
+      {/* Period clock (MM:SS within current half) */}
+      <span className="text-[10px] text-muted-foreground/50 font-mono tabular-nums">
+        {clockStr}
+      </span>
+
+      {/* Period label */}
       {periodLabel && (
-        <span className="text-[10px] text-muted-foreground/50 font-medium">
+        <span className="text-[9px] text-muted-foreground/40 font-semibold">
           {periodLabel}
         </span>
       )}
+
+      {/* Added time indicator */}
       {isAddedTime && (
-        <span className="text-[9px] text-amber-500/70 font-semibold">
-          +{displayMinute - (period === 1 ? 45 : 90)}
+        <span className="text-[9px] text-amber-500/80 font-bold">
+          +{addedTimeMinute}&apos;
         </span>
       )}
     </div>

@@ -413,3 +413,30 @@ Stage Summary:
 - Dead streams strongly penalized, online channels prioritized
 - HLS health check fixed (many servers reject HEAD requests)
 - More IPTV sources (country-specific playlists)
+
+---
+Task ID: 12
+Agent: Main Agent
+Task: Fix delayed score updates + improve match chronometer to show real-time MM:SS
+
+Work Log:
+- Reduced LIVE_CACHE_TTL from 45s to 15s in football/cache.ts and basketball/cache.ts
+- Reduced client-side polling from 30s to 15s when live matches exist (live-matches.tsx, basketball-matches.tsx)
+- Fixed clock drift on cache hits: server now updates `lastUpdated` to current timestamp when returning cached live data
+  - Football API route: freshMatches maps each live match with `lastUpdated: Date.now()`
+  - Basketball API route: updates `lastUpdated` to `new Date().toISOString()` on cache hits
+- Completely rewrote LiveMatchClock component:
+  - Now shows total match minute (e.g., 67') in a red badge
+  - Shows period clock (MM:SS within current half) in monospace tabular-nums
+  - Shows period label: "1ère MT", "2ème MT", "MI-TEMPS", "PROL"
+  - Shows added time indicator: "+3'" when past 45:00 or 90:00
+  - Halftime shows "45:00" with amber badge + "Mi-temps" label
+  - Uses setInterval for 1-second updates (battery-friendly)
+  - Font-mono for chronometer digits for proper alignment
+  - Properly calculates period offset (period 2 = +45 min)
+
+Stage Summary:
+- Scores update 3x faster: 15s server cache + 15s client poll (was 45s + 30s)
+- Real-time chronometer shows MM:SS within current half, total minute, period label, and added time
+- Clock drift fixed: lastUpdated refreshed on cache hits so extrapolation stays accurate
+- Both football and basketball sections updated

@@ -52,9 +52,9 @@ export default function BasketballMatches() {
     fetchBasketballMatches();
   }, [fetchBasketballMatches]);
 
-  // Adaptive polling: 30s when live matches exist, 2 min otherwise
+  // Adaptive polling: 15s when live matches exist, 2 min otherwise
   const hasLive = basketballMatches.some(m => m.status === 'live');
-  const pollInterval = hasLive ? 30 * 1000 : 120 * 1000;
+  const pollInterval = hasLive ? 15 * 1000 : 120 * 1000;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -68,7 +68,7 @@ export default function BasketballMatches() {
       lastUpdatedRef.current = basketballLastUpdated;
     }
     const startTime = Date.now();
-    const duration = hasLive ? 30 : 120;
+    const duration = hasLive ? 15 : 120;
     const timer = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       setCountdown(Math.max(0, duration - elapsed));
@@ -354,7 +354,7 @@ export default function BasketballMatches() {
 
       {/* Footer info */}
       <div className="text-center text-[10px] text-muted-foreground/30 pt-1">
-        NBA · NCAA · EuroLeague · WNBA — mise à jour auto toutes les {hasLive ? '30s' : '2 min'}{hasLive ? ' (en direct)' : ''}
+        NBA · NCAA · EuroLeague · WNBA — mise à jour auto toutes les {hasLive ? '15s' : '2 min'}{hasLive ? ' (en direct)' : ''}
       </div>
     </div>
   );

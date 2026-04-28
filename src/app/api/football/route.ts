@@ -275,8 +275,17 @@ export async function GET(request: NextRequest) {
     const cached = getCached<FootballMatchesResponse>(cacheKey, hasLive);
     if (cached) {
       const age = getCacheAge(cacheKey);
-      console.log(`[Football API] Returning cached data (age: ${age}s, ${cached.matches.length} matches, live: ${hasLive})`);
-      return NextResponse.json(cached, {
+      // Update lastUpdated and live match clocks to current time so client chronometers don't drift
+      const now = Date.now();
+      const freshMatches = cached.matches.map(m => {
+        if (m.status === 'live') {
+          return { ...m, lastUpdated: now };
+        }
+        return m;
+      });
+      const freshResponse = { ...cached, matches: freshMatches, lastUpdated: new Date(now).toISOString() };
+      console.log(`[Football API] Returning cached data (age: ${age}s, ${freshMatches.length} matches, live: ${hasLive})`);
+      return NextResponse.json(freshResponse, {
         headers: { 'X-Cache': 'HIT', 'X-Cache-Age': String(age) },
       });
     }
