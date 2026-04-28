@@ -33,6 +33,7 @@ export interface FoundChannel {
   group: string;
   relevance: number;
   broadcaster?: string;
+  health?: 'online' | 'offline' | 'unknown';
 }
 
 export default function MatchCard({ match }: MatchCardProps) {
@@ -345,7 +346,9 @@ export default function MatchCard({ match }: MatchCardProps) {
               <button
                 key={`${channel.name}-${idx}`}
                 onClick={() => handleSelectChannel(channel)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted/60 transition-colors text-left group/ch"
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted/60 transition-colors text-left group/ch ${
+                  channel.health === 'offline' ? 'opacity-50' : ''
+                }`}
               >
                 {channel.logo ? (
                   <img
@@ -360,7 +363,14 @@ export default function MatchCard({ match }: MatchCardProps) {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <span className="text-xs font-medium truncate block">{channel.name}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium truncate">{channel.name}</span>
+                    {channel.health && channel.health !== 'unknown' && (
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        channel.health === 'online' ? 'bg-green-500' : 'bg-red-400'
+                      }`} />
+                    )}
+                  </div>
                   {channel.broadcaster && (
                     <span className="text-[9px] text-green-500/50">via {channel.broadcaster}</span>
                   )}

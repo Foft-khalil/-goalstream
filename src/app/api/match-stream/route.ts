@@ -1,90 +1,250 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchSportsChannels } from '@/lib/iptv';
+import { fetchSportsChannels, fetchCountryChannelsBatch, checkStreamsBatch, isSportsChannel, isLocalAffiliate } from '@/lib/iptv';
+import { getChannelHealth } from '@/lib/channel-health';
 import ZAI from 'z-ai-web-dev-sdk';
 
 /**
  * POST /api/match-stream - Find the best IPTV channel for a given match.
  * Uses web search to find the real broadcaster, then matches with IPTV channels.
  * Body: { homeTeam, awayTeam, competition, matchDate?, sport? }
- * Returns: { channels: Array<{ name, url, logo, group, relevance, broadcaster?: string }> }
+ * Returns: { channels: Array<{ name, url, logo, group, relevance, broadcaster?, health? }> }
  */
 
-// Known competition → broadcaster mappings (fallback when web search is unavailable)
-const COMPETITION_BROADCASTERS: Record<string, string[]> = {
-  // Football
-  'ligue 1': ['Canal+', 'beIN Sports', 'DAZN', 'Amazon Prime', 'Canal+ Sport', 'Canal+ Foot'],
-  'premier league': ['Sky Sports', 'BT Sport', 'TNT Sports', 'NBC Sports', 'Peacock', 'fuboTV'],
-  'champions league': ['Canal+', 'beIN Sports', 'BT Sport', 'TNT Sports', 'Paramount+', 'CBS', 'RMC Sport'],
-  'europa league': ['Canal+', 'beIN Sports', 'TNT Sports', 'Paramount+', 'RMC Sport'],
-  'conference league': ['Canal+', 'beIN Sports', 'RMC Sport'],
-  'la liga': ['beIN Sports', 'Movistar+', 'ESPN', 'DAZN', 'Viaplay'],
-  'serie a': ['DAZN', 'Sky Sport', 'beIN Sports', 'Paramount+'],
-  'bundesliga': ['Sky Sport', 'DAZN', 'ESPN+'],
-  'liga portugal': ['Sport TV', 'Eleven Sports'],
-  'eredivisie': ['ESPN', 'Viaplay'],
-  'süper lig': ['beIN Sports', 'TRT Spor'],
-  'brasileirão': ['Globo', 'SporTV', 'Premiere'],
-  'liga profesional': ['ESPN', 'TNT Sports', 'TV Pública'],
-  'liga mx': ['TUDN', 'Azteca', 'ESPN', 'ViX'],
-  'mls': ['Apple TV', 'MLS Season Pass', 'ESPN', 'FOX Sports'],
-  'saudi pro league': ['SSC', 'beIN Sports', 'Shahid'],
-  'afc champions league': ['beIN Sports', 'J Sports'],
-  'caf champions league': ['beIN Sports', 'Canal+', 'SuperSport'],
+// ─── Broadcaster database per competition ───────────────────────────────────────
+// Each entry: competition keywords → array of { broadcaster, countries, priority }
+// Countries: which country's IPTV channels to prioritize for this broadcaster
+const COMPETITION_BROADCASTERS: Record<string, Array<{ broadcaster: string; countries: string[]; priority: number }>> = {
+  // Football - French broadcasts (highest priority for French users)
+  'ligue 1': [
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 10 },
+    { broadcaster: 'Canal+ Sport', countries: ['fr'], priority: 10 },
+    { broadcaster: 'Canal+ Foot', countries: ['fr'], priority: 10 },
+    { broadcaster: 'DAZN', countries: ['fr'], priority: 9 },
+    { broadcaster: "L'Equipe", countries: ['fr'], priority: 8 },
+    { broadcaster: 'beIN Sports', countries: ['fr', 'ara'], priority: 7 },
+    { broadcaster: 'Amazon Prime', countries: ['fr'], priority: 6 },
+  ],
+  'champions league': [
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 10 },
+    { broadcaster: 'Canal+ Sport', countries: ['fr'], priority: 10 },
+    { broadcaster: 'Canal+ Foot', countries: ['fr'], priority: 10 },
+    { broadcaster: 'RMC Sport', countries: ['fr'], priority: 9 },
+    { broadcaster: "L'Equipe", countries: ['fr'], priority: 8 },
+    { broadcaster: 'beIN Sports', countries: ['ara', 'fr'], priority: 7 },
+    { broadcaster: 'CBS Sports Golazo', countries: ['us'], priority: 6 },
+    { broadcaster: 'Paramount+', countries: ['us'], priority: 5 },
+    { broadcaster: 'TNT Sports', countries: ['gb'], priority: 5 },
+    { broadcaster: 'DAZN', countries: ['de', 'es', 'it'], priority: 4 },
+  ],
+  'europa league': [
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 10 },
+    { broadcaster: 'RMC Sport', countries: ['fr'], priority: 9 },
+    { broadcaster: "L'Equipe", countries: ['fr'], priority: 8 },
+    { broadcaster: 'beIN Sports', countries: ['ara', 'fr'], priority: 7 },
+    { broadcaster: 'TNT Sports', countries: ['gb'], priority: 5 },
+    { broadcaster: 'Paramount+', countries: ['us'], priority: 5 },
+  ],
+  'conference league': [
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 10 },
+    { broadcaster: 'RMC Sport', countries: ['fr'], priority: 9 },
+    { broadcaster: "L'Equipe", countries: ['fr'], priority: 8 },
+    { broadcaster: 'beIN Sports', countries: ['ara', 'fr'], priority: 7 },
+  ],
+  'premier league': [
+    { broadcaster: 'Sky Sports', countries: ['gb'], priority: 10 },
+    { broadcaster: 'TNT Sports', countries: ['gb'], priority: 9 },
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 8 },
+    { broadcaster: 'beIN Sports', countries: ['ara', 'fr'], priority: 7 },
+    { broadcaster: 'NBC Sports', countries: ['us'], priority: 5 },
+    { broadcaster: 'Peacock', countries: ['us'], priority: 5 },
+    { broadcaster: 'DAZN', countries: ['de', 'es', 'it'], priority: 4 },
+  ],
+  'la liga': [
+    { broadcaster: 'beIN Sports', countries: ['ara', 'fr'], priority: 10 },
+    { broadcaster: 'Movistar+', countries: ['es'], priority: 9 },
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 7 },
+    { broadcaster: 'ESPN', countries: ['us'], priority: 5 },
+    { broadcaster: 'DAZN', countries: ['es', 'it'], priority: 4 },
+  ],
+  'serie a': [
+    { broadcaster: 'DAZN', countries: ['it'], priority: 10 },
+    { broadcaster: 'Sky Sport', countries: ['it'], priority: 9 },
+    { broadcaster: 'beIN Sports', countries: ['ara', 'fr'], priority: 7 },
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 6 },
+    { broadcaster: 'Paramount+', countries: ['us'], priority: 5 },
+  ],
+  'bundesliga': [
+    { broadcaster: 'Sky Sport', countries: ['de'], priority: 10 },
+    { broadcaster: 'DAZN', countries: ['de'], priority: 9 },
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 7 },
+    { broadcaster: 'beIN Sports', countries: ['ara', 'fr'], priority: 6 },
+    { broadcaster: 'ESPN+', countries: ['us'], priority: 4 },
+  ],
+  'liga portugal': [
+    { broadcaster: 'Sport TV', countries: ['pt'], priority: 10 },
+    { broadcaster: 'Eleven Sports', countries: ['pt'], priority: 9 },
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 5 },
+  ],
+  'eredivisie': [
+    { broadcaster: 'ESPN', countries: ['nl'], priority: 10 },
+    { broadcaster: 'Viaplay', countries: ['nl'], priority: 9 },
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 5 },
+  ],
+  'süper lig': [
+    { broadcaster: 'beIN Sports', countries: ['ara', 'tr'], priority: 10 },
+    { broadcaster: 'TRT Spor', countries: ['tr'], priority: 9 },
+  ],
+  'brasileirão': [
+    { broadcaster: 'Globo', countries: ['br'], priority: 10 },
+    { broadcaster: 'SporTV', countries: ['br'], priority: 9 },
+    { broadcaster: 'Premiere', countries: ['br'], priority: 8 },
+  ],
+  'liga profesional': [
+    { broadcaster: 'ESPN', countries: ['ar'], priority: 10 },
+    { broadcaster: 'TNT Sports', countries: ['ar'], priority: 9 },
+    { broadcaster: 'TV Pública', countries: ['ar'], priority: 8 },
+  ],
+  'liga mx': [
+    { broadcaster: 'TUDN', countries: ['mx'], priority: 10 },
+    { broadcaster: 'Azteca', countries: ['mx'], priority: 9 },
+    { broadcaster: 'ESPN', countries: ['mx', 'us'], priority: 7 },
+    { broadcaster: 'ViX', countries: ['mx'], priority: 6 },
+  ],
+  'mls': [
+    { broadcaster: 'Apple TV', countries: ['us'], priority: 10 },
+    { broadcaster: 'MLS Season Pass', countries: ['us'], priority: 9 },
+    { broadcaster: 'ESPN', countries: ['us'], priority: 7 },
+    { broadcaster: 'FOX Sports', countries: ['us'], priority: 6 },
+  ],
+  'saudi pro league': [
+    { broadcaster: 'SSC', countries: ['sa'], priority: 10 },
+    { broadcaster: 'beIN Sports', countries: ['ara'], priority: 8 },
+    { broadcaster: 'Shahid', countries: ['sa'], priority: 7 },
+  ],
+  'afc champions league': [
+    { broadcaster: 'beIN Sports', countries: ['ara'], priority: 10 },
+    { broadcaster: 'J Sports', countries: ['jp'], priority: 8 },
+  ],
+  'caf champions league': [
+    { broadcaster: 'beIN Sports', countries: ['ara'], priority: 10 },
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 8 },
+    { broadcaster: 'SuperSport', countries: ['eg'], priority: 7 },
+  ],
   // Basketball
-  'nba': ['ESPN', 'TNT', 'ABC', 'NBA TV', 'NBA League Pass', 'beIN Sports', 'Canal+'],
-  "ncaa men's basketball": ['ESPN', 'CBS', 'TBS', 'TNT', 'truTV', 'Paramount+'],
-  'ncaa': ['ESPN', 'CBS', 'TBS', 'TNT', 'truTV', 'Paramount+'],
-  'euroleague': ['EuroLeague TV', 'beIN Sports', 'Canal+', 'Sport TV', 'DAZN'],
-  'wnba': ['ESPN', 'NBA TV', 'ABC', 'CBS Sports'],
+  'nba': [
+    { broadcaster: 'beIN Sports', countries: ['fr'], priority: 10 },
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 9 },
+    { broadcaster: 'ESPN', countries: ['us'], priority: 8 },
+    { broadcaster: 'TNT', countries: ['us'], priority: 7 },
+    { broadcaster: 'ABC', countries: ['us'], priority: 7 },
+    { broadcaster: 'NBA TV', countries: ['us'], priority: 6 },
+    { broadcaster: 'NBA League Pass', countries: ['us'], priority: 5 },
+  ],
+  "ncaa men's basketball": [
+    { broadcaster: 'ESPN', countries: ['us'], priority: 10 },
+    { broadcaster: 'CBS', countries: ['us'], priority: 9 },
+    { broadcaster: 'TBS', countries: ['us'], priority: 8 },
+    { broadcaster: 'TNT', countries: ['us'], priority: 7 },
+    { broadcaster: 'truTV', countries: ['us'], priority: 6 },
+    { broadcaster: 'beIN Sports', countries: ['fr'], priority: 5 },
+  ],
+  'ncaa': [
+    { broadcaster: 'ESPN', countries: ['us'], priority: 10 },
+    { broadcaster: 'CBS', countries: ['us'], priority: 9 },
+    { broadcaster: 'TBS', countries: ['us'], priority: 8 },
+    { broadcaster: 'TNT', countries: ['us'], priority: 7 },
+    { broadcaster: 'truTV', countries: ['us'], priority: 6 },
+  ],
+  'euroleague': [
+    { broadcaster: 'EuroLeague TV', countries: ['fr', 'es', 'it'], priority: 10 },
+    { broadcaster: 'beIN Sports', countries: ['fr'], priority: 9 },
+    { broadcaster: 'Canal+', countries: ['fr'], priority: 8 },
+    { broadcaster: 'Sport TV', countries: ['pt'], priority: 7 },
+    { broadcaster: 'DAZN', countries: ['it', 'es'], priority: 6 },
+  ],
+  'wnba': [
+    { broadcaster: 'ESPN', countries: ['us'], priority: 10 },
+    { broadcaster: 'NBA TV', countries: ['us'], priority: 9 },
+    { broadcaster: 'ABC', countries: ['us'], priority: 8 },
+    { broadcaster: 'CBS Sports', countries: ['us'], priority: 7 },
+  ],
 };
 
-// Country-specific team → likely broadcaster country hint
+// ─── Team → country mapping ────────────────────────────────────────────────────
 const TEAM_COUNTRY_HINT: Record<string, string> = {
   // France
   'paris saint-germain': 'fr', 'psg': 'fr', 'marseille': 'fr', 'lyon': 'fr', 'lille': 'fr',
   'lens': 'fr', 'monaco': 'fr', 'rennes': 'fr', 'nice': 'fr', 'strasbourg': 'fr',
   'nantes': 'fr', 'montpellier': 'fr', 'bordeaux': 'fr', 'toulouse': 'fr',
+  'reims': 'fr', 'brest': 'fr', 'le havre': 'fr', 'auxerre': 'fr',
   // England
   'manchester city': 'gb', 'manchester united': 'gb', 'liverpool': 'gb', 'arsenal': 'gb',
   'chelsea': 'gb', 'tottenham': 'gb', 'newcastle': 'gb', 'aston villa': 'gb',
+  'west ham': 'gb', 'brighton': 'gb', 'crystal palace': 'gb', 'fulham': 'gb',
+  'wolves': 'gb', 'bournemouth': 'gb', 'nottingham forest': 'gb', 'everton': 'gb',
   // Spain
   'real madrid': 'es', 'barcelona': 'es', 'atletico madrid': 'es', 'sevilla': 'es',
   'real betis': 'es', 'athletic bilbao': 'es', 'valencia': 'es', 'villarreal': 'es',
+  'real sociedad': 'es', 'celta vigo': 'es', 'girona': 'es', 'mallorca': 'es',
   // Italy
-  'inter milan': 'it', 'ac milan': 'it', 'juventus': 'it', 'napoli': 'it', 'roma': 'it',
-  'lazio': 'it', 'fiorentina': 'it', 'atalanta': 'it',
+  'inter milan': 'it', 'inter': 'it', 'ac milan': 'it', 'milan': 'it', 'juventus': 'it',
+  'napoli': 'it', 'roma': 'it', 'lazio': 'it', 'fiorentina': 'it', 'atalanta': 'it',
+  'bologna': 'it', 'torino': 'it', 'monza': 'it',
   // Germany
   'bayern munich': 'de', 'bayern': 'de', 'borussia dortmund': 'de', 'dortmund': 'de',
-  'rb leipzig': 'de', 'leverkusen': 'de', 'schalke': 'de',
+  'rb leipzig': 'de', 'leverkusen': 'de', 'schalke': 'de', 'stuttgart': 'de',
+  'wolfsburg': 'de', 'frankfurt': 'de', 'freiburg': 'de', 'hoffenheim': 'de',
+  // Portugal
+  'benfica': 'pt', 'porto': 'pt', 'sporting': 'pt', 'braga': 'pt',
+  // Netherlands
+  'ajax': 'nl', 'psv': 'nl', 'feyenoord': 'nl',
+  // Turkey
+  'galatasaray': 'tr', 'fenerbahce': 'tr', 'besiktas': 'tr', 'trabzonspor': 'tr',
+  // Brazil
+  'flamengo': 'br', 'palmeiras': 'br', 'sao paulo': 'br', 'corinthians': 'br',
+  'gremio': 'br', 'internacional': 'br', 'fluminense': 'br', 'botafogo': 'br',
+  // Argentina
+  'boca juniors': 'ar', 'river plate': 'ar', 'racing club': 'ar', 'independiente': 'ar',
+  // USA/MLS
+  'inter miami': 'us', 'la galaxy': 'us', 'new york city': 'us', 'seattle sounders': 'us',
+  // Saudi Arabia
+  'al hilal': 'sa', 'al nassr': 'sa', 'al ittihad': 'sa', 'al ahli': 'sa',
 };
 
-// Broadcaster name → IPTV channel name matching keywords
+// ─── Broadcaster → IPTV channel name matching keywords ─────────────────────────
 const BROADCASTER_TO_IPTV: Record<string, string[]> = {
-  'canal+': ['canal+', 'canal plus', 'canal+ sport', 'canal+ foot', 'canal+ liga'],
-  'bein sports': ['bein', 'bein sport', 'bein 1', 'bein 2', 'bein 3', 'bein 4', 'bein 5', 'bein 6', 'bein 7', 'bein 8'],
-  'dazn': ['dazn', 'dazn 1', 'dazn 2'],
-  'sky sports': ['sky sport', 'sky sports', 'sky premier', 'sky football', 'sky futbol'],
+  'canal+': ['canal+', 'canal plus', 'c+ sport', 'c+ foot'],
+  'canal+ sport': ['canal+ sport', 'canal sport', 'c+ sport', 'canal+ liga'],
+  'canal+ foot': ['canal+ foot', 'canal foot', 'c+ foot'],
+  'bein sports': ['bein', 'bein sport', 'bein 1', 'bein 2', 'bein 3', 'bein 4', 'bein 5', 'bein 6', 'bein 7', 'bein 8', 'bein xtra', 'bein connect'],
+  'dazn': ['dazn', 'dazn 1', 'dazn 2', 'dazn 3', 'dazn 4'],
+  'sky sports': ['sky sport', 'sky sports', 'sky premier', 'sky football', 'sky futbol', 'sky pl', 'sky f1'],
+  'sky sport': ['sky sport', 'sky sports', 'sky bundesliga', 'sky calcio'],
   'bt sport': ['bt sport', 'tnt sport'],
-  'tnt sports': ['tnt sport', 'bt sport'],
-  'rmc sport': ['rmc sport'],
+  'tnt sports': ['tnt sport', 'tnt sports', 'bt sport'],
+  'rmc sport': ['rmc sport', 'rmc'],
+  "l'equipe": ['equipe', "l'equipe", 'la chaine l\'equipe', 'l equipe'],
   'amazon prime': ['amazon', 'prime video'],
-  'movistar+': ['movistar', 'movistar+', 'movistar liga'],
-  'espn': ['espn', 'espn 1', 'espn 2', 'espn 3', 'espn+', 'espn deportes'],
+  'movistar+': ['movistar', 'movistar+', 'movistar liga', 'movistar futbol', 'movistar deportes'],
+  'espn': ['espn', 'espn 1', 'espn 2', 'espn 3', 'espn+', 'espn deportes', 'espn extra'],
   'paramount+': ['paramount'],
-  'cbs': ['cbs', 'cbs sports'],
-  'nbc sports': ['nbc', 'nbc sports'],
-  'fox sports': ['fox sport', 'fox soccer'],
+  'cbs': ['cbs sports', 'cbs golazo', 'cbs hq'],
+  'cbs sports': ['cbs sports', 'cbs golazo', 'cbs hq', 'cbs sports hq', 'cbs sports golazo'],
+  'cbs sports golazo': ['cbs golazo', 'golazo', 'cbs sports golazo', 'golazo network'],
+  'nbc sports': ['nbc', 'nbc sports', 'nbcSN'],
+  'fox sports': ['fox sport', 'fox soccer', 'fox deportes'],
   'apple tv': ['apple', 'mls'],
   'tudn': ['tudn', 'univision'],
-  'sport tv': ['sport tv', 'sporting tv'],
+  'sport tv': ['sport tv', 'sporting tv', 'sport tv1', 'sport tv2', 'sport tv3'],
   'eleven sports': ['eleven', 'eleven sport'],
   'viaplay': ['viaplay'],
   'globo': ['globo', 'spor tv'],
-  'ssC': ['ssc', 'saudi'],
-  'trt spor': ['trt', 'trt spor'],
+  'spor tv': ['spor tv', 'globo'],
+  'ssC': ['ssc', 'saudi', 'saudi sport'],
+  'trt spor': ['trt', 'trt spor', 'trt sport'],
   'superSport': ['supersport'],
   'j sports': ['j sport'],
-  'azteca': ['azteca', 'tv azteca'],
+  'azteca': ['azteca', 'tv azteca', 'azteca deportes'],
   'vix': ['vix'],
   'fubotv': ['fubo'],
   'peacock': ['peacock', 'nbc'],
@@ -95,17 +255,24 @@ const BROADCASTER_TO_IPTV: Record<string, string[]> = {
   'abc': ['abc', 'abc sports'],
   'tbs': ['tbs'],
   'trutv': ['trutv', 'tru tv'],
-  'cbs sports': ['cbs', 'cbs sports'],
   'euroleague tv': ['euroleague'],
 };
 
-function getCountryForTeams(homeTeam: string, awayTeam: string): string | null {
+function getCountryForTeams(homeTeam: string, awayTeam: string): string[] {
   const h = homeTeam.toLowerCase();
   const a = awayTeam.toLowerCase();
+  const countries = new Set<string>();
+
   for (const [team, country] of Object.entries(TEAM_COUNTRY_HINT)) {
-    if (h.includes(team) || a.includes(team)) return country;
+    if (h.includes(team) || a.includes(team)) {
+      countries.add(country);
+    }
   }
-  return null;
+
+  // Always include France as a default for French-speaking users
+  countries.add('fr');
+
+  return Array.from(countries);
 }
 
 /**
@@ -120,8 +287,10 @@ async function findBroadcasterViaSearch(
   try {
     const sdk = await ZAI.create();
     const sportLabel = sport === 'basketball' ? 'basketball' : 'football';
+
+    // Search in French for French broadcasting context
     const results = await sdk.functions.invoke('web_search', {
-      query: `${homeTeam} vs ${awayTeam} ${competition} ${sportLabel} TV channel broadcast live stream 2025`,
+      query: `${homeTeam} vs ${awayTeam} ${competition} ${sportLabel} chaine TV diffusion direct streaming 2025`,
       num: 5,
       recency_days: 7,
     });
@@ -134,17 +303,17 @@ async function findBroadcasterViaSearch(
       messages: [
         {
           role: 'system',
-          content: `You are a sports broadcasting expert. Given search results about a ${sportLabel} match, identify the TV channels/networks that will broadcast or are broadcasting this match. Return ONLY the channel names separated by commas (e.g., "Canal+, beIN Sports, RMC Sport"). If you cannot determine the broadcaster, return "Unknown". Do not add any explanation.`,
+          content: `Tu es un expert en diffusion sportive française et internationale. À partir des résultats de recherche, identifie les chaînes de TV qui diffusent ce match. Retourne UNIQUEMENT les noms des chaînes séparés par des virgules (ex: "Canal+, beIN Sports, RMC Sport"). Si tu ne peux pas déterminer, retourne "Inconnu". N'ajoute aucune explication.`,
         },
         {
           role: 'user',
-          content: `Match: ${homeTeam} vs ${awayTeam}\nCompetition: ${competition}\nSport: ${sportLabel}\n\nSearch results:\n${snippets}`,
+          content: `Match: ${homeTeam} vs ${awayTeam}\nCompétition: ${competition}\nSport: ${sportLabel}\n\nRésultats de recherche:\n${snippets}`,
         },
       ],
     });
 
     const response = chatResponse?.choices?.[0]?.message?.content?.trim();
-    if (!response || response === 'Unknown') return [];
+    if (!response || response === 'Inconnu' || response === 'Unknown') return [];
 
     return response.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 1);
   } catch (err) {
@@ -154,9 +323,9 @@ async function findBroadcasterViaSearch(
 }
 
 /**
- * Get known broadcasters for a competition (fallback).
+ * Get known broadcasters for a competition with country priority.
  */
-function getKnownBroadcasters(competition: string): string[] {
+function getKnownBroadcasters(competition: string): Array<{ broadcaster: string; countries: string[]; priority: number }> {
   const compLower = competition.toLowerCase();
   for (const [key, broadcasters] of Object.entries(COMPETITION_BROADCASTERS)) {
     if (compLower.includes(key)) return broadcasters;
@@ -166,15 +335,25 @@ function getKnownBroadcasters(competition: string): string[] {
 
 /**
  * Find IPTV channels that match broadcaster names.
+ * Now includes country-aware priority boosting.
  */
 function matchBroadcasterToIPTV(
-  broadcasters: string[],
-  iptvChannels: Array<{ name: string; url: string; logo: string; group: string; country: string }>
-): Array<{ name: string; url: string; logo: string; group: string; country: string; relevance: number; matchedBroadcaster: string }> {
-  const results: Array<{ name: string; url: string; logo: string; group: string; country: string; relevance: number; matchedBroadcaster: string }> = [];
+  broadcasters: Array<{ broadcaster: string; countries: string[]; priority: number }>,
+  iptvChannels: Array<{ name: string; url: string; logo: string; group: string; country: string; source: string }>,
+  teamCountries: string[],
+  sport: string = 'football'
+): Array<{ name: string; url: string; logo: string; group: string; country: string; relevance: number; matchedBroadcaster: string; health?: string }> {
+  const results: Array<{ name: string; url: string; logo: string; group: string; country: string; relevance: number; matchedBroadcaster: string; health?: string }> = [];
 
-  for (const broadcaster of broadcasters) {
-    const bLower = broadcaster.toLowerCase();
+  // Blacklist: channel names that should never appear in sports results
+  const sportsBlacklist = [
+    'combat', 'strongman', 'freesports', 'poker', 'casino', 'lottery',
+    'racing.com', 'horse', 'dog racing', 'wrestling', 'boxing',
+    'fitness', 'gym', 'workout', 'yoga', 'outdoors', 'hunting', 'fishing',
+  ];
+
+  for (const bcast of broadcasters) {
+    const bLower = bcast.broadcaster.toLowerCase();
     // Find IPTV keywords for this broadcaster
     let keywords: string[] = [bLower];
     for (const [bcastKey, kwList] of Object.entries(BROADCASTER_TO_IPTV)) {
@@ -187,16 +366,56 @@ function matchBroadcasterToIPTV(
     // Find matching IPTV channels
     for (const ch of iptvChannels) {
       const nameLower = ch.name.toLowerCase();
-      const isMatch = keywords.some(kw => nameLower.includes(kw));
+      const groupLower = (ch.group || '').toLowerCase();
+      const isMatch = keywords.some(kw => nameLower.includes(kw) || groupLower.includes(kw));
+
       if (isMatch) {
-        // Score: HLS bonus + broadcaster match bonus
-        let relevance = 20; // High base for broadcaster matches
-        if (ch.url.includes('.m3u8') || ch.url.includes('m3u8')) relevance += 10;
-        if (ch.url.startsWith('https')) relevance += 3;
+        // Skip blacklisted channel types
+        const isBlacklisted = sportsBlacklist.some(bl => nameLower.includes(bl));
+        if (isBlacklisted) continue;
+
+        // Skip DAZN Combat (not football/basketball)
+        if (nameLower.includes('dazn') && nameLower.includes('combat')) continue;
+
+        // Skip channels with "Canal" but not "Canal+" or "C+" (e.g., "Canal 32" is not Canal+)
+        if (keywords.some(kw => kw.includes('canal+') || kw.includes('c+'))) {
+          if (nameLower.includes('canal') && !nameLower.includes('canal+') && !nameLower.includes('c+') && !nameLower.includes('canal plus')) {
+            continue; // "Canal 32" etc. is NOT Canal+
+          }
+        }
+
+        let relevance = bcast.priority * 10; // Base score from competition priority
+
+        // HLS streams get a big bonus (they actually work with our player)
+        if (ch.url.includes('.m3u8') || ch.url.includes('m3u8')) relevance += 15;
+        // HTTPS bonus
+        if (ch.url.startsWith('https')) relevance += 5;
+
+        // Country match bonus — if the channel's source matches a team country
+        const channelSource = (ch.source || '').toLowerCase();
+        const channelCountry = (ch.country || '').toLowerCase();
+        for (const teamCountry of teamCountries) {
+          if (channelSource.includes(teamCountry) || channelCountry === teamCountry) {
+            relevance += 20; // Big bonus for country-matched channels
+          }
+        }
+
+        // If the broadcaster's countries match the team countries, extra bonus
+        for (const bcastCountry of bcast.countries) {
+          if (teamCountries.includes(bcastCountry)) {
+            relevance += 10;
+            break;
+          }
+        }
+
+        // Check health status from the health map
+        const healthStatus = getChannelHealth(ch.url);
+        if (healthStatus === 'online') relevance += 25;
+        if (healthStatus === 'offline') relevance -= 30; // Heavy penalty for known-dead channels
 
         // Avoid duplicates
         if (!results.find(r => r.url === ch.url)) {
-          results.push({ ...ch, relevance, matchedBroadcaster: broadcaster });
+          results.push({ ...ch, relevance, matchedBroadcaster: bcast.broadcaster, health: healthStatus });
         }
       }
     }
@@ -218,43 +437,126 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch all sports channels
-    const channels = await fetchSportsChannels();
+    // ─── Step 1: Determine team countries ────────────────────────────────────
+    const teamCountries = getCountryForTeams(homeTeam, awayTeam);
 
-    if (channels.length === 0) {
+    // ─── Step 2: Fetch channels from multiple sources in parallel ────────────
+    const [baseChannels, countryChannels] = await Promise.all([
+      fetchSportsChannels(),
+      fetchCountryChannelsBatch(teamCountries),
+    ]);
+
+    // Merge base channels + country-specific channels, deduplicate
+    const seenUrls = new Set<string>();
+    const allChannels: typeof baseChannels = [];
+
+    // Country channels first (higher priority for this match)
+    for (const ch of countryChannels) {
+      if (!seenUrls.has(ch.url)) {
+        seenUrls.add(ch.url);
+        allChannels.push(ch);
+      }
+    }
+    // Then base channels
+    for (const ch of baseChannels) {
+      if (!seenUrls.has(ch.url)) {
+        seenUrls.add(ch.url);
+        allChannels.push(ch);
+      }
+    }
+
+    if (allChannels.length === 0) {
       return NextResponse.json({ channels: [], message: 'No channels available' });
     }
 
-    const homeLower = homeTeam.toLowerCase();
-    const awayLower = awayTeam.toLowerCase();
     const compLower = (competition || '').toLowerCase();
 
-    // ─── Step 1: Find the real broadcaster via web search ─────────────────────
+    // ─── Step 3: Find the real broadcaster via web search ────────────────────
     const searchBroadcasters = await findBroadcasterViaSearch(homeTeam, awayTeam, competition || '', sport || 'football');
 
-    // ─── Step 2: Get known broadcasters for this competition (fallback) ───────
+    // ─── Step 4: Get known broadcasters for this competition (structured) ────
     const knownBroadcasters = getKnownBroadcasters(compLower);
 
-    // Combine and deduplicate broadcasters
-    const allBroadcasters = [...new Set([...searchBroadcasters, ...knownBroadcasters])];
+    // Combine search results with known broadcasters
+    // If web search found broadcasters, merge them with known ones (search results get priority boost)
+    const combinedBroadcasters: Array<{ broadcaster: string; countries: string[]; priority: number }> = [];
 
-    // ─── Step 3: Match broadcasters to IPTV channels ─────────────────────────
-    const broadcasterMatches = matchBroadcasterToIPTV(allBroadcasters, channels);
+    // Add search-found broadcasters with high priority
+    for (const bName of searchBroadcasters) {
+      const existing = knownBroadcasters.find(b => b.broadcaster.toLowerCase() === bName.toLowerCase());
+      if (existing) {
+        combinedBroadcasters.push({ ...existing, priority: existing.priority + 5 }); // Boost for being confirmed by search
+      } else {
+        // Determine likely countries from the broadcaster name
+        const countries = guessCountriesForBroadcaster(bName, teamCountries);
+        combinedBroadcasters.push({ broadcaster: bName, countries, priority: 12 });
+      }
+    }
 
-    // ─── Step 4: Also do keyword-based matching (legacy, as backup) ───────────
+    // Add known broadcasters not already included
+    for (const kb of knownBroadcasters) {
+      if (!combinedBroadcasters.find(cb => cb.broadcaster.toLowerCase() === kb.broadcaster.toLowerCase())) {
+        combinedBroadcasters.push(kb);
+      }
+    }
+
+    // If no broadcasters found at all, create generic sports ones
+    if (combinedBroadcasters.length === 0) {
+      combinedBroadcasters.push(
+        { broadcaster: 'Canal+', countries: ['fr'], priority: 8 },
+        { broadcaster: 'beIN Sports', countries: ['fr', 'ara'], priority: 7 },
+        { broadcaster: 'ESPN', countries: ['us'], priority: 5 },
+      );
+    }
+
+    // ─── Step 4.5: Filter out irrelevant channels ────────────────────────────
+    // Remove local TV affiliates (e.g., "CBS 2 Salt Lake City") that aren't sports channels
+    // Also remove channels with [Not 24/7] or [Geo-blocked] that aren't sports
+    const filteredChannels = allChannels.filter(ch => {
+      // Always keep sports channels
+      if (isSportsChannel(ch)) return true;
+      // Remove local affiliates
+      if (isLocalAffiliate(ch.name)) return false;
+      // Remove geo-blocked non-sports channels
+      if (ch.name.includes('[Geo-blocked]') || ch.name.includes('[Geo-Blocked]')) return false;
+      // Keep other channels for potential keyword matching
+      return true;
+    });
+
+    // ─── Step 5: Match broadcasters to IPTV channels ────────────────────────
+    const broadcasterMatches = matchBroadcasterToIPTV(combinedBroadcasters, filteredChannels, teamCountries, sport || 'football');
+
+    // ─── Step 6: Also do keyword-based matching (legacy, as backup) ──────────
     const sportKeywords = isBasketball
-      ? ['sport', 'basketball', 'basket', 'nba', 'bball']
-      : ['sport', 'football', 'soccer', 'foot', 'futbol'];
+      ? ['basketball', 'basket', 'nba', 'bball']
+      : ['football', 'soccer', 'futbol'];
     const searchTerms = [
-      homeLower,
-      awayLower,
       ...getCompetitionKeywords(compLower),
       ...sportKeywords,
     ].filter(Boolean);
 
-    const keywordMatches = channels.map((ch) => {
+    // Blacklist for keyword matching too
+    const keywordBlacklist = [
+      'combat', 'strongman', 'freesports', 'poker', 'casino', 'lottery',
+      'racing.com', 'horse', 'dog racing', 'wrestling', 'boxing',
+      'fitness', 'gym', 'workout', 'yoga', 'outdoors', 'hunting', 'fishing',
+      'more than sports', 'world of freesports',
+    ];
+
+    const keywordMatches = filteredChannels.map((ch) => {
       const nameLower = ch.name.toLowerCase();
       const groupLower = (ch.group || '').toLowerCase();
+
+      // Skip blacklisted channels
+      if (keywordBlacklist.some(bl => nameLower.includes(bl))) {
+        return { name: ch.name, url: ch.url, logo: ch.logo, group: ch.group, country: ch.country, relevance: 0, health: getChannelHealth(ch.url) };
+      }
+
+      // Skip "Canal 32" etc. that aren't Canal+
+      if (nameLower.includes('canal') && !nameLower.includes('canal+') && !nameLower.includes('c+') && !nameLower.includes('canal plus') && !nameLower.includes('canal sport') && !nameLower.includes('canal foot')) {
+        // Don't match generic "canal" keyword for non-Canal+ channels
+      }
+
       let score = 0;
 
       const isHls = ch.url.includes('.m3u8') || ch.url.includes('m3u8');
@@ -262,6 +564,9 @@ export async function POST(request: NextRequest) {
 
       for (const term of searchTerms) {
         if (!term) continue;
+        // Skip generic "canal" keyword matching for non-Canal+ channels
+        if (term === 'canal' && nameLower.includes('canal') && !nameLower.includes('canal+') && !nameLower.includes('c+')) continue;
+
         if (nameLower.includes(term)) {
           score += term.length > 3 ? 10 : 5;
         }
@@ -270,8 +575,18 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Penalty for non-HTTPS URLs
+      // Country match bonus for keyword matches too
+      const channelSource = (ch.source || '').toLowerCase();
+      for (const tc of teamCountries) {
+        if (channelSource.includes(tc)) score += 8;
+      }
+
       if (!ch.url.startsWith('https')) score -= 2;
+
+      // Health check
+      const healthStatus = getChannelHealth(ch.url);
+      if (healthStatus === 'online') score += 10;
+      if (healthStatus === 'offline') score -= 20;
 
       return {
         name: ch.name,
@@ -280,6 +595,7 @@ export async function POST(request: NextRequest) {
         group: ch.group,
         country: ch.country,
         relevance: score,
+        health: healthStatus,
       };
     }).filter((ch) => ch.relevance > 0)
       .sort((a, b) => {
@@ -289,14 +605,18 @@ export async function POST(request: NextRequest) {
         return b.relevance - a.relevance;
       });
 
-    // ─── Step 5: Merge results (broadcaster matches first, then keyword) ─────
-    const seenUrls = new Set<string>();
-    const merged: Array<{ name: string; url: string; logo: string; group: string; relevance: number; broadcaster?: string }> = [];
+    // ─── Step 7: Merge results (broadcaster matches first, then keyword) ─────
+    // Also add general sports channels from the team countries as fallback
+    const seenResultUrls = new Set<string>();
+    const merged: Array<{ name: string; url: string; logo: string; group: string; relevance: number; broadcaster?: string; health?: string }> = [];
 
     // Add broadcaster matches first (highest priority)
     for (const ch of broadcasterMatches) {
-      if (!seenUrls.has(ch.url)) {
-        seenUrls.add(ch.url);
+      // Skip local affiliates even in broadcaster matches
+      if (isLocalAffiliate(ch.name) && !isSportsChannel(ch)) continue;
+
+      if (!seenResultUrls.has(ch.url)) {
+        seenResultUrls.add(ch.url);
         merged.push({
           name: ch.name,
           url: ch.url,
@@ -304,38 +624,156 @@ export async function POST(request: NextRequest) {
           group: ch.group,
           relevance: ch.relevance,
           broadcaster: ch.matchedBroadcaster,
+          health: ch.health,
         });
       }
     }
 
     // Add keyword matches
     for (const ch of keywordMatches) {
-      if (!seenUrls.has(ch.url)) {
-        seenUrls.add(ch.url);
+      if (isLocalAffiliate(ch.name) && !isSportsChannel({ name: ch.name, group: ch.group })) continue;
+
+      // Skip non-sports channels from keyword matching unless they have a broadcaster match
+      if (!isSportsChannel({ name: ch.name, group: ch.group }) && ch.relevance < 20) continue;
+
+      if (!seenResultUrls.has(ch.url)) {
+        seenResultUrls.add(ch.url);
         merged.push({
           name: ch.name,
           url: ch.url,
           logo: ch.logo,
           group: ch.group,
           relevance: ch.relevance,
+          health: ch.health,
         });
       }
     }
 
-    // Limit to 8 channels
-    const finalChannels = merged.slice(0, 8);
+    // ─── Step 7.5: Add known free sports channels directly ────────────────────
+    // These are channels that are known to be available on free IPTV and show sports
+    const knownFreeSportsKeywords: Record<string, string[]> = {
+      'football': ['equipe', 'golazo', 'fifa', 'futbol', 'sportdigital', 'ert sport', 'ct sport', 'fox sport', 'espn', 'bein'],
+      'basketball': ['espn', 'nba', 'bein', 'equipe'],
+    };
 
-    // If no specific match found, return general sports channels
+    const freeSportsKeywords = knownFreeSportsKeywords[isBasketball ? 'basketball' : 'football'] || [];
+    const freeSportsChannels = allChannels.filter(ch => {
+      const nameLower = ch.name.toLowerCase();
+      // Must be a sports channel
+      if (!isSportsChannel(ch)) return false;
+      // Must match a known free sports keyword
+      return freeSportsKeywords.some(kw => nameLower.includes(kw));
+    });
+
+    for (const ch of freeSportsChannels) {
+      if (seenResultUrls.has(ch.url)) continue;
+      if (isLocalAffiliate(ch.name)) continue;
+      // Skip blacklisted
+      const nameLower = ch.name.toLowerCase();
+      if (['combat', 'strongman', 'freesports', 'poker', 'horse'].some(bl => nameLower.includes(bl))) continue;
+
+      seenResultUrls.add(ch.url);
+      const healthStatus = getChannelHealth(ch.url);
+      merged.push({
+        name: ch.name,
+        url: ch.url,
+        logo: ch.logo,
+        group: ch.group,
+        relevance: 50, // Medium-high base for known free sports channels
+        health: healthStatus,
+      });
+    }
+
+    // Add country-specific sports channels as additional fallback
+    const countrySportsChannels = countryChannels
+      .filter(ch => isSportsChannel(ch) && !isLocalAffiliate(ch.name))
+      .filter(ch => !seenResultUrls.has(ch.url));
+
+    for (const ch of countrySportsChannels) {
+      seenResultUrls.add(ch.url);
+      merged.push({
+        name: ch.name,
+        url: ch.url,
+        logo: ch.logo,
+        group: ch.group,
+        relevance: 5, // Low base relevance
+        health: getChannelHealth(ch.url),
+      });
+    }
+
+    // ─── Step 8: Real-time health check on top candidates ────────────────────
+    // Check top 12 channels to verify they're actually online
+    const topCandidates = merged.slice(0, 12);
+    const urlsToCheck = topCandidates
+      .filter(ch => ch.health !== 'online') // Skip already-known-online channels
+      .map(ch => ch.url);
+
+    if (urlsToCheck.length > 0) {
+      try {
+        const healthResults = await checkStreamsBatch(urlsToCheck, 5, 5000);
+
+        // Update health info and adjust relevance
+        for (const ch of merged) {
+          if (healthResults.has(ch.url)) {
+            const isOnline = healthResults.get(ch.url)!;
+            ch.health = isOnline ? 'online' : 'offline';
+            if (isOnline) ch.relevance += 15;
+            else ch.relevance -= 25;
+          }
+        }
+
+        // Re-sort by relevance after health checks
+        merged.sort((a, b) => b.relevance - a.relevance);
+      } catch (err) {
+        console.warn('[Match Stream API] Health check batch failed:', err);
+        // Continue without health check results
+      }
+    }
+
+    // Log key channel availability
+    const equipeMerged = merged.find(c => c.name.toLowerCase().includes('equipe'));
+    const golazoMerged = merged.find(c => c.name.toLowerCase().includes('golazo'));
+    console.log('[Match Stream] Key channels - Equipe:', equipeMerged?.health || 'N/A', '| Golazo:', golazoMerged?.health || 'N/A');
+
+    // ─── Step 9: Final results — sort by combined score ──────────────────────
+    // Broadcaster-matched channels are more valuable even if offline
+    // (the health check can be unreliable — HEAD request may fail but stream still works)
+    // Sort by a combined score: relevance from matching + health bonus
+    const finalScore = (ch: typeof merged[0]) => {
+      let score = ch.relevance;
+      // Health bonus
+      if (ch.health === 'online') score += 30;
+      if (ch.health === 'offline') score -= 5; // Small penalty
+      // Broadcaster match is a big positive signal
+      if (ch.broadcaster) score += 20;
+      // Geo-blocked penalty — these channels usually don't work
+      if (ch.name.includes('[Geo-blocked]') || ch.name.includes('[Geo-Blocked]')) score -= 80;
+      // Non-sports channel with a broadcaster match penalty
+      if (!isSportsChannel({ name: ch.name, group: ch.group }) && ch.broadcaster) score -= 30;
+      return score;
+    };
+
+    // Sort all channels by the combined score (not by health groups)
+    merged.sort((a, b) => finalScore(b) - finalScore(a));
+
+    const finalChannels = merged.slice(0, 12);
+
+    // If no specific match found, return country-specific sports channels
     if (finalChannels.length === 0) {
-      const generalSports = channels
-        .filter((ch) => ch.name.toLowerCase().includes('sport') || ch.group.toLowerCase().includes('sport'))
-        .slice(0, 8)
+      const generalSports = allChannels
+        .filter((ch) => {
+          const nameLower = ch.name.toLowerCase();
+          const groupLower = (ch.group || '').toLowerCase();
+          return nameLower.includes('sport') || groupLower.includes('sport');
+        })
+        .slice(0, 10)
         .map((ch) => ({
           name: ch.name,
           url: ch.url,
           logo: ch.logo,
           group: ch.group,
           relevance: 0,
+          health: getChannelHealth(ch.url),
         }));
 
       if (generalSports.length > 0) {
@@ -347,26 +785,32 @@ export async function POST(request: NextRequest) {
 
       // Last resort: first 5 channels
       return NextResponse.json({
-        channels: channels.slice(0, 5).map((ch) => ({
+        channels: allChannels.slice(0, 5).map((ch) => ({
           name: ch.name,
           url: ch.url,
           logo: ch.logo,
           group: ch.group,
           relevance: 0,
+          health: getChannelHealth(ch.url),
         })),
         message: 'Aucune chaîne spécifique trouvée',
       });
     }
 
     // Build response message
-    const broadcasterInfo = searchBroadcasters.length > 0
-      ? `Diffusé sur: ${searchBroadcasters.join(', ')}`
+    const broadcasterNames = searchBroadcasters.length > 0
+      ? searchBroadcasters
+      : combinedBroadcasters.slice(0, 3).map(b => b.broadcaster);
+
+    const onlineCount = finalChannels.filter(ch => ch.health === 'online').length;
+    const broadcasterInfo = broadcasterNames.length > 0
+      ? `Diffusé sur: ${broadcasterNames.join(', ')}`
       : '';
 
     return NextResponse.json({
       channels: finalChannels,
-      message: `${finalChannels.length} chaîne(s) trouvée(s)${broadcasterInfo ? ` · ${broadcasterInfo}` : ''}`,
-      broadcasters: searchBroadcasters.length > 0 ? searchBroadcasters : undefined,
+      message: `${finalChannels.length} chaîne(s) trouvée(s)${onlineCount > 0 ? ` · ${onlineCount} en ligne` : ''}${broadcasterInfo ? ` · ${broadcasterInfo}` : ''}`,
+      broadcasters: broadcasterNames.length > 0 ? broadcasterNames : undefined,
     });
   } catch (error) {
     console.error('[Match Stream API] Error:', error);
@@ -378,6 +822,27 @@ export async function POST(request: NextRequest) {
 }
 
 /**
+ * Guess likely countries for a broadcaster based on its name.
+ */
+function guessCountriesForBroadcaster(broadcaster: string, teamCountries: string[]): string[] {
+  const bLower = broadcaster.toLowerCase();
+  const countryMap: Record<string, string[]> = {
+    'canal': ['fr'], 'rmc': ['fr'], 'bein': ['fr', 'ara'], 'dazn': ['de', 'it', 'es'],
+    'sky': ['gb', 'de', 'it'], 'movistar': ['es'], 'espn': ['us'], 'cbs': ['us'],
+    'nbc': ['us'], 'fox': ['us'], 'paramount': ['us'], 'tnt': ['gb', 'us'],
+    'sport tv': ['pt'], 'eleven': ['pt'], 'viaplay': ['nl'],
+    'globo': ['br'], 'spor tv': ['br'], 'tudn': ['mx'], 'azteca': ['mx'],
+    'trt': ['tr'], 'ssc': ['sa'], 'supersport': ['eg'], 'nba': ['us'],
+  };
+
+  for (const [key, countries] of Object.entries(countryMap)) {
+    if (bLower.includes(key)) return countries;
+  }
+
+  return teamCountries;
+}
+
+/**
  * Get keywords for a competition name
  */
 function getCompetitionKeywords(comp: string): string[] {
@@ -385,10 +850,11 @@ function getCompetitionKeywords(comp: string): string[] {
 
   const compMap: Record<string, string[]> = {
     // Football
-    'ligue 1': ['ligue 1', 'l1', 'canal', 'bein', 'amazon'],
+    'ligue 1': ['ligue 1', 'l1', 'canal', 'bein', 'amazon', 'dazn'],
     'premier league': ['premier league', 'pl', 'sky sports', 'bt sport', 'nbc'],
-    'champions league': ['champions league', 'ucl', 'canal', 'bein', 'bt sport'],
-    'europa league': ['europa league', 'uel'],
+    'champions league': ['champions league', 'ucl', 'canal', 'bein', 'bt sport', 'rmc sport'],
+    'europa league': ['europa league', 'uel', 'canal', 'rmc sport'],
+    'conference league': ['conference league', 'canal', 'rmc sport'],
     'la liga': ['la liga', 'liga', 'movistar', 'bein', 'espn'],
     'serie a': ['serie a', 'dazn', 'sky sport'],
     'bundesliga': ['bundesliga', 'sky sport', 'dazn'],
@@ -396,7 +862,7 @@ function getCompetitionKeywords(comp: string): string[] {
     'africa cup': ['africa cup', 'can', 'afcon', 'bein'],
     'cup': ['cup', 'coupe'],
     // Basketball
-    'nba': ['nba', 'espn', 'tnt', 'nba tv', 'league pass'],
+    'nba': ['nba', 'espn', 'tnt', 'nba tv', 'league pass', 'bein'],
     'ncaa': ['ncaa', 'espn', 'cbs', 'tbs', 'march madness'],
     'euroleague': ['euroleague', 'euroleague tv', 'bein', 'canal'],
     'wnba': ['wnba', 'nba tv', 'espn'],

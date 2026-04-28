@@ -5,6 +5,9 @@ const CACHE_DURATION = 3600 * 1000;
 let cachedChannels: ParsedChannel[] = [];
 let lastFetch = 0;
 
+// Per-country channel caches
+const countryCache = new Map<string, { channels: ParsedChannel[]; timestamp: number }>();
+
 export interface ParsedChannel {
   tvgId: string;
   name: string;
@@ -17,12 +20,27 @@ export interface ParsedChannel {
 
 // Multiple M3U playlist sources (ordered by priority — sports first)
 const IPTV_SOURCES = [
+  // Primary sports playlist
   { url: 'https://iptv-org.github.io/iptv/categories/sports.m3u', label: 'sports' },
+  // Language-specific playlists (key languages for football viewership)
   { url: 'https://iptv-org.github.io/iptv/languages/fra.m3u', label: 'fra' },
   { url: 'https://iptv-org.github.io/iptv/languages/eng.m3u', label: 'eng' },
   { url: 'https://iptv-org.github.io/iptv/languages/ara.m3u', label: 'ara' },
   { url: 'https://iptv-org.github.io/iptv/languages/spa.m3u', label: 'spa' },
+  { url: 'https://iptv-org.github.io/iptv/languages/deu.m3u', label: 'deu' },
+  { url: 'https://iptv-org.github.io/iptv/languages/ita.m3u', label: 'ita' },
+  { url: 'https://iptv-org.github.io/iptv/languages/por.m3u', label: 'por' },
+  { url: 'https://iptv-org.github.io/iptv/languages/tur.m3u', label: 'tur' },
+  // Additional sports-specific category playlists
+  { url: 'https://iptv-org.github.io/iptv/categories/football.m3u', label: 'football' },
 ];
+
+// Country code mapping for team-based country lookups
+export const COUNTRY_PLAYLIST_MAP: Record<string, string> = {
+  fr: 'fr', gb: 'gb', us: 'us', de: 'de', es: 'es', it: 'it',
+  br: 'br', ar: 'ar', mx: 'mx', pt: 'pt', nl: 'nl', tr: 'tr',
+  sa: 'sa', eg: 'eg', jp: 'jp', kr: 'kr',
+};
 
 function parsePlaylistItems(items: any[], sourceLabel: string): ParsedChannel[] {
   return items
@@ -97,10 +115,18 @@ export async function fetchSportsChannels(): Promise<ParsedChannel[]> {
   }
 }
 
-// Fetch channels by country
+// Fetch channels by country with caching
 export async function fetchCountryChannels(countryCode: string): Promise<ParsedChannel[]> {
+  const lowerCode = countryCode.toLowerCase();
+
+  // Check country cache first
+  const cached = countryCache.get(lowerCode);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.channels;
+  }
+
   try {
-    const res = await fetch(`https://iptv-org.github.io/iptv/countries/${countryCode}.m3u`, {
+    const res = await fetch(`https://iptv-org.github.io/iptv/countries/${lowerCode}.m3u`, {
       next: { revalidate: 3600 },
     });
     if (!res.ok) throw new Error('Failed to fetch country playlist');
@@ -108,7 +134,7 @@ export async function fetchCountryChannels(countryCode: string): Promise<ParsedC
     const text = await res.text();
     const playlist = parser.parse(text);
 
-    return playlist.items
+    const channels = playlist.items
       .filter(
         (ch: any) =>
           ch.url &&
@@ -123,11 +149,157 @@ export async function fetchCountryChannels(countryCode: string): Promise<ParsedC
         logo: ch.tvg?.logo || '',
         group: ch.group?.title || 'General',
         url: ch.url,
-        country: countryCode,
-        source: `country-${countryCode}`,
+        country: lowerCode,
+        source: `country-${lowerCode}`,
       }));
+
+    // Cache the result
+    countryCache.set(lowerCode, { channels, timestamp: Date.now() });
+    return channels;
   } catch (error) {
-    console.error('Error fetching country channels:', error);
-    return [];
+    console.error(`Error fetching country ${lowerCode} channels:`, error);
+    // Return cached data if available, even if stale
+    const staleCached = countryCache.get(lowerCode);
+    return staleCached?.channels || [];
   }
+}
+
+// Fetch channels for multiple countries in parallel
+export async function fetchCountryChannelsBatch(countryCodes: string[]): Promise<ParsedChannel[]> {
+  if (countryCodes.length === 0) return [];
+
+  const results = await Promise.allSettled(
+    countryCodes.map((code) => fetchCountryChannels(code))
+  );
+
+  const allChannels: ParsedChannel[] = [];
+  for (const result of results) {
+    if (result.status === 'fulfilled' && result.value) {
+      allChannels.push(...result.value);
+    }
+  }
+
+  // Deduplicate by URL
+  const seenUrls = new Set<string>();
+  const deduped: ParsedChannel[] = [];
+  for (const ch of allChannels) {
+    if (!seenUrls.has(ch.url)) {
+      seenUrls.add(ch.url);
+      deduped.push(ch);
+    }
+  }
+
+  return deduped;
+}
+
+/**
+ * Check if a channel is likely a sports channel based on its name and group.
+ * Used to filter out irrelevant matches (e.g., CBS local news affiliates).
+ */
+export function isSportsChannel(ch: { name: string; group: string }): boolean {
+  const nameLower = ch.name.toLowerCase();
+  const groupLower = (ch.group || '').toLowerCase();
+
+  // Sports-related keywords
+  const sportsKeywords = [
+    'sport', 'espn', 'bein', 'dazn', 'canal+', 'c+ sport', 'c+ foot',
+    'fox sport', 'sky sport', 'golazo', 'arena', 'setanta', 'supersport',
+    'rmc sport', "l'equipe", 'equipe', 'football', 'soccer', 'futbol', 'basket',
+    'nba', 'nfl', 'mlb', 'nhl', 'golf', 'tennis', 'fight', 'combat',
+    'equidia', 'trace sport', 'fifa', 'directv sport', 'tdp',
+    'liga', 'premier', 'champion', 'cup', 'olympic',
+    'cbs sports', 'cbs golazo', 'nbc sports',
+  ];
+
+  // Check if name or group contains sports keywords
+  for (const kw of sportsKeywords) {
+    if (nameLower.includes(kw) || groupLower.includes(kw)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Check if a channel name looks like a local TV affiliate (not a sports channel).
+ * e.g., "CBS 2 Salt Lake City", "CBS News Baltimore", "NBC 4 New York" are local stations, not sports channels.
+ */
+export function isLocalAffiliate(name: string): boolean {
+  const nameLower = name.toLowerCase();
+
+  // Pattern: "CBS/ABC/NBC/FOX" followed by a number and city name (e.g., "CBS 2 Salt Lake City")
+  const localNumberPattern = /\b(cbs|abc|nbc|fox|cw)\s+\d+/i;
+
+  // Pattern: "CBS News <city>", "NBC News <city>", "ABC News <city>" (local news affiliates)
+  const localNewsPattern = /\b(cbs|abc|nbc|fox|cw)\s+news\b/i;
+
+  // Pattern: "CBS <number> <city>" (another common format)
+  const localCallSign = /\b(k[wtvch]+\d*|w[abcn]b?c?\d*)\s/i;
+
+  // Check for [Not 24/7] or [Geo-blocked] markers on non-sports channels
+  const isUnreliable = name.includes('[Not 24/7]') || name.includes('[Geo-blocked]') || name.includes('[Geo-Blocked]');
+
+  if (localNumberPattern.test(name) || localNewsPattern.test(name)) {
+    return true;
+  }
+
+  // Unreliable non-sports channels
+  if (isUnreliable && !isSportsChannel({ name, group: '' })) {
+    return true;
+  }
+
+  return false;
+}
+
+// Quick health check for a single stream URL
+export async function checkStreamHealth(url: string, timeoutMs: number = 6000): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    const res = await fetch(url, {
+      method: 'HEAD',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; GoalStream/1.0)',
+      },
+    });
+
+    clearTimeout(timeout);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// Check multiple stream URLs in parallel
+export async function checkStreamsBatch(
+  urls: string[],
+  concurrency: number = 5,
+  timeoutMs: number = 6000
+): Promise<Map<string, boolean>> {
+  const results = new Map<string, boolean>();
+
+  // Process in batches for controlled concurrency
+  for (let i = 0; i < urls.length; i += concurrency) {
+    const batch = urls.slice(i, i + concurrency);
+    const batchResults = await Promise.allSettled(
+      batch.map(async (url) => {
+        const healthy = await checkStreamHealth(url, timeoutMs);
+        return { url, healthy };
+      })
+    );
+
+    for (let j = 0; j < batchResults.length; j++) {
+      const result = batchResults[j];
+      if (result.status === 'fulfilled') {
+        results.set(result.value.url, result.value.healthy);
+      } else {
+        results.set(batch[j], false);
+      }
+    }
+  }
+
+  return results;
 }

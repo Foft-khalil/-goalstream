@@ -336,3 +336,53 @@ Stage Summary:
 - Periodic health cron endpoint checks 50 channels per hour with cooldown
 - Channels API returns pre-populated health status from the shared health map
 - Client-side store prefers server-provided health status over local cache
+---
+Task ID: 10
+Agent: Main Agent
+Task: Fix wrong channel matching for PSG-Bayern and non-working IPTV channels
+
+Work Log:
+- Diagnosed root cause: PSG-Bayern was returning CBS News affiliates and wrong channels
+- Rewrote `src/lib/iptv.ts`:
+  - Added 10 IPTV sources (sports, fra, eng, ara, spa, deu, ita, por, tur, football category)
+  - Added `isSportsChannel()` to detect actual sports channels
+  - Added `isLocalAffiliate()` to filter out CBS/NBC/ABC local news stations
+  - Added `fetchCountryChannelsBatch()` for parallel country-specific channel fetching
+  - Added `checkStreamsBatch()` for parallel real-time health checking
+  - Country-specific channel caching
+- Rewrote `src/app/api/match-stream/route.ts`:
+  - Country-aware broadcaster priority (France = highest for French users)
+  - Structured broadcaster database per competition with country + priority info
+  - Added L'Equipe, CBS Sports Golazo as known French/football channels
+  - French-language web search query ("chaine TV diffusion direct")
+  - Real-time stream health check on top 12 candidates
+  - Combined score sorting (relevance + health + broadcaster match + geo-blocked penalty)
+  - Free sports channel injection (L'Equipe, CBS Golazo, FIFA+, ERT Sports, etc.)
+  - Blacklist filtering (combat, strongman, poker, etc.)
+  - Canal+ vs generic "Canal" name filtering
+  - Geo-blocked channel penalty (-80 points)
+  - Non-sports broadcaster match penalty
+  - Team country detection for country-specific channel fetching
+- Updated `src/lib/channel-health.ts`:
+  - Added `setChannelHealthBatch()`, `getChannelHealthBatch()`, `countOnline()`
+- Updated `src/app/api/channels-health-cron/route.ts`:
+  - Now checks 100 channels (was 50)
+  - Fetches from 5 country sources (fr, gb, de, es, it)
+  - Prioritizes sports channels in health checks
+- Updated match card components to show health indicators (green/red dots)
+  - `src/components/match-card.tsx`: Added health field, online/offline indicators, opacity for offline
+  - `src/components/basketball-match-card.tsx`: Same updates
+- Test results: PSG vs Bayern now shows L'Equipe, CBS Sports Golazo, beIN Sports Xtra as top results
+  - Before: CBS News Baltimore, CBS 2 Salt Lake City (wrong channels)
+  - After: L'Equipe, beIN Sports, CBS Sports Golazo (correct sports channels)
+
+Stage Summary:
+- Channel matching now country-aware (French channels prioritized for French users)
+- Local TV affiliates (CBS News, NBC News) are filtered out
+- Real-time health check verifies top channels before returning
+- L'Equipe and CBS Sports Golazo now appear in results
+- Geo-blocked channels are penalized in sorting
+- Free sports channels injected directly into results
+- 10 IPTV sources (was 5) including football.m3u category
+- Health cron checks 100 channels from 5 countries
+- Lint passes clean, dev server running
