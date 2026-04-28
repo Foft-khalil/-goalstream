@@ -1,25 +1,19 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 
 /**
- * LiveMatchClock — displays a real-time ticking chronometer for football matches.
+ * LiveMatchClock — real-time ticking chronometer for football matches.
  *
- * It extrapolates the ESPN displayClock forward in real-time between API updates,
- * giving the user a sense of how much time has elapsed with a running MM:SS display.
+ * Architecture:
+ * - When ESPN data arrives (displayClock + lastUpdated), we "snap" to that value
+ * - Between ESPN updates, the clock ticks forward every second
+ * - When a new ESPN update arrives, we snap to the new value (smooth transition)
+ * - If the user was away (tab hidden), the clock catches up instantly
  *
- * IMPORTANT: This component does NOT blindly trust the `isHalftime` prop from the API.
- * It independently verifies halftime status using `period` and `statusDescription`
- * because the API has previously sent incorrect `isHalftime=true` during 2nd half
- * (ESPN sends statusDescription="2nd Half" which contains "half").
- *
- * Props:
- * - displayClock: ESPN's raw clock string, e.g. "32:45"
- * - period: ESPN period number (1 = 1st half, 2 = 2nd half)
- * - statusDescription: ESPN description like "1st Half", "Halftime", "2nd Half"
- * - isHalftime: whether the match is currently at halftime (from API, may be wrong)
- * - lastUpdated: timestamp (ms) when the data was last fetched
- * - minute: the calculated match minute from the API (for fallback)
+ * The component does NOT trust `isHalftime` blindly — it cross-checks with
+ * `period` and `statusDescription` because ESPN sends "2nd Half" which
+ * contains "half" and was previously misdetected as halftime.
  */
 
 interface LiveMatchClockProps {
@@ -31,9 +25,7 @@ interface LiveMatchClockProps {
   minute: number | null;
 }
 
-/**
- * Parse displayClock like "32:45" into total seconds within the current period.
- */
+/** Parse "32:45" → 1965 seconds */
 function parseClockToSeconds(clock: string): number {
   const parts = clock.split(':');
   if (parts.length === 2) {
@@ -42,70 +34,45 @@ function parseClockToSeconds(clock: string): number {
   return 0;
 }
 
-/**
- * Format total seconds into "MM:SS".
- */
+/** Format 1965 seconds → "32:45" */
 function formatClock(secs: number): string {
   const m = Math.floor(secs / 60);
   const s = Math.floor(secs % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-/**
- * Get a French period label.
- */
+/** Get French period label */
 function getPeriodLabel(period: number | null, statusDescription: string | null): string | null {
   const desc = statusDescription?.toLowerCase() || '';
-
-  if (period === 1 || desc.includes('1st') || desc.includes('first')) {
-    return '1ère MT';
-  }
-  if (period === 2 || desc.includes('2nd') || desc.includes('second')) {
-    return '2ème MT';
-  }
-
-  // Extra time / added time
-  if (desc.includes('extra') || desc.includes('overtime') || desc.includes('prolongation')) {
-    return 'PROL';
-  }
-
+  if (period === 1 || desc.includes('1st') || desc.includes('first')) return '1ère MT';
+  if (period === 2 || desc.includes('2nd') || desc.includes('second')) return '2ème MT';
+  if (desc.includes('extra') || desc.includes('overtime') || desc.includes('prolongation')) return 'PROL';
   return null;
 }
 
 /**
- * Determine if a match is truly at halftime using MULTIPLE signals.
- * Does NOT trust isHalftime alone — cross-checks with period and description.
- *
- * Halftime = period 0 or null AND description contains "halftime" (not "1st half" or "2nd half")
- * OR period 1 AND clock has reached 45:00+ AND description explicitly says "halftime"
+ * Cross-verify halftime using multiple signals.
+ * Does NOT trust isHalftime alone.
  */
 function isTrulyHalftime(
   period: number | null,
   statusDescription: string | null,
   isHalftimeProp: boolean,
-  displayClock: string | null,
 ): boolean {
   const desc = (statusDescription?.toLowerCase() || '').trim();
 
-  // If period is 2, we are DEFINITELY in the 2nd half, not halftime
+  // Period 2 = definitely 2nd half
   if (period === 2) return false;
-
-  // If description mentions "2nd" or "second", we're in the 2nd half
+  // "2nd Half" / "second half" = playing, not halftime
   if (desc.includes('2nd') || desc.includes('second')) return false;
-
-  // If description mentions "1st" or "first", we're in the 1st half (still playing)
+  // "1st Half" / "first half" = still playing 1st half
   if (desc.includes('1st') || desc.includes('first')) return false;
 
-  // Explicit halftime descriptions
-  if (desc === 'halftime' || desc === 'half' || desc === 'mi-temps' || desc === 'midpoint') {
-    return true;
-  }
+  // Explicit halftime
+  if (desc === 'halftime' || desc === 'half' || desc === 'mi-temps' || desc === 'midpoint') return true;
 
-  // If the API says halftime and we haven't contradicted it above, trust it
-  // BUT only if period is NOT 2 and description doesn't indicate 2nd half
-  if (isHalftimeProp && period !== 2) {
-    return true;
-  }
+  // Trust API prop only if period isn't 2 and desc doesn't contradict
+  if (isHalftimeProp && period !== 2) return true;
 
   return false;
 }
@@ -118,23 +85,30 @@ export default function LiveMatchClock({
   lastUpdated,
   minute,
 }: LiveMatchClockProps) {
-  const [now, setNow] = useState(Date.now());
+  // ─── Local clock state ─────────────────────────────────────────────────
+  // We track the "snap time" — the total seconds we should be displaying right now.
+  // When new ESPN data arrives, we snap to the new value.
+  // Between snaps, we tick forward every second.
 
-  // Independently verify halftime — don't trust the prop blindly
+  const [localNow, setLocalNow] = useState(Date.now());
+  const prevDisplayClockRef = useRef<string | null>(null);
+  const prevPeriodRef = useRef<number | null>(null);
+  const snapTimeRef = useRef<number>(0); // total seconds at the moment of the last snap
+  const snapRealTimeRef = useRef<number>(Date.now()); // real-world time of the last snap
+
+  // Verify halftime independently
   const effectiveHalftime = useMemo(
-    () => isTrulyHalftime(period, statusDescription, isHalftimeProp, displayClock),
-    [period, statusDescription, isHalftimeProp, displayClock]
+    () => isTrulyHalftime(period, statusDescription, isHalftimeProp),
+    [period, statusDescription, isHalftimeProp]
   );
 
-  // Calculate the base seconds from the ESPN displayClock (within current period)
-  const basePeriodSeconds = useMemo(() => {
+  // ─── Calculate base seconds from ESPN displayClock ──────────────────────
+  const espnPeriodSeconds = useMemo(() => {
     if (displayClock) {
       return parseClockToSeconds(displayClock);
     }
-    // Fallback: use minute to derive period seconds
     if (minute != null) {
       if (period && period >= 2) {
-        // If in 2nd period, the minute is total, so period seconds = (minute - 45) * 60
         return Math.max(0, (minute - 45 * (period - 1)) * 60);
       }
       return minute * 60;
@@ -142,42 +116,62 @@ export default function LiveMatchClock({
     return 0;
   }, [displayClock, minute, period]);
 
-  // Tick every second
+  const espnTotalSeconds = useMemo(() => {
+    const periodOffset = period && period > 1 ? 45 * (period - 1) : 0;
+    return espnPeriodSeconds + periodOffset;
+  }, [espnPeriodSeconds, period]);
+
+  // ─── Snap to ESPN value when data changes ──────────────────────────────
+  // When displayClock or period changes, we know ESPN sent new data.
+  // We snap our clock to the new value and record when we snapped.
+
+  const snapToESPN = useCallback(() => {
+    snapTimeRef.current = espnTotalSeconds;
+    snapRealTimeRef.current = Date.now();
+  }, [espnTotalSeconds]);
+
+  // Detect when ESPN data actually changes
+  useEffect(() => {
+    if (
+      prevDisplayClockRef.current !== displayClock ||
+      prevPeriodRef.current !== period
+    ) {
+      prevDisplayClockRef.current = displayClock;
+      prevPeriodRef.current = period;
+      snapToESPN();
+    }
+  }, [displayClock, period, snapToESPN]);
+
+  // ─── Tick every second ─────────────────────────────────────────────────
   useEffect(() => {
     const timer = setInterval(() => {
-      setNow(Date.now());
+      setLocalNow(Date.now());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Calculate how many seconds have elapsed since the last API update
-  const elapsedSinceUpdate = lastUpdated ? Math.max(0, Math.floor((now - lastUpdated) / 1000)) : 0;
+  // ─── Calculate current display time ────────────────────────────────────
+  // Time elapsed since the last snap (in seconds)
+  const elapsedSinceSnap = Math.max(0, Math.floor((localNow - snapRealTimeRef.current) / 1000));
 
-  // Current period elapsed seconds (extrapolated forward)
-  // During halftime, we DON'T extrapolate — the clock pauses
-  const currentPeriodSeconds = basePeriodSeconds + (effectiveHalftime ? 0 : elapsedSinceUpdate);
+  // Current total seconds = snap value + elapsed time since snap
+  // During halftime, the clock does NOT advance
+  let currentTotalSeconds = snapTimeRef.current + (effectiveHalftime ? 0 : elapsedSinceSnap);
 
-  // Cap at reasonable values per period
-  // Each half can go up to ~50 min (45 + stoppage time) — generous cap
-  const maxPeriodSeconds = 50 * 60;
-  const cappedPeriodSeconds = Math.min(currentPeriodSeconds, maxPeriodSeconds);
+  // Cap: 1st half max ~50 min total, 2nd half max ~95 min total
+  const maxTotalSeconds = (period && period >= 2) ? 95 * 60 : 50 * 60;
+  currentTotalSeconds = Math.min(currentTotalSeconds, maxTotalSeconds);
 
-  // Total match minute (for display)
+  // Derive display values
   const periodOffset = period && period > 1 ? 45 * (period - 1) : 0;
-  const totalMinute = Math.floor(cappedPeriodSeconds / 60) + periodOffset;
-
-  // Clock string shows the period time (MM:SS within the current half)
-  const clockStr = formatClock(cappedPeriodSeconds);
-
-  // Check for added time (past 45:00 within a period)
-  const isAddedTime = cappedPeriodSeconds > 45 * 60;
-  const addedTimeMinute = isAddedTime
-    ? Math.floor(cappedPeriodSeconds / 60) - 45
-    : 0;
-
+  const currentPeriodSeconds = Math.max(0, currentTotalSeconds - periodOffset);
+  const totalMinute = Math.floor(currentTotalSeconds / 60);
+  const clockStr = formatClock(currentPeriodSeconds);
   const periodLabel = getPeriodLabel(period, statusDescription);
+  const isAddedTime = currentPeriodSeconds > 45 * 60;
+  const addedTimeMinute = isAddedTime ? Math.floor(currentPeriodSeconds / 60) - 45 : 0;
 
-  // ─── HALFTIME DISPLAY ─────────────────────────────────────────────────
+  // ─── HALFTIME DISPLAY ──────────────────────────────────────────────────
   if (effectiveHalftime) {
     return (
       <div className="flex items-center gap-2">
@@ -194,7 +188,7 @@ export default function LiveMatchClock({
     );
   }
 
-  // ─── LIVE CLOCK DISPLAY ──────────────────────────────────────────────
+  // ─── LIVE CLOCK DISPLAY ────────────────────────────────────────────────
   return (
     <div className="flex items-center gap-1.5">
       {/* Main chronometer */}

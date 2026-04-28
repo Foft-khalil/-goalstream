@@ -282,17 +282,14 @@ export async function GET(request: NextRequest) {
     const cached = getCached<FootballMatchesResponse>(cacheKey, hasLive);
     if (cached) {
       const age = getCacheAge(cacheKey);
-      // Update lastUpdated and live match clocks to current time so client chronometers don't drift
-      const now = Date.now();
-      const freshMatches = cached.matches.map(m => {
-        if (m.status === 'live') {
-          return { ...m, lastUpdated: now };
-        }
-        return m;
-      });
-      const freshResponse = { ...cached, matches: freshMatches, lastUpdated: new Date(now).toISOString() };
-      console.log(`[Football API] Returning cached data (age: ${age}s, ${freshMatches.length} matches, live: ${hasLive})`);
-      return NextResponse.json(freshResponse, {
+      // IMPORTANT: Do NOT reset lastUpdated on cache hits!
+      // The client uses lastUpdated to extrapolate the clock forward.
+      // If we reset lastUpdated but keep the old displayClock, the client's
+      // extrapolation resets and the clock JUMPS BACKWARDS every poll cycle.
+      // Keeping the original lastUpdated lets the clock tick forward smoothly,
+      // and it snaps to the correct ESPN value on the next fresh fetch.
+      console.log(`[Football API] Returning cached data (age: ${age}s, ${cached.matches.length} matches, live: ${hasLive})`);
+      return NextResponse.json(cached, {
         headers: { 'X-Cache': 'HIT', 'X-Cache-Age': String(age) },
       });
     }

@@ -470,3 +470,36 @@ Stage Summary:
 - Both server-side (API route) and client-side (component) are now fixed
 - Component independently verifies halftime using multiple signals for resilience
 - Lint passes clean, dev server running
+
+---
+Task ID: 14
+Agent: Main Agent
+Task: Fix chronometer not advancing in real-time — clock jumps backwards on every poll
+
+Work Log:
+- Root cause identified: On cache hits, the server was resetting `lastUpdated` to `Date.now()`
+  but keeping the STALE `displayClock` from the original ESPN fetch.
+- Client calculation: `elapsedSinceUpdate = now - lastUpdated` → resets to ~0 every 15s poll
+- Effect: clock shows displayClock + 0s, ticks up to +15s, then JUMPS BACK to displayClock on next poll
+- The chronometer was oscillating between the base displayClock and displayClock+15s, never advancing
+- Fix 1: Removed `lastUpdated` reset on cache hits in `src/app/api/football/route.ts`
+  - Now returns cached data as-is, preserving the original `lastUpdated` from the actual ESPN fetch
+  - Client extrapolation: `elapsedSinceUpdate = now - originalLastUpdated` grows continuously
+  - Clock keeps ticking forward smoothly between ESPN updates
+  - When fresh ESPN data arrives (every 15s), clock snaps to the correct official value
+- Fix 2: Same change in `src/app/api/basketball/route.ts`
+- Fix 3: Rewrote LiveMatchClock with "snap-based" architecture:
+  - When ESPN data changes (displayClock or period), we "snap" to the new value
+  - Between snaps, clock ticks forward every second using `Date.now() - snapTime`
+  - Uses refs (snapTimeRef, snapRealTimeRef) to track the snap point
+  - No more dependency on `lastUpdated` prop for extrapolation — uses local snap tracking
+  - When user switches tabs and returns, clock catches up instantly
+  - Handles edge cases: very old lastUpdated, rapid polls, cache hits
+
+Stage Summary:
+- Chronometer now advances continuously in real-time without any delay or jumping back
+- Root cause was resetting lastUpdated on cache hits while keeping stale displayClock
+- New "snap-based" architecture: snap to ESPN value on data change, tick forward between snaps
+- Clock self-corrects every 15s when fresh ESPN data arrives
+- Both football and basketball routes fixed
+- Lint passes clean, dev server running
