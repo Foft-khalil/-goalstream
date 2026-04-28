@@ -467,6 +467,7 @@ function MatchRow({ match }: { match: TeamMatch }) {
 
   const isLive = match.status === 'live';
   const isFinished = match.status === 'finished';
+  const isUpcoming = match.status === 'upcoming';
   const isHome = match.homeAway === 'home';
 
   // Determine score from team perspective
@@ -510,7 +511,12 @@ function MatchRow({ match }: { match: TeamMatch }) {
             {match.opponent.slice(0, 2)}
           </div>
         )}
-        <span className="text-xs font-medium truncate">{match.opponent}</span>
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-medium truncate">{match.opponent}</span>
+          {match.competition && isUpcoming && (
+            <span className="text-[9px] text-muted-foreground/40 truncate">{match.competition}</span>
+          )}
+        </div>
       </div>
 
       {/* Score */}

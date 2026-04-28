@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCached, getCachedStale, setCache, getCacheAge } from '@/lib/football/cache';
+import ZAI from 'z-ai-web-dev-sdk';
 
 const CACHE_PREFIX = 'team-detail';
+
+const LEAGUE_NAMES: Record<string, string> = {
+  'fra.1': 'Ligue 1',
+  'eng.1': 'Premier League',
+  'esp.1': 'La Liga',
+  'ita.1': 'Serie A',
+  'ger.1': 'Bundesliga',
+  'por.1': 'Liga Portugal',
+  'ned.1': 'Eredivisie',
+};
 
 interface TeamInfo {
   id: string;
@@ -54,24 +65,83 @@ interface TeamDetailResponse {
   error?: string;
 }
 
-async function fetchJSON(url: string): Promise<any> {
+/**
+ * Get current season year for a league.
+ * European football seasons span Aug-May, so from Jan-Jul the "current" season
+ * started the previous year (e.g., Jan 2026 → season 2025-2026 → use 2025).
+ */
+function getCurrentSeasonYear(): number {
+  const now = new Date();
+  const month = now.getMonth(); // 0-indexed
+  // Jan-Jul: season started previous year; Aug-Dec: season started this year
+  return month < 7 ? now.getFullYear() - 1 : now.getFullYear();
+}
+
+async function fetchJSON(url: string, timeout = 8000): Promise<any> {
   const res = await fetch(url, {
     headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(timeout),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   return res.json();
 }
 
-async function fetchTeamInfo(teamId: string, leagueCode: string): Promise<{ info: TeamInfo; roster: Player[] } | null> {
+/**
+ * Parse score value from ESPN Site API format.
+ * The Site API returns score as either:
+ * - A simple string/number (older format)
+ * - An object with { value: number, displayValue: string, ... } (current format)
+ */
+function parseScore(scoreData: any): number | null {
+  if (scoreData == null) return null;
+  if (typeof scoreData === 'number') return scoreData;
+  if (typeof scoreData === 'string') {
+    const parsed = parseInt(scoreData, 10);
+    return isNaN(parsed) ? null : parsed;
+  }
+  if (typeof scoreData === 'object') {
+    // Object format: { value: 0.0, displayValue: '0', ... }
+    if (typeof scoreData.value === 'number') return Math.round(scoreData.value);
+    if (typeof scoreData.displayValue === 'string') {
+      const parsed = parseInt(scoreData.displayValue, 10);
+      return isNaN(parsed) ? null : parsed;
+    }
+  }
+  return null;
+}
+
+/**
+ * Determine match status based on date.
+ * ESPN Site API schedule returns status=null for all events,
+ * so we determine status by comparing the match date to now.
+ */
+function determineMatchStatus(matchDate: string): 'upcoming' | 'live' | 'finished' {
+  const matchTime = new Date(matchDate).getTime();
+  const now = Date.now();
+
+  // A football match lasts about 2 hours, add buffer
+  const MATCH_DURATION = 3 * 60 * 60 * 1000; // 3 hours
+  const PRE_MATCH = 30 * 60 * 1000; // 30 min before
+
+  if (matchTime - PRE_MATCH > now) return 'upcoming';
+  if (matchTime + MATCH_DURATION < now) return 'finished';
+  return 'live';
+}
+
+async function fetchTeamInfo(
+  teamId: string,
+  leagueCode: string
+): Promise<{ info: TeamInfo; roster: Player[] } | null> {
   try {
-    // Use ESPN Core API for richer data
+    const seasonYear = getCurrentSeasonYear();
+
+    // Use ESPN Core API for team basic info
     const data = await fetchJSON(
       `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${leagueCode}/teams/${teamId}`
     );
 
     const info: TeamInfo = {
-      id: data.id || teamId,
+      id: String(data.id || teamId),
       name: data.displayName || data.name || '',
       shortName: data.shortDisplayName || data.abbreviation || '',
       abbreviation: data.abbreviation || '',
@@ -79,72 +149,93 @@ async function fetchTeamInfo(teamId: string, leagueCode: string): Promise<{ info
       color: data.color || null,
       venue: null,
       coach: null,
-      founded: null,
+      founded: data.founded || null,
       leagueCode,
-      leagueName: '',
+      leagueName: LEAGUE_NAMES[leagueCode] || leagueCode,
     };
 
-    // Extract venue
-    if (data.venue) {
-      if (typeof data.venue === 'object' && data.venue.fullName) {
-        info.venue = data.venue.fullName;
-        if (data.venue.address?.city) {
-          info.venue = `${data.venue.fullName}, ${data.venue.address.city}`;
-        }
-      }
+    // Extract venue (inline data)
+    if (data.venue && typeof data.venue === 'object') {
+      const parts: string[] = [];
+      if (data.venue.fullName) parts.push(data.venue.fullName);
+      if (data.venue.address?.city) parts.push(data.venue.address.city);
+      info.venue = parts.join(', ') || null;
     }
 
-    // Fetch coach from coaches $ref
-    if (data.coaches?.$ref) {
+    // Fetch coach using web search (ESPN Core API coach data is unreliable/outdated)
+    // Run this in parallel with roster fetching below
+    const coachPromise = (async (): Promise<string | null> => {
       try {
-        const coachesData = await fetchJSON(data.coaches.$ref);
-        const coachList = coachesData.items || [];
-        if (coachList.length > 0) {
-          const coachRef = coachList[0];
-          // Coach data might be inline or need another fetch
-          if (coachRef.firstName || coachRef.lastName || coachRef.displayName) {
-            info.coach = coachRef.displayName || `${coachRef.firstName || ''} ${coachRef.lastName || ''}`.trim();
-          } else if (coachRef.$ref) {
-            try {
-              const coachDetail = await fetchJSON(coachRef.$ref);
-              info.coach = coachDetail.displayName || `${coachDetail.firstName || ''} ${coachDetail.lastName || ''}`.trim() || null;
-            } catch {}
+        const sdk = await ZAI.create();
+        const results = await sdk.functions.invoke('web_search', {
+          query: `${info.name} current coach manager 2025-2026`,
+          num: 3,
+          recency_days: 90,
+        });
+        if (results && results.length > 0) {
+          // Use LLM to extract the coach name from search snippets
+          const snippets = results.map((r: any) => r.snippet).join('\n');
+          const chatResponse = await sdk.chat.completions.create({
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a football data extractor. Extract ONLY the current head coach/manager name from the search results. Return ONLY the full name, nothing else. If you cannot determine the coach, return "Unknown".',
+              },
+              {
+                role: 'user',
+                content: `Team: ${info.name}\nLeague: ${info.leagueName}\nSearch results:\n${snippets}`,
+              },
+            ],
+          });
+          const coachName = chatResponse?.choices?.[0]?.message?.content?.trim();
+          if (coachName && coachName !== 'Unknown' && coachName.length > 2 && coachName.length < 60) {
+            return coachName;
           }
         }
       } catch (err) {
-        console.warn('[Team API] Failed to fetch coach:', err);
+        console.warn('[Team API] Web search coach failed:', err);
       }
-    }
+      return null;
+    })();
 
-    // Fetch roster from athletes $ref
+    // Fetch roster from season-specific athletes endpoint
     const roster: Player[] = [];
-    if (data.athletes?.$ref) {
-      try {
-        const athletesData = await fetchJSON(data.athletes.$ref);
-        const athleteItems = athletesData.items || [];
+    try {
+      const athletesUrl = `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${leagueCode}/seasons/${seasonYear}/teams/${teamId}/athletes`;
+      const athletesData = await fetchJSON(athletesUrl);
+      const athleteItems = athletesData.items || [];
 
-        // Athletes might be inline or have $ref
-        for (const item of athleteItems) {
-          try {
-            const a = item.$ref ? await fetchJSON(item.$ref) : item;
-            roster.push({
-              id: String(a.id || ''),
-              name: a.displayName || a.name || '',
-              position: a.position?.abbreviation || a.position?.displayName || '',
-              number: a.jersey ? parseInt(a.jersey, 10) : null,
-              age: a.age || null,
-              nationality: a.nationality || a.birthPlace?.country || null,
-              image: a.headshot?.href || null,
-            });
-          } catch {
-            // Skip individual athlete if fetch fails
-            continue;
-          }
+      // Fetch athletes in parallel (max 30, with short timeout)
+      const fetches = athleteItems.slice(0, 30).map(async (item: any) => {
+        try {
+          const a = item.$ref ? await fetchJSON(item.$ref, 4000) : item;
+          return {
+            id: String(a.id || ''),
+            name: a.displayName || a.name || '',
+            position: a.position?.abbreviation || a.position?.displayName || '',
+            number: a.jersey ? parseInt(a.jersey, 10) : null,
+            age: a.age || null,
+            nationality: a.nationality || a.birthPlace?.country || null,
+            image: a.headshot?.href || null,
+          } as Player;
+        } catch {
+          return null;
         }
-      } catch (err) {
-        console.warn('[Team API] Failed to fetch roster:', err);
+      });
+
+      const results = await Promise.allSettled(fetches);
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+          roster.push(result.value);
+        }
       }
+    } catch (err) {
+      console.warn('[Team API] Failed to fetch roster:', err);
     }
+
+    // Await coach result (ran in parallel with roster)
+    const coachResult = await coachPromise;
+    if (coachResult) info.coach = coachResult;
 
     return { info, roster };
   } catch (err) {
@@ -159,6 +250,7 @@ async function fetchTeamSchedule(teamId: string, leagueCode: string): Promise<Te
     const data = await fetchJSON(url);
 
     const events = data.events || [];
+    const now = Date.now();
     const matches: TeamMatch[] = [];
 
     for (const event of events) {
@@ -171,32 +263,52 @@ async function fetchTeamSchedule(teamId: string, leagueCode: string): Promise<Te
         const awayComp = competitors.find((c: any) => c.homeAway === 'away');
         if (!homeComp || !awayComp) continue;
 
-        const isHome = homeComp.team.id === teamId;
+        const isHome = String(homeComp.team.id) === String(teamId);
         const opponent = isHome ? awayComp : homeComp;
-        const state = event.status?.type?.state || 'pre';
+        const matchDate = event.date;
 
-        let status: TeamMatch['status'] = 'upcoming';
-        if (state === 'in') status = 'live';
-        else if (state === 'post') status = 'finished';
+        // Determine status from date (ESPN Site API returns status=null)
+        const status = determineMatchStatus(matchDate);
 
-        const homeScore = homeComp.score ? parseInt(homeComp.score, 10) : null;
-        const awayScore = awayComp.score ? parseInt(awayComp.score, 10) : null;
+        // Parse scores from the object format
+        const rawHomeScore = parseScore(homeComp.score);
+        const rawAwayScore = parseScore(awayComp.score);
+
+        // Only show scores for past/live matches; hide scores for upcoming
+        // (ESPN pre-populates scores for future matches which are projections)
+        let homeScore: number | null = null;
+        let awayScore: number | null = null;
+
+        if (status === 'finished' || status === 'live') {
+          homeScore = rawHomeScore;
+          awayScore = rawAwayScore;
+        }
+
+        // Get competition name
+        const competitionName =
+          event.league?.name ||
+          competition.type?.group?.name ||
+          competition.competitionType?.name ||
+          '';
 
         matches.push({
           id: `espn_${event.id}`,
           opponent: opponent.team.displayName || opponent.team.name || '',
           opponentLogo: opponent.team.logo || opponent.team.logos?.[0]?.href || null,
           homeAway: isHome ? 'home' : 'away',
-          date: event.date,
+          date: matchDate,
           status,
           homeScore,
           awayScore,
-          competition: event.league?.name || competition.type?.group?.name || leagueCode,
+          competition: competitionName,
         });
       } catch {
         continue;
       }
     }
+
+    // Sort by date ascending
+    matches.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return matches;
   } catch (err) {
@@ -207,6 +319,7 @@ async function fetchTeamSchedule(teamId: string, leagueCode: string): Promise<Te
 
 function computeFormAndStats(schedule: TeamMatch[]): { form: string[]; stats: TeamStats[] } {
   const finished = schedule.filter((m) => m.status === 'finished');
+  // Take last 5 finished matches for form
   const last5 = finished.slice(-5);
 
   const form: string[] = last5.map((m) => {
@@ -258,7 +371,10 @@ function computeFormAndStats(schedule: TeamMatch[]): { form: string[]; stats: Te
     { label: 'Buts marqués', value: goalsFor },
     { label: 'Buts encaissés', value: goalsAgainst },
     { label: 'Diff. de buts', value: goalsFor - goalsAgainst },
-    { label: 'Moy. buts/match', value: finished.length > 0 ? (goalsFor / finished.length).toFixed(2) : '0' },
+    {
+      label: 'Moy. buts/match',
+      value: finished.length > 0 ? (goalsFor / finished.length).toFixed(2) : '0',
+    },
   ];
 
   return { form, stats };
@@ -284,19 +400,28 @@ export async function GET(
       });
     }
 
-    // Fetch team info + roster (from Core API)
-    const teamData = await fetchTeamInfo(id, leagueCode);
+    // Fetch team info + roster (from Core API) and schedule (from Site API) in parallel
+    const [teamData, schedule] = await Promise.all([
+      fetchTeamInfo(id, leagueCode),
+      fetchTeamSchedule(id, leagueCode),
+    ]);
+
     if (!teamData) {
       return NextResponse.json(
-        { team: null, roster: [], schedule: [], form: [], stats: [], lastUpdated: new Date().toISOString(), error: 'Équipe introuvable' },
+        {
+          team: null,
+          roster: [],
+          schedule,
+          form: [],
+          stats: [],
+          lastUpdated: new Date().toISOString(),
+          error: 'Équipe introuvable',
+        },
         { status: 200 }
       );
     }
 
-    // Fetch schedule (from Site API)
-    const schedule = await fetchTeamSchedule(id, leagueCode);
-
-    // Compute form and stats
+    // Compute form and stats from schedule
     const { form, stats } = computeFormAndStats(schedule);
 
     const response: TeamDetailResponse = {
@@ -308,7 +433,7 @@ export async function GET(
       lastUpdated: new Date().toISOString(),
     };
 
-    // Cache for 10 minutes (team data changes infrequently)
+    // Cache for 5 minutes
     setCache(cacheKey, response);
 
     return NextResponse.json(response, {
@@ -326,7 +451,15 @@ export async function GET(
     }
 
     return NextResponse.json(
-      { team: null, roster: [], schedule: [], form: [], stats: [], lastUpdated: new Date().toISOString(), error: 'Impossible de charger les données' },
+      {
+        team: null,
+        roster: [],
+        schedule: [],
+        form: [],
+        stats: [],
+        lastUpdated: new Date().toISOString(),
+        error: 'Impossible de charger les données',
+      },
       { status: 200 }
     );
   }

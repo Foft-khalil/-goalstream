@@ -92,3 +92,30 @@ Stage Summary:
 - Data fetched from ESPN Core API (richer data than site API)
 - Integrated with favorites - can add team to favorites from dialog
 
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix incorrect/outdated team detail data in Classement
+
+Work Log:
+- Diagnosed root cause: ESPN Site API schedule returns score as object `{value, displayValue}` not simple string, and `status.type.state` is null for all events
+- Discovered ESPN Core API coach data is completely wrong (e.g., Mourinho for Man City, Ancelotti for PSG)
+- Discovered ESPN Site API pre-populates fake/projected scores for ALL future season matches
+- Fixed score parsing: added `parseScore()` function to handle both object and string formats
+- Fixed match status: replaced `status.type.state` (always null) with date-based determination (`determineMatchStatus()`)
+- Fixed future fake scores: upcoming matches now return homeScore/awayScore as null, hiding projected data
+- Fixed coach data: replaced unreliable ESPN Core API coach endpoint with web search via z-ai-web-dev-sdk + LLM extraction
+- Fixed roster: using season-specific athletes endpoint (`/seasons/2025/teams/{id}/athletes`) for current season data
+- Optimized roster fetch: parallel Promise.allSettled for all athletes (was sequential)
+- Added league name mapping (LEAGUE_NAMES) so team detail shows correct league
+- Updated MatchRow component to show competition name for upcoming matches
+- Verified all fixes: PSG coach now shows "Luis Enrique" (was "Carlo Ancelotti"), scores are correct, future matches don't show fake scores
+
+Stage Summary:
+- Score parsing fixed (object format from ESPN Site API)
+- Match status determined from dates instead of broken status field
+- Future matches no longer show fake/projected scores
+- Coach data now from web search (accurate) instead of ESPN Core API (outdated)
+- Roster uses current season endpoint
+- All data verified correct across multiple teams/leagues
+
