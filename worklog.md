@@ -503,3 +503,30 @@ Stage Summary:
 - Clock self-corrects every 15s when fresh ESPN data arrives
 - Both football and basketball routes fixed
 - Lint passes clean, dev server running
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix chronometer to update in real-time without blocking/delay
+
+Work Log:
+- Analyzed the existing LiveMatchClock component and identified multiple subtle bugs:
+  1. The snap mechanism used `useCallback`/`useMemo` chains that could cause unnecessary re-snap cycles
+  2. Base values were updated in `useEffect` (after render), causing a 1-render delay
+  3. The initial render showed 0:00 because `snapTimeRef` started at 0 and the snap hadn't happened yet
+  4. Only `displayClock` and `period` were tracked for changes, missing `minute` updates
+- Completely rewrote `src/components/live-match-clock.tsx` with a simpler, more robust architecture:
+  - Base values (ESPN seconds + timestamp) are updated in the render body (not in useEffect)
+  - Smart re-snap with 2-second tolerance: only re-snaps when ESPN data differs significantly
+  - Simple tick counter (setInterval + counter state) forces re-render every second
+  - All time calculations use Date.now() directly (no intermediate state)
+  - Track displayClock, period, AND minute changes for more responsive updates
+  - First render properly initializes the base (no more 0:00 flash)
+- Ran lint: all clean
+
+Stage Summary:
+- LiveMatchClock completely rewritten with simpler, more robust clock architecture
+- Key fix: base values updated in render body (not useEffect) for immediate response
+- Key fix: 2-second tolerance prevents visible clock jumps on minor ESPN updates
+- Key fix: track minute prop changes in addition to displayClock/period
+- Clock should now tick smoothly every second without freezing or jumping
