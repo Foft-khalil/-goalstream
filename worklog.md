@@ -386,3 +386,30 @@ Stage Summary:
 - 10 IPTV sources (was 5) including football.m3u category
 - Health cron checks 100 channels from 5 countries
 - Lint passes clean, dev server running
+
+---
+Task ID: 11
+Agent: Main Agent
+Task: Fix slow score updates + incorrect match time/clock display (shows static 45' instead of real-time chronometer)
+
+Work Log:
+- Updated FootballMatch type with displayClock, period, statusDescription, isHalftime, lastUpdated fields
+- Football API route now passes ESPN clock/period data to frontend
+- Created LiveMatchClock component with real-time ticking chronometer
+- Shows period labels: "1ère MT", "2ème MT", "MT" (mi-temps), added time "+3"
+- Adaptive polling: 30s when live, 2 min when no live matches
+- Backend cache TTL: 45s for live matches (was 5 min)
+- BasketballLiveClock component for consistent basketball clock display
+- Channel health badges now show "EN LIGNE" / "HORS LIGNE" text labels
+- Dead streams penalized -40 in sorting, online channels +50 bonus
+- HLS health check improved: GET with Range header instead of failing HEAD
+- Added 12 country-specific IPTV sources for better channel availability
+
+Stage Summary:
+- Match clock now ticks in real-time between API updates (every second)
+- Shows period labels and added time instead of static "45'"
+- Scores update every 30s during live matches (was 2 min)
+- Backend cache 45s for live matches (was 5 min)
+- Dead streams strongly penalized, online channels prioritized
+- HLS health check fixed (many servers reject HEAD requests)
+- More IPTV sources (country-specific playlists)

@@ -8,19 +8,22 @@ export interface CachedData<T> {
   timestamp: number;
 }
 
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes - balances freshness with API rate limits
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes for non-live data
+const LIVE_CACHE_TTL = 45 * 1000; // 45 seconds for live match data (fresher scores/clock)
 
 const cache = new Map<string, CachedData<unknown>>();
 
 /**
  * Get cached data if it exists and is not stale.
+ * If hasLiveMatches is true, uses shorter TTL for fresher data.
  */
-export function getCached<T>(key: string): T | null {
+export function getCached<T>(key: string, hasLiveMatches?: boolean): T | null {
   const entry = cache.get(key);
   if (!entry) return null;
 
+  const ttl = hasLiveMatches ? LIVE_CACHE_TTL : CACHE_TTL;
   const age = Date.now() - entry.timestamp;
-  if (age > CACHE_TTL) {
+  if (age > ttl) {
     // Stale but we keep it for fallback
     return null;
   }

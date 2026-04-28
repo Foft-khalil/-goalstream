@@ -22,7 +22,20 @@ export interface ParsedChannel {
 const IPTV_SOURCES = [
   // Primary sports playlist
   { url: 'https://iptv-org.github.io/iptv/categories/sports.m3u', label: 'sports' },
-  // Language-specific playlists (key languages for football viewership)
+  // Football-specific category
+  { url: 'https://iptv-org.github.io/iptv/categories/football.m3u', label: 'football' },
+  // Country-specific playlists (more targeted than language playlists)
+  { url: 'https://iptv-org.github.io/iptv/countries/fr.m3u', label: 'country-fr' },
+  { url: 'https://iptv-org.github.io/iptv/countries/gb.m3u', label: 'country-gb' },
+  { url: 'https://iptv-org.github.io/iptv/countries/de.m3u', label: 'country-de' },
+  { url: 'https://iptv-org.github.io/iptv/countries/es.m3u', label: 'country-es' },
+  { url: 'https://iptv-org.github.io/iptv/countries/it.m3u', label: 'country-it' },
+  { url: 'https://iptv-org.github.io/iptv/countries/us.m3u', label: 'country-us' },
+  { url: 'https://iptv-org.github.io/iptv/countries/pt.m3u', label: 'country-pt' },
+  { url: 'https://iptv-org.github.io/iptv/countries/tr.m3u', label: 'country-tr' },
+  { url: 'https://iptv-org.github.io/iptv/countries/br.m3u', label: 'country-br' },
+  { url: 'https://iptv-org.github.io/iptv/countries/ar.m3u', label: 'country-ar' },
+  // Language-specific playlists (supplementary)
   { url: 'https://iptv-org.github.io/iptv/languages/fra.m3u', label: 'fra' },
   { url: 'https://iptv-org.github.io/iptv/languages/eng.m3u', label: 'eng' },
   { url: 'https://iptv-org.github.io/iptv/languages/ara.m3u', label: 'ara' },
@@ -31,8 +44,6 @@ const IPTV_SOURCES = [
   { url: 'https://iptv-org.github.io/iptv/languages/ita.m3u', label: 'ita' },
   { url: 'https://iptv-org.github.io/iptv/languages/por.m3u', label: 'por' },
   { url: 'https://iptv-org.github.io/iptv/languages/tur.m3u', label: 'tur' },
-  // Additional sports-specific category playlists
-  { url: 'https://iptv-org.github.io/iptv/categories/football.m3u', label: 'football' },
 ];
 
 // Country code mapping for team-based country lookups
@@ -253,21 +264,45 @@ export function isLocalAffiliate(name: string): boolean {
 }
 
 // Quick health check for a single stream URL
-export async function checkStreamHealth(url: string, timeoutMs: number = 6000): Promise<boolean> {
+// For HLS (.m3u8) streams, we try a GET with Range header since HEAD often fails
+// For other streams, we use HEAD
+export async function checkStreamHealth(url: string, timeoutMs: number = 5000): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-    const res = await fetch(url, {
-      method: 'HEAD',
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; GoalStream/1.0)',
-      },
-    });
+    const isHls = url.includes('.m3u8') || url.includes('m3u8');
 
-    clearTimeout(timeout);
-    return res.ok;
+    if (isHls) {
+      // For HLS streams, try a GET with Range header to get just the first byte
+      // Many HLS servers don't support HEAD requests
+      const res = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'Range': 'bytes=0-1',
+          'User-Agent': 'Mozilla/5.0 (compatible; GoalStream/1.0)',
+        },
+        redirect: 'follow',
+      });
+
+      clearTimeout(timeout);
+      // 200, 206 (Partial Content), or 302 (redirect) are all valid
+      return res.ok || res.status === 206 || res.status === 302;
+    } else {
+      // For non-HLS streams, use HEAD
+      const res = await fetch(url, {
+        method: 'HEAD',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; GoalStream/1.0)',
+        },
+        redirect: 'follow',
+      });
+
+      clearTimeout(timeout);
+      return res.ok;
+    }
   } catch {
     return false;
   }

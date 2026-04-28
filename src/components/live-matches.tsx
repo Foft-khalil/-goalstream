@@ -52,25 +52,29 @@ export default function LiveMatches() {
     fetchFootballMatches();
   }, [fetchFootballMatches]);
 
+  // Adaptive polling: 30s when live matches exist, 2 min otherwise
+  const hasLive = footballMatches.some(m => m.status === 'live');
+  const pollInterval = hasLive ? 30 * 1000 : 120 * 1000;
+
   useEffect(() => {
     const interval = setInterval(() => {
       fetchFootballMatches();
-    }, 120 * 1000); // Refresh every 2 min (cache handles dedup)
+    }, pollInterval);
     return () => clearInterval(interval);
-  }, [fetchFootballMatches]);
+  }, [fetchFootballMatches, pollInterval]);
 
   useEffect(() => {
     if (footballLastUpdated !== lastUpdatedRef.current) {
       lastUpdatedRef.current = footballLastUpdated;
     }
     const startTime = Date.now();
-    const duration = 120;
+    const duration = hasLive ? 30 : 120;
     const timer = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       setCountdown(Math.max(0, duration - elapsed));
     }, 1000);
     return () => clearInterval(timer);
-  }, [footballLastUpdated]);
+  }, [footballLastUpdated, hasLive]);
 
   const handleRetry = useCallback(() => {
     fetchFootballMatches();
@@ -349,7 +353,7 @@ export default function LiveMatches() {
 
       {/* Footer info */}
       <div className="text-center text-[10px] text-muted-foreground/30 pt-1">
-        Programme sur 3 jours — mise à jour auto toutes les 2 min
+        Programme sur 3 jours — mise à jour auto toutes les {hasLive ? '30s' : '2 min'}{hasLive ? ' (en direct)' : ''}
       </div>
     </div>
   );

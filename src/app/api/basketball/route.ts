@@ -274,11 +274,13 @@ export async function GET(request: NextRequest) {
       ? `basketball-matches-${dates[0]}`
       : `basketball-matches-3day`;
 
-    // Check cache first
-    const cached = getCached<BasketballMatchesResponse>(cacheKey);
+    // Check cache first — use shorter TTL if there are live matches
+    const cachedPrev = getCachedStale<BasketballMatchesResponse>(cacheKey);
+    const hasLive = cachedPrev?.matches?.some(m => m.status === 'live') ?? false;
+    const cached = getCached<BasketballMatchesResponse>(cacheKey, hasLive);
     if (cached) {
       const age = getCacheAge(cacheKey);
-      console.log(`[Basketball API] Returning cached data (age: ${age}s, ${cached.matches.length} matches)`);
+      console.log(`[Basketball API] Returning cached data (age: ${age}s, ${cached.matches.length} matches, live: ${hasLive})`);
       return NextResponse.json(cached, {
         headers: { 'X-Cache': 'HIT', 'X-Cache-Age': String(age) },
       });

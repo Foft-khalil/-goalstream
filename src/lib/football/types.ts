@@ -12,6 +12,16 @@ export interface FootballMatch {
   awayScore: number | null;
   status: MatchStatus;
   minute: number | null;
+  /** ESPN raw displayClock e.g. "32:45", "45:00", "90:00" */
+  displayClock: string | null;
+  /** ESPN period number: 1=1st half, 2=2nd half */
+  period: number | null;
+  /** ESPN status description: "1st Half", "Halftime", "2nd Half", "Full Time", etc. */
+  statusDescription: string | null;
+  /** Whether the match is currently at halftime */
+  isHalftime: boolean;
+  /** Timestamp when the live data was last fetched (for client-side clock extrapolation) */
+  lastUpdated: number | null;
   competition: string;
   homeLogo: string | null;
   awayLogo: string | null;

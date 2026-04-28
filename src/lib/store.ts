@@ -41,6 +41,11 @@ export interface FootballMatch {
   awayScore: number | null;
   status: 'live' | 'upcoming' | 'finished';
   minute: number | null;
+  displayClock: string | null;
+  period: number | null;
+  statusDescription: string | null;
+  isHalftime: boolean;
+  lastUpdated: number | null;
   competition: string | null;
   homeLogo: string | null;
   awayLogo: string | null;

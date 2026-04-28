@@ -7,6 +7,7 @@ import { useAppStore } from '@/lib/store';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useState } from 'react';
 import type { BasketballMatch } from '@/lib/basketball/types';
+import { BasketballLiveClock } from '@/components/live-match-clock';
 
 interface BasketballMatchCardProps {
   match: BasketballMatch;
@@ -152,12 +153,10 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
             🏀 {match.competition || 'Basketball'}
           </span>
           {isLive ? (
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-              <span className="text-[11px] font-bold text-orange-500 tracking-wide">
-                {livePeriodStr || 'LIVE'}
-              </span>
-            </div>
+            <BasketballLiveClock
+              clockDisplay={match.clockDisplay}
+              periodDisplay={match.periodDisplay}
+            />
           ) : (
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3 text-muted-foreground/40" />
@@ -331,7 +330,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
                 key={`${channel.name}-${idx}`}
                 onClick={() => handleSelectChannel(channel)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted/60 transition-colors text-left group/ch ${
-                  channel.health === 'offline' ? 'opacity-50' : ''
+                  channel.health === 'offline' ? 'opacity-40' : ''
                 }`}
               >
                 {channel.logo ? (
@@ -349,10 +348,17 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-medium truncate">{channel.name}</span>
-                    {channel.health && channel.health !== 'unknown' && (
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                        channel.health === 'online' ? 'bg-green-500' : 'bg-red-400'
-                      }`} />
+                    {channel.health === 'online' && (
+                      <span className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-green-500/10">
+                        <span className="w-1 h-1 rounded-full bg-green-500" />
+                        <span className="text-[8px] font-bold text-green-600">EN LIGNE</span>
+                      </span>
+                    )}
+                    {channel.health === 'offline' && (
+                      <span className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-red-500/10">
+                        <span className="w-1 h-1 rounded-full bg-red-400" />
+                        <span className="text-[8px] font-bold text-red-400">HORS LIGNE</span>
+                      </span>
                     )}
                   </div>
                   {channel.broadcaster && (

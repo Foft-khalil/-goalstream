@@ -96,6 +96,17 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): FootballMatch | n
     let status: FootballMatch['status'] = 'upcoming';
     let minute: number | null = null;
 
+    // Detailed clock/period info from ESPN
+    const displayClock = (state === 'in') ? (event.status.displayClock || null) : null;
+    const period = (state === 'in') ? (event.status.period || null) : null;
+    const statusDescription = event.status.type.description || null;
+    const isHalftime = state === 'in' && (
+      statusDescription?.toLowerCase().includes('half') ||
+      statusDescription?.toLowerCase().includes('mi-temps')
+    ) && !statusDescription?.toLowerCase().includes('1st') &&
+      !statusDescription?.toLowerCase().includes('first');
+    const lastUpdated = state === 'in' ? Date.now() : null;
+
     if (state === 'in') {
       status = 'live';
       // Parse minute from displayClock or period
@@ -110,7 +121,7 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): FootballMatch | n
         }
       }
       // HT = 45
-      if (event.status.type.description?.toLowerCase().includes('half')) {
+      if (isHalftime) {
         minute = 45;
       }
     } else if (state === 'post') {
@@ -137,6 +148,11 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): FootballMatch | n
       awayScore,
       status,
       minute,
+      displayClock,
+      period,
+      statusDescription,
+      isHalftime,
+      lastUpdated,
       competition: leagueName,
       homeLogo,
       awayLogo,
@@ -253,11 +269,13 @@ export async function GET(request: NextRequest) {
       ? `football-matches-${dates[0]}`
       : `football-matches-3day`;
 
-    // Check cache first
-    const cached = getCached<FootballMatchesResponse>(cacheKey);
+    // Check cache first — use shorter TTL if there are live matches in cached data
+    const cachedPrev = getCachedStale<FootballMatchesResponse>(cacheKey);
+    const hasLive = cachedPrev?.matches?.some(m => m.status === 'live') ?? false;
+    const cached = getCached<FootballMatchesResponse>(cacheKey, hasLive);
     if (cached) {
       const age = getCacheAge(cacheKey);
-      console.log(`[Football API] Returning cached data (age: ${age}s, ${cached.matches.length} matches)`);
+      console.log(`[Football API] Returning cached data (age: ${age}s, ${cached.matches.length} matches, live: ${hasLive})`);
       return NextResponse.json(cached, {
         headers: { 'X-Cache': 'HIT', 'X-Cache-Age': String(age) },
       });

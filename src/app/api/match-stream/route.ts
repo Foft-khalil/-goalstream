@@ -736,18 +736,19 @@ export async function POST(request: NextRequest) {
     console.log('[Match Stream] Key channels - Equipe:', equipeMerged?.health || 'N/A', '| Golazo:', golazoMerged?.health || 'N/A');
 
     // ─── Step 9: Final results — sort by combined score ──────────────────────
-    // Broadcaster-matched channels are more valuable even if offline
-    // (the health check can be unreliable — HEAD request may fail but stream still works)
+    // Prioritize online channels strongly — dead streams should be at the bottom
     // Sort by a combined score: relevance from matching + health bonus
     const finalScore = (ch: typeof merged[0]) => {
       let score = ch.relevance;
-      // Health bonus
-      if (ch.health === 'online') score += 30;
-      if (ch.health === 'offline') score -= 5; // Small penalty
+      // Health bonus — strongly favor online channels
+      if (ch.health === 'online') score += 50;
+      if (ch.health === 'offline') score -= 40; // Heavy penalty — dead streams are useless
       // Broadcaster match is a big positive signal
-      if (ch.broadcaster) score += 20;
+      if (ch.broadcaster) score += 15;
       // Geo-blocked penalty — these channels usually don't work
       if (ch.name.includes('[Geo-blocked]') || ch.name.includes('[Geo-Blocked]')) score -= 80;
+      // Not 24/7 penalty
+      if (ch.name.includes('[Not 24/7]')) score -= 20;
       // Non-sports channel with a broadcaster match penalty
       if (!isSportsChannel({ name: ch.name, group: ch.group }) && ch.broadcaster) score -= 30;
       return score;
