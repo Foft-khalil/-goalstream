@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#16a34a"/>
+      <stop offset="100%" style="stop-color:#059669"/>
+    </linearGradient>
+    <linearGradient id="trophy" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Trophy body -->
+  <path d="M180 130 h152 v12 c0 70 -30 128 -76 148 c-46 -20 -76 -78 -76 -148 z" fill="url(#trophy)"/>
+  <!-- Trophy handles -->
+  <path d="M180 145 c-40 0 -55 25 -55 55 c0 30 15 50 45 50 h10 v-105 z" fill="url(#trophy)" opacity="0.9"/>
+  <path d="M332 145 c40 0 55 25 55 55 c0 30 -15 50 -45 50 h-10 v-105 z" fill="url(#trophy)" opacity="0.9"/>
+  <!-- Trophy stem -->
+  <rect x="240" y="290" width="32" height="40" rx="4" fill="url(#trophy)"/>
+  <!-- Trophy base -->
+  <rect x="210" y="330" width="92" height="20" rx="6" fill="url(#trophy)"/>
+  <!-- Star on trophy -->
+  <polygon points="256,155 263,175 284,175 267,187 274,207 256,195 238,207 245,187 228,175 249,175" fill="#fff" opacity="0.9"/>
+  <!-- Football at bottom -->
+  <circle cx="256" cy="395" r="28" fill="#fff" opacity="0.15"/>
+  <!-- GS text -->
+  <text x="256" y="460" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="48" fill="#fff" letter-spacing="2">GS</text>
+</svg>

@@ -6,14 +6,16 @@ import LiveMatches from '@/components/live-matches';
 import ChannelsList from '@/components/channels-list';
 import AdminDashboard from '@/components/admin-dashboard';
 import VideoPlayer from '@/components/video-player';
-import { Zap, Tv, Shield, Trophy, Menu } from 'lucide-react';
+import { Zap, Tv, Shield, Trophy, Menu, Download, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
+import { usePWA } from '@/hooks/use-pwa';
 
 function AppHeader() {
   const { currentView, setCurrentView, footballMatches } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { installPrompt, installApp, isOnline } = usePWA();
 
   const liveCount = footballMatches.filter((m) => m.status === 'live').length;
 
@@ -38,7 +40,25 @@ function AppHeader() {
             </div>
           </div>
 
-          {/* Desktop Nav */}
+          {/* Install button + Desktop Nav */}
+          <div className="hidden sm:flex items-center gap-2">
+            {installPrompt && (
+              <Button
+                size="sm"
+                onClick={installApp}
+                className="h-8 gap-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Installer
+              </Button>
+            )}
+            {!isOnline && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <WifiOff className="h-3 w-3 text-amber-500" />
+                <span className="text-[10px] font-semibold text-amber-500">Hors ligne</span>
+              </div>
+            )}
+          </div>
           <nav className="hidden sm:flex items-center bg-muted/40 rounded-xl p-1 gap-0.5">
             {navItems.map((item) => {
               const isActive = currentView === item.view;
@@ -80,6 +100,22 @@ function AppHeader() {
                 </div>
                 <span className="font-extrabold tracking-tight">GoalStream</span>
               </div>
+              {/* Install button in mobile menu */}
+              {installPrompt && (
+                <Button
+                  onClick={installApp}
+                  className="w-full mb-4 gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg"
+                >
+                  <Download className="h-4 w-4" />
+                  Installer l&apos;application
+                </Button>
+              )}
+              {!isOnline && (
+                <div className="flex items-center gap-1.5 px-3 py-2 mb-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <WifiOff className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="text-xs font-semibold text-amber-500">Mode hors ligne</span>
+                </div>
+              )}
               <nav className="space-y-1">
                 {navItems.map((item) => {
                   const isActive = currentView === item.view;
@@ -161,6 +197,7 @@ function MobileBottomNav() {
 
 export default function Home() {
   const { currentView, fetchMatches, fetchChannels, fetchFootballMatches } = useAppStore();
+  const { isOnline } = usePWA();
 
   useEffect(() => {
     fetchMatches();
@@ -171,6 +208,16 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <AppHeader />
+
+      {/* Offline banner */}
+      {!isOnline && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 py-1.5 text-center">
+          <span className="text-xs font-semibold text-amber-600">
+            <WifiOff className="h-3 w-3 inline mr-1" />
+            Vous êtes hors ligne — certaines données peuvent être anciennes
+          </span>
+        </div>
+      )}
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-5 pb-20 sm:pb-5">
         {currentView === 'live' && <LiveMatches />}
