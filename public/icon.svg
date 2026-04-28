@@ -1,29 +1,77 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#16a34a"/>
-      <stop offset="100%" style="stop-color:#059669"/>
+      <stop offset="0%" style="stop-color:#22c55e"/>
+      <stop offset="50%" style="stop-color:#16a34a"/>
+      <stop offset="100%" style="stop-color:#15803d"/>
     </linearGradient>
-    <linearGradient id="trophy" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#fbbf24"/>
-      <stop offset="100%" style="stop-color:#f59e0b"/>
+    <radialGradient id="ball" cx="45%" cy="38%" r="55%">
+      <stop offset="0%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#e2e8f0"/>
+    </radialGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.25"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
     </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
   </defs>
-  <!-- Background -->
-  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
-  <!-- Trophy body -->
-  <path d="M180 130 h152 v12 c0 70 -30 128 -76 148 c-46 -20 -76 -78 -76 -148 z" fill="url(#trophy)"/>
-  <!-- Trophy handles -->
-  <path d="M180 145 c-40 0 -55 25 -55 55 c0 30 15 50 45 50 h10 v-105 z" fill="url(#trophy)" opacity="0.9"/>
-  <path d="M332 145 c40 0 55 25 55 55 c0 30 -15 50 -45 50 h-10 v-105 z" fill="url(#trophy)" opacity="0.9"/>
-  <!-- Trophy stem -->
-  <rect x="240" y="290" width="32" height="40" rx="4" fill="url(#trophy)"/>
-  <!-- Trophy base -->
-  <rect x="210" y="330" width="92" height="20" rx="6" fill="url(#trophy)"/>
-  <!-- Star on trophy -->
-  <polygon points="256,155 263,175 284,175 267,187 274,207 256,195 238,207 245,187 228,175 249,175" fill="#fff" opacity="0.9"/>
-  <!-- Football at bottom -->
-  <circle cx="256" cy="395" r="28" fill="#fff" opacity="0.15"/>
-  <!-- GS text -->
-  <text x="256" y="460" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="48" fill="#fff" letter-spacing="2">GS</text>
+
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+
+  <!-- Subtle shine on top -->
+  <rect width="512" height="256" rx="108" fill="url(#shine)" opacity="0.5"/>
+
+  <!-- Football / Soccer Ball -->
+  <g filter="url(#shadow)" transform="translate(256,240)">
+    <!-- Ball body -->
+    <circle cx="0" cy="0" r="150" fill="url(#ball)" stroke="#cbd5e1" stroke-width="2"/>
+
+    <!-- Pentagon pattern - center -->
+    <polygon points="0,-55 -52,-17 -32,45 32,45 52,-17" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+
+    <!-- Top pentagon -->
+    <polygon points="0,-130 -30,-97 0,-70 30,-97" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+
+    <!-- Left pentagon -->
+    <polygon points="-110,-52 -97,-12 -70,-30 -70,-72 -97,-77" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+
+    <!-- Right pentagon -->
+    <polygon points="110,-52 97,-12 70,-30 70,-72 97,-77" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+
+    <!-- Bottom-left pentagon -->
+    <polygon points="-72,80 -35,90 -30,120 -65,115 -85,95" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+
+    <!-- Bottom-right pentagon -->
+    <polygon points="72,80 35,90 30,120 65,115 85,95" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+
+    <!-- Seam lines connecting pentagons -->
+    <line x1="0" y1="-55" x2="0" y2="-97" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="-52" y1="-17" x2="-70" y2="-72" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="52" y1="-17" x2="70" y2="-72" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="-32" y1="45" x2="-35" y2="90" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="32" y1="45" x2="35" y2="90" stroke="#94a3b8" stroke-width="2"/>
+
+    <!-- Ball shine -->
+    <ellipse cx="-40" cy="-50" rx="35" ry="20" fill="white" opacity="0.25" transform="rotate(-25,-40,-50)"/>
+  </g>
+
+  <!-- LIVE badge -->
+  <g transform="translate(380,100)">
+    <rect x="-40" y="-16" width="80" height="32" rx="16" fill="#ef4444"/>
+    <rect x="-40" y="-16" width="80" height="32" rx="16" fill="url(#shine)" opacity="0.3"/>
+    <circle cx="-22" cy="0" r="4" fill="#fca5a5" opacity="0.9">
+      <animate attributeName="opacity" values="0.9;0.3;0.9" dur="1.5s" repeatCount="indefinite"/>
+    </circle>
+    <text x="5" y="5" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="16" fill="white" letter-spacing="3">LIVE</text>
+  </g>
+
+  <!-- GoalStream text -->
+  <text x="256" y="450" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="900" font-size="42" fill="white" letter-spacing="1.5" opacity="0.95">GOALSTREAM</text>
 </svg>
