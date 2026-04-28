@@ -29,6 +29,8 @@ export interface FootballMatchesResponse {
   lastUpdated: string;
   source: 'ai-search';
   error?: string;
+  /** Dates that were fetched (YYYYMMDD format) */
+  dates?: string[];
 }
 
 export interface MatchDetail extends FootballMatch {

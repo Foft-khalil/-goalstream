@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { BasketballMatch } from '@/lib/basketball/types';
 
 export type ViewType = 'live' | 'channels' | 'standings' | 'favorites' | 'basketball';
+export type DateTab = 'today' | 'tomorrow' | 'dayAfter';
 
 interface Channel {
   tvgId: string;
@@ -10,6 +11,7 @@ interface Channel {
   group: string;
   url: string;
   country: string;
+  source?: string;
   status?: 'online' | 'offline' | 'checking' | 'unknown';
 }
 
@@ -88,14 +90,20 @@ interface AppState {
   footballLoading: boolean;
   footballError: string | null;
   footballLastUpdated: string | null;
-  fetchFootballMatches: () => Promise<void>;
+  footballDates: string[];
+  selectedDate: DateTab;
+  setSelectedDate: (date: DateTab) => void;
+  fetchFootballMatches: (dates?: string[]) => Promise<void>;
 
   // Basketball matches (API - real data)
   basketballMatches: BasketballMatch[];
   basketballLoading: boolean;
   basketballError: string | null;
   basketballLastUpdated: string | null;
-  fetchBasketballMatches: () => Promise<void>;
+  basketballDates: string[];
+  selectedBasketballDate: DateTab;
+  setSelectedBasketballDate: (date: DateTab) => void;
+  fetchBasketballMatches: (dates?: string[]) => Promise<void>;
 
   // Admin
   isAdmin: boolean;
@@ -151,10 +159,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!res.ok) throw new Error('Failed to fetch channels');
       const data = await res.json();
 
-      // Apply cached health status
-      const channelsWithStatus = data.map((ch: Channel) => ({
+      // Apply health status: prefer API-provided health, fall back to client cache
+      const channelsWithStatus = data.map((ch: Channel & { health?: 'online' | 'offline' | 'unknown' }) => ({
         ...ch,
-        status: channelHealthCache.get(ch.url) || 'unknown',
+        status: ch.health || channelHealthCache.get(ch.url) || 'unknown',
       }));
 
       set({ channels: channelsWithStatus, channelsLoading: false });
@@ -238,16 +246,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   footballLoading: false,
   footballError: null,
   footballLastUpdated: null,
-  fetchFootballMatches: async () => {
+  footballDates: [],
+  selectedDate: 'today',
+  setSelectedDate: (date) => set({ selectedDate: date }),
+  fetchFootballMatches: async (dates?: string[]) => {
     set({ footballLoading: true, footballError: null });
     try {
-      const res = await fetch('/api/football');
+      const params = new URLSearchParams();
+      if (dates && dates.length > 0) {
+        params.set('dates', dates.join(','));
+      }
+      const url = `/api/football${params.toString() ? `?${params.toString()}` : ''}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Échec du chargement des matchs');
       const data = await res.json();
       set({
         footballMatches: data.matches || [],
         footballLoading: false,
         footballLastUpdated: data.lastUpdated || new Date().toISOString(),
+        footballDates: data.dates || [],
       });
     } catch (error: any) {
       set({ footballError: error.message, footballLoading: false });
@@ -259,16 +276,25 @@ export const useAppStore = create<AppState>((set, get) => ({
   basketballLoading: false,
   basketballError: null,
   basketballLastUpdated: null,
-  fetchBasketballMatches: async () => {
+  basketballDates: [],
+  selectedBasketballDate: 'today',
+  setSelectedBasketballDate: (date) => set({ selectedBasketballDate: date }),
+  fetchBasketballMatches: async (dates?: string[]) => {
     set({ basketballLoading: true, basketballError: null });
     try {
-      const res = await fetch('/api/basketball');
+      const params = new URLSearchParams();
+      if (dates && dates.length > 0) {
+        params.set('dates', dates.join(','));
+      }
+      const url = `/api/basketball${params.toString() ? `?${params.toString()}` : ''}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Échec du chargement des matchs de basketball');
       const data = await res.json();
       set({
         basketballMatches: data.matches || [],
         basketballLoading: false,
         basketballLastUpdated: data.lastUpdated || new Date().toISOString(),
+        basketballDates: data.dates || [],
       });
     } catch (error: any) {
       set({ basketballError: error.message, basketballLoading: false });

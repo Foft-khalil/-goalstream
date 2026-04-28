@@ -1,4 +1,97 @@
 ---
+Task ID: 9
+Agent: Main Agent
+Task: Implement extended calendar showing matches for 3 days (today + tomorrow + day after)
+
+Work Log:
+- Updated `src/lib/football/types.ts` — Added `dates?: string[]` field to `FootballMatchesResponse`
+- Updated `src/lib/basketball/types.ts` — Added `dates?: string[]` field to `BasketballMatchesResponse`
+- Rewrote `src/app/api/football/route.ts`:
+  - Accepts `date` (single YYYYMMDD) and `dates` (comma-separated) query params
+  - Default: fetches 3 days (today + tomorrow + day after tomorrow)
+  - Adds `?dates={date}` parameter to ESPN scoreboard URL
+  - Fetches all dates in parallel via `fetchESPNMatchesForDate()` per date
+  - Includes finished matches in response (was previously filtered out)
+  - Per-date cache key: `football-matches-{date}` for single date, `football-matches-3day` for multi
+  - Response includes `dates` array so client knows which dates were fetched
+  - Backward compatible: no date param = 3-day fetch
+- Rewrote `src/app/api/basketball/route.ts`:
+  - Same changes as football: `date`/`dates` params, 3-day default, include finished matches
+  - Per-date cache: `basketball-matches-{date}` or `basketball-matches-3day`
+  - Parallel date fetching
+- Updated `src/lib/store.ts`:
+  - Added `DateTab` type: `'today' | 'tomorrow' | 'dayAfter'`
+  - Added `footballDates: string[]`, `selectedDate: DateTab`, `setSelectedDate` to football section
+  - Added `basketballDates: string[]`, `selectedBasketballDate: DateTab`, `setSelectedBasketballDate` to basketball section
+  - Updated `fetchFootballMatches(dates?)` and `fetchBasketballMatches(dates?)` to accept optional dates param
+  - Fetch functions now pass `dates` query param and store response `dates` array
+- Rewrote `src/components/live-matches.tsx`:
+  - Added date tab selector at top: "Aujourd'hui" / "Demain" / "Après-demain"
+  - Active tab: green background/underline/text, inactive: muted
+  - Each tab shows match count badge (green when active, muted when inactive)
+  - Sub-label shows date (e.g., "mar. 29" for tomorrow)
+  - Client-side filtering by selected date using `isMatchOnDate()` helper
+  - Added "Terminés" section for finished matches (with competition grouping)
+  - Empty state per-tab when no matches on that date
+  - Date helpers: `formatDateYMD()`, `getDateForTab()`, `isMatchOnDate()`
+- Rewrote `src/components/basketball-matches.tsx`:
+  - Same date tab selector as LiveMatches but with orange theme
+  - Active tab: orange background/underline/text, orange count badges
+  - Same client-side filtering, finished matches section, empty states
+- Updated `src/components/favorites-view.tsx`:
+  - Updated empty state message: "sur les 3 prochains jours" instead of "aujourd'hui"
+  - Added date label display (Aujourd'hui/Demain/Après-demain/specific date) to FavoriteMatchCard
+- Verified: lint passes clean, dev server running
+- Tested: Football API returns 7 matches across 3 dates, Basketball API returns 15 matches across 3 dates
+
+Stage Summary:
+- Extended calendar shows matches for 3 days instead of just today
+- Date tab selector in football (green) and basketball (orange) sections
+- Tabs show match count badges, client-side filtering for instant switching
+- Finished matches now included in response (shown in "Terminés" section)
+- API supports `date`/`dates` params for backward compatibility and flexibility
+- Per-date caching for efficient API usage
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Implement push notifications for favorite team matches (15 min before kickoff)
+
+Work Log:
+- Created `/home/z/my-project/src/hooks/use-notifications.ts` — a React hook that:
+  - Requests browser notification permission via `Notification.requestPermission()`
+  - Checks favorite teams (from useFavorites) against upcoming matches every 60 seconds
+  - When a favorite team's match starts within ≤15 minutes, sends a browser Notification
+  - Notification body format: "PSG vs Marseille commence dans 12 min — Ligue 1"
+  - Tracks already-notified match IDs in localStorage (`goalstream_notified_matches`) to avoid duplicates
+  - Cleans up old notified IDs when matches are no longer in the data
+  - On notification click, focuses the app window
+  - Persists enabled/disabled setting in localStorage (`goalstream_notifications_enabled`)
+  - Derives `notificationsEnabled` from both the setting and browser permission state
+  - Returns: `requestPermission()`, `permissionState`, `notificationsEnabled`, `toggleNotifications()`, `upcomingFavoriteCount`
+- Updated `/home/z/my-project/src/app/page.tsx`:
+  - Imported `useNotifications` hook, `Bell` and `BellOff` icons from lucide-react
+  - Added notification bell button in desktop header (next to install button):
+    - Green Bell icon when enabled, muted BellOff when disabled
+    - Small pulsing green badge dot when there are upcoming favorite matches
+    - Click toggles notifications or requests permission
+  - Added notification bell button in mobile header (next to hamburger menu):
+    - Same styling as desktop but slightly larger for touch
+    - Wrapped mobile bell + Sheet menu in a flex container
+- Fixed lint issues:
+  - Used lazy state initializer for `permissionState` to avoid setState in effect
+  - Derived `notificationsEnabled` instead of syncing with effect
+  - Used `useEffect` to update ref value (not during render)
+  - Fixed JSX closing tag mismatch from wrapping mobile elements in div
+
+Stage Summary:
+- Push notifications alert users 15 min before their favorite team's match starts
+- Works for both football and basketball matches
+- Bell icon in header shows notification status (green = enabled, muted = disabled)
+- Badge dot appears when upcoming favorite matches are within the alert window
+- Duplicate notification prevention via localStorage tracking
+- Lint passes clean, dev server running
+---
 Task ID: 1
 Agent: Main Agent
 Task: Fix "Regarder" button not working - streams fail and player gets stuck
@@ -198,3 +291,48 @@ Stage Summary:
 - Match-stream API supports basketball channel finding
 - Live match date display fixed for football cards
 
+---
+Task ID: 8
+Agent: Main Agent
+Task: Implement multiple IPTV sources + periodic channel health checking
+
+Work Log:
+- Updated `src/lib/iptv.ts` — Multiple M3U playlist sources:
+  - Added 5 sources: sports.m3u (existing), fra.m3u, eng.m3u, ara.m3u, spa.m3u
+  - Sources defined in IPTV_SOURCES array with priority ordering (sports first)
+  - All sources fetched in parallel with Promise.allSettled (graceful degradation if any fails)
+  - Channels merged and deduped by URL (first seen wins = sports source has priority)
+  - Added `source` field to ParsedChannel interface (tracks which playlist each channel came from)
+  - Kept fetchSportsChannels() as the main function name (backward compatible)
+  - Kept fetchCountryChannels() unchanged (added source field as `country-{code}`)
+  - 1-hour cache preserved, stale cache fallback on error preserved
+- Created `src/lib/channel-health.ts` — Shared in-memory health status map:
+  - `getChannelHealth(url)`: returns 'online' | 'offline' | 'unknown'
+  - `setChannelHealth(url, status)`: stores health status for a channel URL
+  - `getHealthSummary()`: returns { total, online, offline } counts
+  - Used by both the health-cron route and the channels route
+- Created `src/app/api/channels-health-cron/route.ts` — Periodic health checking endpoint:
+  - GET endpoint that fetches all sports channels and checks up to 50 at a time
+  - Uses HEAD requests with 8s timeout per channel (same approach as channels-check)
+  - 1-hour cooldown: won't run more than once per hour (tracked via in-memory timestamp)
+  - Returns summary: { checked, online, offline, lastChecked, cooldown, totalTracked }
+  - Results stored in the shared channel-health map for other routes to consume
+- Updated `src/app/api/channels/route.ts` — Integrated health status:
+  - Imports getChannelHealth from the shared health map
+  - Enriches each channel with a `health` field from the pre-populated health map
+  - Channels now return with health status pre-populated when available
+- Updated `src/lib/store.ts` — Client-side health integration:
+  - Added `source` field to Channel interface
+  - Updated fetchChannels to prefer API-provided `health` field over client-side cache
+  - Falls back to client-side channelHealthCache if no server health available
+- Verified: channels API returns 4716 channels (up from ~500 with single source) with `source` and `health` fields
+- Verified: health-cron API checked 50 channels (30 online, 20 offline), cooldown works correctly
+- Lint passes clean, dev server running
+
+Stage Summary:
+- IPTV channels now fetched from 5 M3U sources (sports, French, English, Arabic, Spanish)
+- Channel count increased from ~500 to ~4700+ with proper deduplication
+- Each channel tracks its source playlist for transparency
+- Periodic health cron endpoint checks 50 channels per hour with cooldown
+- Channels API returns pre-populated health status from the shared health map
+- Client-side store prefers server-provided health status over local cache

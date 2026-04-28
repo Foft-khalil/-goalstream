@@ -1,8 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCached, getCachedStale, setCache, getCacheAge } from '@/lib/football/cache';
 import type { FootballMatch, FootballMatchesResponse } from '@/lib/football/types';
-
-const CACHE_KEY = 'football-matches';
 
 // ─── ESPN API league codes ───────────────────────────────────────────────────
 const ESPN_LEAGUES = [
@@ -61,6 +59,23 @@ interface ESPNEvent {
     type?: { group?: { name?: string } };
   }>;
   league?: { name?: string };
+}
+
+// ─── Date helpers ────────────────────────────────────────────────────────────
+function formatDateYMD(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}${m}${d}`;
+}
+
+function getDefaultDates(): string[] {
+  const now = new Date();
+  return [
+    formatDateYMD(now),
+    formatDateYMD(new Date(now.getTime() + 24 * 60 * 60 * 1000)),
+    formatDateYMD(new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000)),
+  ];
 }
 
 // ─── Parse ESPN data ─────────────────────────────────────────────────────────
@@ -132,8 +147,8 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): FootballMatch | n
   }
 }
 
-// ─── Fetch from ESPN API ─────────────────────────────────────────────────────
-async function fetchESPNMatches(): Promise<FootballMatch[]> {
+// ─── Fetch from ESPN API for a specific date ─────────────────────────────────
+async function fetchESPNMatchesForDate(date: string): Promise<FootballMatch[]> {
   const allMatches: FootballMatch[] = [];
   const errors: string[] = [];
 
@@ -143,7 +158,7 @@ async function fetchESPNMatches(): Promise<FootballMatch[]> {
     const batch = ESPN_LEAGUES.slice(i, i + batchSize);
     const results = await Promise.allSettled(
       batch.map(async (league) => {
-        const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${league.code}/scoreboard`;
+        const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${league.code}/scoreboard?dates=${date}`;
         const res = await fetch(url, {
           headers: { 'Accept': 'application/json' },
           signal: AbortSignal.timeout(8000),
@@ -160,7 +175,8 @@ async function fetchESPNMatches(): Promise<FootballMatch[]> {
         const events: ESPNEvent[] = data.events || [];
         for (const event of events) {
           const match = parseESPNMatch(event, league.name);
-          if (match && match.status !== 'finished') {
+          // Include all matches including finished for past days
+          if (match) {
             allMatches.push(match);
           }
         }
@@ -171,7 +187,24 @@ async function fetchESPNMatches(): Promise<FootballMatch[]> {
   }
 
   if (errors.length > 0) {
-    console.warn(`[Football API] ${errors.length} league fetch errors:`, errors);
+    console.warn(`[Football API] ${errors.length} league fetch errors for date ${date}:`, errors);
+  }
+
+  return allMatches;
+}
+
+// ─── Fetch from ESPN API (multi-date) ────────────────────────────────────────
+async function fetchESPNMatches(dates: string[]): Promise<FootballMatch[]> {
+  // Fetch all dates in parallel
+  const results = await Promise.allSettled(
+    dates.map((date) => fetchESPNMatchesForDate(date))
+  );
+
+  const allMatches: FootballMatch[] = [];
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      allMatches.push(...result.value);
+    }
   }
 
   // Deduplicate by team names
@@ -183,7 +216,7 @@ async function fetchESPNMatches(): Promise<FootballMatch[]> {
     return true;
   });
 
-  // Sort: live first, then upcoming by time
+  // Sort: live first, then upcoming by time, then finished
   const statusOrder = { live: 0, upcoming: 1, finished: 2 };
   deduped.sort((a, b) => {
     const statusDiff = (statusOrder[a.status] ?? 1) - (statusOrder[b.status] ?? 1);
@@ -197,30 +230,52 @@ async function fetchESPNMatches(): Promise<FootballMatch[]> {
 }
 
 // ─── GET handler ─────────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = request.nextUrl;
+
+    // Parse date/dates params
+    const dateParam = searchParams.get('date');
+    const datesParam = searchParams.get('dates');
+
+    let dates: string[];
+    if (datesParam) {
+      dates = datesParam.split(',').filter(Boolean);
+    } else if (dateParam) {
+      dates = [dateParam];
+    } else {
+      // Default: 3 days (today + tomorrow + day after)
+      dates = getDefaultDates();
+    }
+
+    // Cache key based on dates
+    const cacheKey = dates.length === 1
+      ? `football-matches-${dates[0]}`
+      : `football-matches-3day`;
+
     // Check cache first
-    const cached = getCached<FootballMatchesResponse>(CACHE_KEY);
+    const cached = getCached<FootballMatchesResponse>(cacheKey);
     if (cached) {
-      const age = getCacheAge(CACHE_KEY);
+      const age = getCacheAge(cacheKey);
       console.log(`[Football API] Returning cached data (age: ${age}s, ${cached.matches.length} matches)`);
       return NextResponse.json(cached, {
         headers: { 'X-Cache': 'HIT', 'X-Cache-Age': String(age) },
       });
     }
 
-    console.log('[Football API] Cache miss, fetching from ESPN API...');
-    const matches = await fetchESPNMatches();
+    console.log(`[Football API] Cache miss, fetching from ESPN API for dates: ${dates.join(', ')}...`);
+    const matches = await fetchESPNMatches(dates);
 
     const response: FootballMatchesResponse = {
       matches,
       lastUpdated: new Date().toISOString(),
       source: 'ai-search',
+      dates,
     };
 
-    setCache(CACHE_KEY, response);
+    setCache(cacheKey, response);
 
-    console.log(`[Football API] Returning ${matches.length} fresh matches`);
+    console.log(`[Football API] Returning ${matches.length} fresh matches for dates: ${dates.join(', ')}`);
     return NextResponse.json(response, {
       headers: { 'X-Cache': 'MISS' },
     });
@@ -228,7 +283,8 @@ export async function GET() {
     console.error('[Football API] Error fetching match data:', error);
 
     // Try stale cache
-    const stale = getCachedStale<FootballMatchesResponse>(CACHE_KEY);
+    const stale = getCachedStale<FootballMatchesResponse>('football-matches-3day')
+      || getCachedStale<FootballMatchesResponse>('football-matches');
     if (stale) {
       console.log('[Football API] Returning stale cache due to error');
       return NextResponse.json(

@@ -1,8 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getCached, getCachedStale, setCache, getCacheAge } from '@/lib/basketball/cache';
 import type { BasketballMatch, BasketballMatchesResponse } from '@/lib/basketball/types';
-
-const CACHE_KEY = 'basketball-matches';
 
 // ─── ESPN Basketball league codes ──────────────────────────────────────────────
 const ESPN_BASKETBALL_LEAGUES = [
@@ -50,6 +48,23 @@ interface ESPNEvent {
     broadcast?: string;
   }>;
   league?: { name?: string };
+}
+
+// ─── Date helpers ──────────────────────────────────────────────────────────────
+function formatDateYMD(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}${m}${d}`;
+}
+
+function getDefaultDates(): string[] {
+  const now = new Date();
+  return [
+    formatDateYMD(now),
+    formatDateYMD(new Date(now.getTime() + 24 * 60 * 60 * 1000)),
+    formatDateYMD(new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000)),
+  ];
 }
 
 // ─── Period display helper ─────────────────────────────────────────────────────
@@ -153,8 +168,8 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): BasketballMatch |
   }
 }
 
-// ─── Fetch from ESPN API ───────────────────────────────────────────────────────
-async function fetchESPNBasketballMatches(): Promise<BasketballMatch[]> {
+// ─── Fetch from ESPN API for a specific date ───────────────────────────────────
+async function fetchESPNBasketballMatchesForDate(date: string): Promise<BasketballMatch[]> {
   const allMatches: BasketballMatch[] = [];
   const errors: string[] = [];
 
@@ -164,7 +179,7 @@ async function fetchESPNBasketballMatches(): Promise<BasketballMatch[]> {
     const batch = ESPN_BASKETBALL_LEAGUES.slice(i, i + batchSize);
     const results = await Promise.allSettled(
       batch.map(async (league) => {
-        const url = `https://site.api.espn.com/apis/site/v2/sports/${league.sport}/${league.code}/scoreboard`;
+        const url = `https://site.api.espn.com/apis/site/v2/sports/${league.sport}/${league.code}/scoreboard?dates=${date}`;
         const res = await fetch(url, {
           headers: { 'Accept': 'application/json' },
           signal: AbortSignal.timeout(10000),
@@ -181,7 +196,8 @@ async function fetchESPNBasketballMatches(): Promise<BasketballMatch[]> {
         const events: ESPNEvent[] = data.events || [];
         for (const event of events) {
           const match = parseESPNMatch(event, league.name);
-          if (match && match.status !== 'finished') {
+          // Include all matches including finished for past days
+          if (match) {
             allMatches.push(match);
           }
         }
@@ -192,7 +208,24 @@ async function fetchESPNBasketballMatches(): Promise<BasketballMatch[]> {
   }
 
   if (errors.length > 0) {
-    console.warn(`[Basketball API] ${errors.length} league fetch errors:`, errors);
+    console.warn(`[Basketball API] ${errors.length} league fetch errors for date ${date}:`, errors);
+  }
+
+  return allMatches;
+}
+
+// ─── Fetch from ESPN API (multi-date) ─────────────────────────────────────────
+async function fetchESPNBasketballMatches(dates: string[]): Promise<BasketballMatch[]> {
+  // Fetch all dates in parallel
+  const results = await Promise.allSettled(
+    dates.map((date) => fetchESPNBasketballMatchesForDate(date))
+  );
+
+  const allMatches: BasketballMatch[] = [];
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      allMatches.push(...result.value);
+    }
   }
 
   // Deduplicate by team names
@@ -204,7 +237,7 @@ async function fetchESPNBasketballMatches(): Promise<BasketballMatch[]> {
     return true;
   });
 
-  // Sort: live first, then upcoming by time
+  // Sort: live first, then upcoming by time, then finished
   const statusOrder = { live: 0, upcoming: 1, finished: 2 };
   deduped.sort((a, b) => {
     const statusDiff = (statusOrder[a.status] ?? 1) - (statusOrder[b.status] ?? 1);
@@ -218,30 +251,52 @@ async function fetchESPNBasketballMatches(): Promise<BasketballMatch[]> {
 }
 
 // ─── GET handler ───────────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = request.nextUrl;
+
+    // Parse date/dates params
+    const dateParam = searchParams.get('date');
+    const datesParam = searchParams.get('dates');
+
+    let dates: string[];
+    if (datesParam) {
+      dates = datesParam.split(',').filter(Boolean);
+    } else if (dateParam) {
+      dates = [dateParam];
+    } else {
+      // Default: 3 days (today + tomorrow + day after)
+      dates = getDefaultDates();
+    }
+
+    // Cache key based on dates
+    const cacheKey = dates.length === 1
+      ? `basketball-matches-${dates[0]}`
+      : `basketball-matches-3day`;
+
     // Check cache first
-    const cached = getCached<BasketballMatchesResponse>(CACHE_KEY);
+    const cached = getCached<BasketballMatchesResponse>(cacheKey);
     if (cached) {
-      const age = getCacheAge(CACHE_KEY);
+      const age = getCacheAge(cacheKey);
       console.log(`[Basketball API] Returning cached data (age: ${age}s, ${cached.matches.length} matches)`);
       return NextResponse.json(cached, {
         headers: { 'X-Cache': 'HIT', 'X-Cache-Age': String(age) },
       });
     }
 
-    console.log('[Basketball API] Cache miss, fetching from ESPN API...');
-    const matches = await fetchESPNBasketballMatches();
+    console.log(`[Basketball API] Cache miss, fetching from ESPN API for dates: ${dates.join(', ')}...`);
+    const matches = await fetchESPNBasketballMatches(dates);
 
     const response: BasketballMatchesResponse = {
       matches,
       lastUpdated: new Date().toISOString(),
       source: 'espn-api',
+      dates,
     };
 
-    setCache(CACHE_KEY, response);
+    setCache(cacheKey, response);
 
-    console.log(`[Basketball API] Returning ${matches.length} fresh matches`);
+    console.log(`[Basketball API] Returning ${matches.length} fresh matches for dates: ${dates.join(', ')}`);
     return NextResponse.json(response, {
       headers: { 'X-Cache': 'MISS' },
     });
@@ -249,7 +304,8 @@ export async function GET() {
     console.error('[Basketball API] Error fetching match data:', error);
 
     // Try stale cache
-    const stale = getCachedStale<BasketballMatchesResponse>(CACHE_KEY);
+    const stale = getCachedStale<BasketballMatchesResponse>('basketball-matches-3day')
+      || getCachedStale<BasketballMatchesResponse>('basketball-matches');
     if (stale) {
       console.log('[Basketball API] Returning stale cache due to error');
       return NextResponse.json(

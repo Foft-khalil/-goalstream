@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchSportsChannels, fetchCountryChannels } from '@/lib/iptv';
+import { getChannelHealth } from '@/lib/channel-health';
 import { db } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
             country: ch.country || null,
             isActive: true,
             lastChecked: new Date(),
-            source: 'iptv-org',
+            source: ch.source || 'iptv-org',
           },
         });
       }
@@ -70,7 +71,13 @@ export async function GET(request: NextRequest) {
       // Don't fail the request if DB sync fails
     }
 
-    return NextResponse.json(filtered);
+    // Enrich channels with health status from the shared map
+    const enriched = filtered.map((ch) => ({
+      ...ch,
+      health: getChannelHealth(ch.url),
+    }));
+
+    return NextResponse.json(enriched);
   } catch (error) {
     console.error('Error in /api/channels:', error);
     return NextResponse.json(

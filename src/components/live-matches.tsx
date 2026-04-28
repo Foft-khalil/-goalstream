@@ -1,10 +1,37 @@
 'use client';
 
-import { useEffect, useCallback, useRef, useState } from 'react';
-import { useAppStore } from '@/lib/store';
+import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
+import { useAppStore, DateTab } from '@/lib/store';
 import MatchCard from '@/components/match-card';
-import { Loader2, Zap, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles } from 'lucide-react';
+import { Loader2, Zap, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+/** Get YYYYMMDD string for a Date */
+function formatDateYMD(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}${m}${d}`;
+}
+
+/** Get the YYYYMMDD for a given DateTab relative to today */
+function getDateForTab(tab: DateTab): string {
+  const now = new Date();
+  const offsets: Record<DateTab, number> = { today: 0, tomorrow: 1, dayAfter: 2 };
+  const target = new Date(now.getTime() + offsets[tab] * 24 * 60 * 60 * 1000);
+  return formatDateYMD(target);
+}
+
+/** Check if a match's ISO date falls on a given YYYYMMDD date */
+function isMatchOnDate(matchDate: string | null, ymd: string): boolean {
+  if (!matchDate) return false;
+  try {
+    const d = new Date(matchDate);
+    return formatDateYMD(d) === ymd;
+  } catch {
+    return false;
+  }
+}
 
 export default function LiveMatches() {
   const {
@@ -12,6 +39,9 @@ export default function LiveMatches() {
     footballLoading,
     footballError,
     footballLastUpdated,
+    footballDates,
+    selectedDate,
+    setSelectedDate,
     fetchFootballMatches,
   } = useAppStore();
 
@@ -47,8 +77,26 @@ export default function LiveMatches() {
     setCountdown(60);
   }, [fetchFootballMatches]);
 
-  const liveMatches = footballMatches.filter((m) => m.status === 'live');
-  const upcomingMatches = footballMatches.filter((m) => m.status === 'upcoming');
+  // Compute date keys for tabs
+  const todayKey = useMemo(() => getDateForTab('today'), []);
+  const tomorrowKey = useMemo(() => getDateForTab('tomorrow'), []);
+  const dayAfterKey = useMemo(() => getDateForTab('dayAfter'), []);
+
+  // Filter matches by selected date tab
+  const dateKey = selectedDate === 'today' ? todayKey : selectedDate === 'tomorrow' ? tomorrowKey : dayAfterKey;
+  const filteredMatches = useMemo(
+    () => footballMatches.filter((m) => isMatchOnDate(m.matchDate, dateKey)),
+    [footballMatches, dateKey]
+  );
+
+  // Count per tab
+  const todayCount = useMemo(() => footballMatches.filter((m) => isMatchOnDate(m.matchDate, todayKey)).length, [footballMatches, todayKey]);
+  const tomorrowCount = useMemo(() => footballMatches.filter((m) => isMatchOnDate(m.matchDate, tomorrowKey)).length, [footballMatches, tomorrowKey]);
+  const dayAfterCount = useMemo(() => footballMatches.filter((m) => isMatchOnDate(m.matchDate, dayAfterKey)).length, [footballMatches, dayAfterKey]);
+
+  const liveMatches = filteredMatches.filter((m) => m.status === 'live');
+  const upcomingMatches = filteredMatches.filter((m) => m.status === 'upcoming');
+  const finishedMatches = filteredMatches.filter((m) => m.status === 'finished');
 
   // Group upcoming matches by competition
   const competitionGroups = upcomingMatches.reduce<Record<string, typeof upcomingMatches>>((acc, match) => {
@@ -58,18 +106,33 @@ export default function LiveMatches() {
     return acc;
   }, {});
 
-  const lastUpdatedStr = footballLastUpdated
-    ? new Date(footballLastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : null;
+  // Group finished matches by competition
+  const finishedGroups = finishedMatches.reduce<Record<string, typeof finishedMatches>>((acc, match) => {
+    const comp = match.competition || 'Football';
+    if (!acc[comp]) acc[comp] = [];
+    acc[comp].push(match);
+    return acc;
+  }, {});
 
   const countdownStr = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`;
 
-  // Today's date formatted nicely
-  const todayFormatted = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
+  // Tab labels with day info
+  const tomorrowDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+  }, []);
+  const dayAfterDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+  }, []);
+
+  const dateTabs: { key: DateTab; label: string; sublabel: string; count: number }[] = [
+    { key: 'today', label: "Aujourd'hui", sublabel: '', count: todayCount },
+    { key: 'tomorrow', label: 'Demain', sublabel: tomorrowDate, count: tomorrowCount },
+    { key: 'dayAfter', label: 'Après-demain', sublabel: dayAfterDate, count: dayAfterCount },
+  ];
 
   // Loading state
   if (footballLoading && footballMatches.length === 0) {
@@ -81,8 +144,8 @@ export default function LiveMatches() {
           </div>
           <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 animate-ping opacity-60" />
         </div>
-        <p className="text-base font-semibold mb-1">Chargement des matchs du jour</p>
-        <p className="text-sm text-muted-foreground/60">Recherche en cours...</p>
+        <p className="text-base font-semibold mb-1">Chargement des matchs</p>
+        <p className="text-sm text-muted-foreground/60">Recherche sur 3 jours...</p>
         <div className="flex items-center gap-1.5 mt-4">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '0ms' }} />
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -109,31 +172,56 @@ export default function LiveMatches() {
     );
   }
 
-  // No matches
-  if (footballMatches.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
-        <div className="w-20 h-20 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
-          <Calendar className="h-10 w-10 text-muted-foreground/40" />
-        </div>
-        <h3 className="text-lg font-semibold mb-1">Aucun match aujourd&apos;hui</h3>
-        <p className="text-sm text-muted-foreground/60 mb-5">
-          Pas de match prévu pour le moment
-        </p>
-        <Button onClick={handleRetry} variant="outline" size="sm" className="gap-2">
-          <RefreshCw className="h-4 w-4" />
-          Actualiser
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-5 pb-4">
-      {/* Header with date */}
+      {/* Date Tab Selector */}
+      <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1">
+        {dateTabs.map((tab) => {
+          const isActive = selectedDate === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setSelectedDate(tab.key)}
+              className={`flex-1 flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg text-sm font-medium transition-all relative ${
+                isActive
+                  ? 'bg-green-500/15 text-green-600 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+              }`}
+            >
+              <span className="text-xs font-semibold">{tab.label}</span>
+              {tab.sublabel && (
+                <span className={`text-[10px] ${isActive ? 'text-green-500/70' : 'text-muted-foreground/50'}`}>
+                  {tab.sublabel}
+                </span>
+              )}
+              {tab.count > 0 && (
+                <span className={`absolute top-1 right-1.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold ${
+                  isActive
+                    ? 'bg-green-500 text-white'
+                    : 'bg-muted text-muted-foreground'
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+              {isActive && (
+                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-green-500" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Header with date info */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold capitalize">{todayFormatted}</h2>
+          <h2 className="text-xl font-bold capitalize flex items-center gap-2">
+            {selectedDate === 'today'
+              ? new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+              : selectedDate === 'tomorrow'
+                ? `Demain — ${tomorrowDate}`
+                : `Après-demain — ${dayAfterDate}`
+            }
+          </h2>
           <div className="flex items-center gap-2 mt-0.5">
             {liveMatches.length > 0 ? (
               <div className="flex items-center gap-1.5">
@@ -146,7 +234,7 @@ export default function LiveMatches() {
               <div className="flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
-                  {upcomingMatches.length} match{upcomingMatches.length !== 1 ? 's' : ''} prévu{upcomingMatches.length !== 1 ? 's' : ''}
+                  {upcomingMatches.length + finishedMatches.length} match{(upcomingMatches.length + finishedMatches.length) !== 1 ? 's' : ''}
                 </span>
               </div>
             )}
@@ -176,6 +264,21 @@ export default function LiveMatches() {
           <Button variant="ghost" size="sm" onClick={handleRetry} className="ml-auto h-5 px-2 text-[10px] text-red-400">
             Réessayer
           </Button>
+        </div>
+      )}
+
+      {/* No matches for this date */}
+      {filteredMatches.length === 0 && footballMatches.length > 0 && (
+        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+            <Calendar className="h-8 w-8 text-muted-foreground/40" />
+          </div>
+          <h3 className="text-base font-semibold mb-1">
+            {selectedDate === 'today' ? "Aucun match aujourd'hui" : selectedDate === 'tomorrow' ? 'Aucun match demain' : 'Aucun match après-demain'}
+          </h3>
+          <p className="text-sm text-muted-foreground/60">
+            Pas de match prévu pour cette date
+          </p>
         </div>
       )}
 
@@ -218,9 +321,35 @@ export default function LiveMatches() {
         </section>
       ))}
 
+      {/* ===== FINISHED MATCHES BY COMPETITION ===== */}
+      {Object.entries(finishedGroups).length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/50 border border-border/30">
+              <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+              <span className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide">Terminés</span>
+              <span className="text-[10px] text-muted-foreground/40">{finishedMatches.length}</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {Object.entries(finishedGroups).map(([competition, matches]) => (
+              <div key={competition}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[10px] font-medium text-muted-foreground/40">{competition}</span>
+                  <div className="h-px flex-1 bg-border/20" />
+                </div>
+                {matches.map((match) => (
+                  <MatchCard key={match.id} match={match} />
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Footer info */}
       <div className="text-center text-[10px] text-muted-foreground/30 pt-1">
-        Programme du jour — mise à jour auto toutes les 2 min
+        Programme sur 3 jours — mise à jour auto toutes les 2 min
       </div>
     </div>
   );

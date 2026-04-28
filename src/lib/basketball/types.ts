@@ -37,4 +37,6 @@ export interface BasketballMatchesResponse {
   lastUpdated: string;
   source: 'espn-api';
   error?: string;
+  /** Dates that were fetched (YYYYMMDD format) */
+  dates?: string[];
 }

@@ -25,6 +25,22 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
   const matchDate = match.matchDate ? new Date(match.matchDate) : null;
   const timeStr = matchDate ? matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
+  // Determine date label
+  const dateLabel = (() => {
+    if (!matchDate) return '';
+    const now = new Date();
+    const matchYMD = `${matchDate.getFullYear()}-${String(matchDate.getMonth() + 1).padStart(2, '0')}-${String(matchDate.getDate()).padStart(2, '0')}`;
+    const todayYMD = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowYMD = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+    const dayAfter = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+    const dayAfterYMD = `${dayAfter.getFullYear()}-${String(dayAfter.getMonth() + 1).padStart(2, '0')}-${String(dayAfter.getDate()).padStart(2, '0')}`;
+    if (matchYMD === todayYMD) return "Aujourd'hui";
+    if (matchYMD === tomorrowYMD) return 'Demain';
+    if (matchYMD === dayAfterYMD) return 'Après-demain';
+    return matchDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  })();
+
   const handleQuickPlay = async () => {
     if (findingStream) return;
     setFindingStream(true);
@@ -80,9 +96,11 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <Clock className="h-3 w-3 text-muted-foreground/40" />
-              <span className="text-[11px] font-semibold text-muted-foreground">{timeStr}</span>
+              <span className="text-[11px] font-semibold text-muted-foreground">
+                {dateLabel ? `${dateLabel} ` : ''}{timeStr}
+              </span>
             </div>
           )}
         </div>
@@ -423,8 +441,8 @@ export default function FavoritesView() {
           ) : (
             <div className="flex flex-col items-center py-8 px-4 text-center rounded-xl bg-muted/20 border border-border/20">
               <WifiOff className="h-8 w-8 text-muted-foreground/20 mb-2" />
-              <p className="text-sm text-muted-foreground/60">Aucun match prévu pour vos équipes aujourd&apos;hui</p>
-              <p className="text-xs text-muted-foreground/40 mt-1">Revenez demain !</p>
+              <p className="text-sm text-muted-foreground/60">Aucun match prévu pour vos équipes sur les 3 prochains jours</p>
+              <p className="text-xs text-muted-foreground/40 mt-1">Revenez plus tard !</p>
             </div>
           )}
         </section>

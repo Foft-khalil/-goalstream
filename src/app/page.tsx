@@ -8,18 +8,20 @@ import ChannelsList from '@/components/channels-list';
 import StandingsView from '@/components/standings-view';
 import FavoritesView from '@/components/favorites-view';
 import VideoPlayer from '@/components/video-player';
-import { Zap, Tv, BarChart3, Trophy, Menu, Download, WifiOff, Heart, Dribbble } from 'lucide-react';
+import { Zap, Tv, BarChart3, Trophy, Menu, Download, WifiOff, Heart, Dribbble, Bell, BellOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
 import { usePWA } from '@/hooks/use-pwa';
 import { useFavorites } from '@/hooks/use-favorites';
+import { useNotifications } from '@/hooks/use-notifications';
 
 function AppHeader() {
   const { currentView, setCurrentView, footballMatches, basketballMatches } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { installPrompt, installApp, isOnline } = usePWA();
   const { totalFavorites } = useFavorites();
+  const { notificationsEnabled, toggleNotifications, upcomingFavoriteCount } = useNotifications();
 
   const footballLiveCount = footballMatches.filter((m) => m.status === 'live').length;
   const bballLiveCount = basketballMatches.filter((m) => m.status === 'live').length;
@@ -47,8 +49,24 @@ function AppHeader() {
             </div>
           </div>
 
-          {/* Install button + Desktop Nav */}
+          {/* Notification + Install button + Desktop Nav */}
           <div className="hidden sm:flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleNotifications}
+              className={`h-8 w-8 relative rounded-lg ${
+                notificationsEnabled
+                  ? 'text-green-500 hover:text-green-600 hover:bg-green-500/10'
+                  : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50'
+              }`}
+              title={notificationsEnabled ? 'Notifications activées' : 'Activer les notifications'}
+            >
+              {notificationsEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+              {notificationsEnabled && upcomingFavoriteCount > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              )}
+            </Button>
             {installPrompt && (
               <Button
                 size="sm"
@@ -103,13 +121,30 @@ function AppHeader() {
             })}
           </nav>
 
-          {/* Mobile Menu */}
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger asChild className="sm:hidden">
-              <Button variant="ghost" size="icon" className="h-9 w-9">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
+          {/* Mobile notification + menu */}
+          <div className="flex sm:hidden items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleNotifications}
+              className={`h-9 w-9 relative ${
+                notificationsEnabled
+                  ? 'text-green-500 hover:text-green-600 hover:bg-green-500/10'
+                  : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50'
+              }`}
+              title={notificationsEnabled ? 'Notifications activées' : 'Activer les notifications'}
+            >
+              {notificationsEnabled ? <Bell className="h-4.5 w-4.5" /> : <BellOff className="h-4.5 w-4.5" />}
+              {notificationsEnabled && upcomingFavoriteCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              )}
+            </Button>
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
             <SheetContent side="right" className="w-64">
               <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
               <div className="flex items-center gap-2.5 mb-8 mt-4">
@@ -175,6 +210,7 @@ function AppHeader() {
               </nav>
             </SheetContent>
           </Sheet>
+          </div>
         </div>
       </div>
     </header>
