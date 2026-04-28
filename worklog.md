@@ -440,3 +440,33 @@ Stage Summary:
 - Real-time chronometer shows MM:SS within current half, total minute, period label, and added time
 - Clock drift fixed: lastUpdated refreshed on cache hits so extrapolation stays accurate
 - Both football and basketball sections updated
+
+---
+Task ID: 13
+Agent: Main Agent
+Task: Fix chronometer freezing at 45' during 2nd half — isHalftime bug
+
+Work Log:
+- Root cause identified: ESPN sends `statusDescription: "2nd Half"` during the 2nd half
+- The old `isHalftime` detection checked `includes('half')` which matched "2nd Half" → incorrectly set isHalftime=true
+- When isHalftime=true, the LiveMatchClock rendered a static "45:00 Mi-temps" display and stopped ticking
+- Fix 1: Updated `isHalftime` detection in `src/app/api/football/route.ts`:
+  - Now explicitly checks for "halftime", "half", "mi-temps", "midpoint" as exact matches
+  - When using `includes('half')`, also excludes "2nd" and "second" in addition to "1st" and "first"
+  - Added `descLower` variable to avoid repeated toLowerCase() calls
+- Fix 2: Rewrote `LiveMatchClock` component with independent halftime verification:
+  - New `isTrulyHalftime()` function cross-checks period, description, AND the prop
+  - If `period === 2`, always returns false (definitely not halftime)
+  - If description contains "2nd" or "second", always returns false
+  - Only trusts isHalftime prop when period is NOT 2 and description doesn't contradict
+  - This makes the component resilient to future API bugs
+- Fix 3: Simplified the useEffect — always ticks every second (removed the halftime-specific branch)
+- Fix 4: Increased max period cap to 50 min (was 48) for rare long stoppage times
+- Fix 5: Improved `getPeriodLabel` — no longer uses isHalftime, only uses period and description
+
+Stage Summary:
+- Chronometer no longer freezes at 45' during the 2nd half
+- Root cause was "2nd Half" containing "half" which triggered incorrect halftime detection
+- Both server-side (API route) and client-side (component) are now fixed
+- Component independently verifies halftime using multiple signals for resilience
+- Lint passes clean, dev server running

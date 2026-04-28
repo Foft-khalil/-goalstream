@@ -100,11 +100,18 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): FootballMatch | n
     const displayClock = (state === 'in') ? (event.status.displayClock || null) : null;
     const period = (state === 'in') ? (event.status.period || null) : null;
     const statusDescription = event.status.type.description || null;
+    const descLower = statusDescription?.toLowerCase() || '';
     const isHalftime = state === 'in' && (
-      statusDescription?.toLowerCase().includes('half') ||
-      statusDescription?.toLowerCase().includes('mi-temps')
-    ) && !statusDescription?.toLowerCase().includes('1st') &&
-      !statusDescription?.toLowerCase().includes('first');
+      descLower === 'halftime' ||
+      descLower === 'half' ||
+      descLower === 'mi-temps' ||
+      descLower === 'midpoint' ||
+      (descLower.includes('half') &&
+        !descLower.includes('1st') &&
+        !descLower.includes('first') &&
+        !descLower.includes('2nd') &&
+        !descLower.includes('second'))
+    );
     const lastUpdated = state === 'in' ? Date.now() : null;
 
     if (state === 'in') {
