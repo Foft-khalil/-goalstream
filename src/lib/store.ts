@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import type { BasketballMatch } from '@/lib/basketball/types';
 
-export type ViewType = 'live' | 'channels' | 'standings' | 'favorites';
+export type ViewType = 'live' | 'channels' | 'standings' | 'favorites' | 'basketball';
 
 interface Channel {
   tvgId: string;
@@ -88,6 +89,13 @@ interface AppState {
   footballError: string | null;
   footballLastUpdated: string | null;
   fetchFootballMatches: () => Promise<void>;
+
+  // Basketball matches (API - real data)
+  basketballMatches: BasketballMatch[];
+  basketballLoading: boolean;
+  basketballError: string | null;
+  basketballLastUpdated: string | null;
+  fetchBasketballMatches: () => Promise<void>;
 
   // Admin
   isAdmin: boolean;
@@ -243,6 +251,27 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     } catch (error: any) {
       set({ footballError: error.message, footballLoading: false });
+    }
+  },
+
+  // Basketball matches (API - real data)
+  basketballMatches: [],
+  basketballLoading: false,
+  basketballError: null,
+  basketballLastUpdated: null,
+  fetchBasketballMatches: async () => {
+    set({ basketballLoading: true, basketballError: null });
+    try {
+      const res = await fetch('/api/basketball');
+      if (!res.ok) throw new Error('Échec du chargement des matchs de basketball');
+      const data = await res.json();
+      set({
+        basketballMatches: data.matches || [],
+        basketballLoading: false,
+        basketballLastUpdated: data.lastUpdated || new Date().toISOString(),
+      });
+    } catch (error: any) {
+      set({ basketballError: error.message, basketballLoading: false });
     }
   },
 

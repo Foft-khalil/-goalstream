@@ -5,12 +5,13 @@ import ZAI from 'z-ai-web-dev-sdk';
 /**
  * POST /api/match-stream - Find the best IPTV channel for a given match.
  * Uses web search to find the real broadcaster, then matches with IPTV channels.
- * Body: { homeTeam, awayTeam, competition, matchDate? }
+ * Body: { homeTeam, awayTeam, competition, matchDate?, sport? }
  * Returns: { channels: Array<{ name, url, logo, group, relevance, broadcaster?: string }> }
  */
 
 // Known competition → broadcaster mappings (fallback when web search is unavailable)
 const COMPETITION_BROADCASTERS: Record<string, string[]> = {
+  // Football
   'ligue 1': ['Canal+', 'beIN Sports', 'DAZN', 'Amazon Prime', 'Canal+ Sport', 'Canal+ Foot'],
   'premier league': ['Sky Sports', 'BT Sport', 'TNT Sports', 'NBC Sports', 'Peacock', 'fuboTV'],
   'champions league': ['Canal+', 'beIN Sports', 'BT Sport', 'TNT Sports', 'Paramount+', 'CBS', 'RMC Sport'],
@@ -29,6 +30,12 @@ const COMPETITION_BROADCASTERS: Record<string, string[]> = {
   'saudi pro league': ['SSC', 'beIN Sports', 'Shahid'],
   'afc champions league': ['beIN Sports', 'J Sports'],
   'caf champions league': ['beIN Sports', 'Canal+', 'SuperSport'],
+  // Basketball
+  'nba': ['ESPN', 'TNT', 'ABC', 'NBA TV', 'NBA League Pass', 'beIN Sports', 'Canal+'],
+  "ncaa men's basketball": ['ESPN', 'CBS', 'TBS', 'TNT', 'truTV', 'Paramount+'],
+  'ncaa': ['ESPN', 'CBS', 'TBS', 'TNT', 'truTV', 'Paramount+'],
+  'euroleague': ['EuroLeague TV', 'beIN Sports', 'Canal+', 'Sport TV', 'DAZN'],
+  'wnba': ['ESPN', 'NBA TV', 'ABC', 'CBS Sports'],
 };
 
 // Country-specific team → likely broadcaster country hint
@@ -81,6 +88,15 @@ const BROADCASTER_TO_IPTV: Record<string, string[]> = {
   'vix': ['vix'],
   'fubotv': ['fubo'],
   'peacock': ['peacock', 'nbc'],
+  // Basketball-specific broadcasters
+  'nba tv': ['nba tv', 'nba', 'nba league'],
+  'nba league pass': ['nba', 'league pass'],
+  'tnt': ['tnt', 'tnt sport'],
+  'abc': ['abc', 'abc sports'],
+  'tbs': ['tbs'],
+  'trutv': ['trutv', 'tru tv'],
+  'cbs sports': ['cbs', 'cbs sports'],
+  'euroleague tv': ['euroleague'],
 };
 
 function getCountryForTeams(homeTeam: string, awayTeam: string): string | null {
@@ -98,12 +114,14 @@ function getCountryForTeams(homeTeam: string, awayTeam: string): string | null {
 async function findBroadcasterViaSearch(
   homeTeam: string,
   awayTeam: string,
-  competition: string
+  competition: string,
+  sport: string = 'football'
 ): Promise<string[]> {
   try {
     const sdk = await ZAI.create();
+    const sportLabel = sport === 'basketball' ? 'basketball' : 'football';
     const results = await sdk.functions.invoke('web_search', {
-      query: `${homeTeam} vs ${awayTeam} ${competition} TV channel broadcast live stream 2025`,
+      query: `${homeTeam} vs ${awayTeam} ${competition} ${sportLabel} TV channel broadcast live stream 2025`,
       num: 5,
       recency_days: 7,
     });
@@ -116,11 +134,11 @@ async function findBroadcasterViaSearch(
       messages: [
         {
           role: 'system',
-          content: `You are a sports broadcasting expert. Given search results about a football match, identify the TV channels/networks that will broadcast or are broadcasting this match. Return ONLY the channel names separated by commas (e.g., "Canal+, beIN Sports, RMC Sport"). If you cannot determine the broadcaster, return "Unknown". Do not add any explanation.`,
+          content: `You are a sports broadcasting expert. Given search results about a ${sportLabel} match, identify the TV channels/networks that will broadcast or are broadcasting this match. Return ONLY the channel names separated by commas (e.g., "Canal+, beIN Sports, RMC Sport"). If you cannot determine the broadcaster, return "Unknown". Do not add any explanation.`,
         },
         {
           role: 'user',
-          content: `Match: ${homeTeam} vs ${awayTeam}\nCompetition: ${competition}\n\nSearch results:\n${snippets}`,
+          content: `Match: ${homeTeam} vs ${awayTeam}\nCompetition: ${competition}\nSport: ${sportLabel}\n\nSearch results:\n${snippets}`,
         },
       ],
     });
@@ -190,7 +208,8 @@ function matchBroadcasterToIPTV(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { homeTeam, awayTeam, competition, matchDate } = body;
+    const { homeTeam, awayTeam, competition, matchDate, sport } = body;
+    const isBasketball = sport === 'basketball';
 
     if (!homeTeam || !awayTeam) {
       return NextResponse.json(
@@ -211,7 +230,7 @@ export async function POST(request: NextRequest) {
     const compLower = (competition || '').toLowerCase();
 
     // ─── Step 1: Find the real broadcaster via web search ─────────────────────
-    const searchBroadcasters = await findBroadcasterViaSearch(homeTeam, awayTeam, competition || '');
+    const searchBroadcasters = await findBroadcasterViaSearch(homeTeam, awayTeam, competition || '', sport || 'football');
 
     // ─── Step 2: Get known broadcasters for this competition (fallback) ───────
     const knownBroadcasters = getKnownBroadcasters(compLower);
@@ -223,11 +242,14 @@ export async function POST(request: NextRequest) {
     const broadcasterMatches = matchBroadcasterToIPTV(allBroadcasters, channels);
 
     // ─── Step 4: Also do keyword-based matching (legacy, as backup) ───────────
+    const sportKeywords = isBasketball
+      ? ['sport', 'basketball', 'basket', 'nba', 'bball']
+      : ['sport', 'football', 'soccer', 'foot', 'futbol'];
     const searchTerms = [
       homeLower,
       awayLower,
       ...getCompetitionKeywords(compLower),
-      'sport', 'football', 'soccer', 'foot', 'futbol',
+      ...sportKeywords,
     ].filter(Boolean);
 
     const keywordMatches = channels.map((ch) => {
@@ -362,6 +384,7 @@ function getCompetitionKeywords(comp: string): string[] {
   const keywords: string[] = [];
 
   const compMap: Record<string, string[]> = {
+    // Football
     'ligue 1': ['ligue 1', 'l1', 'canal', 'bein', 'amazon'],
     'premier league': ['premier league', 'pl', 'sky sports', 'bt sport', 'nbc'],
     'champions league': ['champions league', 'ucl', 'canal', 'bein', 'bt sport'],
@@ -372,6 +395,11 @@ function getCompetitionKeywords(comp: string): string[] {
     'world cup': ['world cup', 'fifa', 'coupe du monde'],
     'africa cup': ['africa cup', 'can', 'afcon', 'bein'],
     'cup': ['cup', 'coupe'],
+    // Basketball
+    'nba': ['nba', 'espn', 'tnt', 'nba tv', 'league pass'],
+    'ncaa': ['ncaa', 'espn', 'cbs', 'tbs', 'march madness'],
+    'euroleague': ['euroleague', 'euroleague tv', 'bein', 'canal'],
+    'wnba': ['wnba', 'nba tv', 'espn'],
   };
 
   for (const [key, values] of Object.entries(compMap)) {

@@ -147,3 +147,54 @@ Stage Summary:
 - Broadcaster info shown on the card ("Diffusé sur: Canal+, beIN Sports")
 - IPTV channels matched to real broadcasters for accurate stream selection
 
+---
+Task ID: 6
+Agent: Main Agent
+Task: Add dedicated basketball section to GoalStream
+
+Work Log:
+- Created basketball type definitions (`src/lib/basketball/types.ts`): BasketballMatch with period display, clock, abbreviations, team records
+- Created basketball cache module (`src/lib/basketball/cache.ts`): 5-min TTL in-memory cache
+- Created basketball API route (`src/app/api/basketball/route.ts`): Fetches from ESPN API for 4 leagues:
+  - NBA: `basketball/nba`
+  - NCAA Men's Basketball: `basketball/mens-college-basketball`
+  - EuroLeague: `basketball/euroleague`
+  - WNBA: `basketball/wnba`
+- Basketball-specific parsing: Quarter display (Q1-Q4), OT periods, team records (e.g., "56-26"), abbreviations (BOS, LAL)
+- Created BasketballMatchCard component (`src/components/basketball-match-card.tsx`):
+  - Orange theme for live matches (vs red for football)
+  - Period display with clock (e.g., "Q2 7:32")
+  - Team records shown under team names
+  - Abbreviation fallback when no logo
+  - Same channel finder flow as football
+- Created BasketballMatches component (`src/components/basketball-matches.tsx`):
+  - Same layout as LiveMatches: live section + upcoming by competition
+  - Auto-refresh every 2 min, countdown timer
+  - Loading/error/empty states with orange theme
+- Updated Zustand store (`src/lib/store.ts`):
+  - Added `basketball` to ViewType
+  - Added basketballMatches, basketballLoading, basketballError, basketballLastUpdated
+  - Added fetchBasketballMatches action
+- Updated main page (`src/app/page.tsx`):
+  - Added Basketball tab with Dribbble icon to desktop nav and mobile bottom nav
+  - Orange theme for basketball tab indicator
+  - Live count badge (orange) for basketball
+  - fetchBasketballMatches called on mount
+  - Updated subtitle: "Sport en direct" (was "Football en direct")
+- Updated match-stream API (`src/app/api/match-stream/route.ts`):
+  - Added basketball broadcasters: NBA (ESPN, TNT, ABC, NBA TV), NCAA (CBS, TBS, truTV), EuroLeague, WNBA
+  - Added basketball-specific broadcaster-to-IPTV mappings
+  - Added sport parameter to search (basketball vs football context)
+  - Added basketball keyword search terms
+  - Updated getCompetitionKeywords with basketball competitions
+- Enhanced football MatchCard: Added kickoff time display for live matches
+- Tested: API returns 7 basketball matches (NBA + WNBA), logos and records work
+
+Stage Summary:
+- Full basketball section added as new "Basketball" tab
+- Covers NBA, NCAA, EuroLeague, WNBA via ESPN API
+- Basketball-specific match cards with quarters, records, abbreviations
+- Orange visual theme (vs red for football)
+- Match-stream API supports basketball channel finding
+- Live match date display fixed for football cards
+

@@ -6,24 +6,10 @@ import { Play, Tv, Clock, Loader2, Radio, ChevronRight, Heart } from 'lucide-rea
 import { useAppStore } from '@/lib/store';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useState } from 'react';
+import type { BasketballMatch } from '@/lib/basketball/types';
 
-interface MatchCardProps {
-  match: {
-    id: string;
-    homeTeam: string;
-    awayTeam: string;
-    homeLogo: string | null;
-    awayLogo: string | null;
-    homeScore: number | null;
-    awayScore: number | null;
-    status: string;
-    competition: string | null;
-    matchDate: string | null;
-    streamUrl?: string | null;
-    channelName?: string | null;
-    channelLogo?: string | null;
-    minute?: number | null;
-  };
+interface BasketballMatchCardProps {
+  match: BasketballMatch;
 }
 
 export interface FoundChannel {
@@ -35,7 +21,7 @@ export interface FoundChannel {
   broadcaster?: string;
 }
 
-export default function MatchCard({ match }: MatchCardProps) {
+export default function BasketballMatchCard({ match }: BasketballMatchCardProps) {
   const { openPlayer } = useAppStore();
   const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
   const [findingStream, setFindingStream] = useState(false);
@@ -53,15 +39,10 @@ export default function MatchCard({ match }: MatchCardProps) {
   const homeFav = isTeamFavorite(match.homeTeam);
   const awayFav = isTeamFavorite(match.awayTeam);
 
-  const handleWatch = async () => {
-    if (match.streamUrl) {
-      // Direct stream URL available
-      openPlayer(match.streamUrl, match.channelName || `${match.homeTeam} vs ${match.awayTeam}`, match.channelLogo || undefined);
-      return;
-    }
-    // Find channels for this match
-    await findAndShowChannels();
-  };
+  // Basketball-specific: period display with clock
+  const livePeriodStr = isLive && match.periodDisplay
+    ? `${match.periodDisplay}${match.clockDisplay && match.clockDisplay !== '0:00' ? ` ${match.clockDisplay}` : ''}`
+    : null;
 
   const findAndShowChannels = async () => {
     if (findingStream) return;
@@ -77,6 +58,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           awayTeam: match.awayTeam,
           competition: match.competition,
           matchDate: match.matchDate,
+          sport: 'basketball',
         }),
       });
 
@@ -85,7 +67,6 @@ export default function MatchCard({ match }: MatchCardProps) {
       const channels = data.channels || [];
       setFoundChannels(channels);
 
-      // Show broadcaster info if available
       if (data.broadcasters && data.broadcasters.length > 0) {
         setBroadcasterInfo(data.broadcasters.join(', '));
       } else if (data.message) {
@@ -105,7 +86,6 @@ export default function MatchCard({ match }: MatchCardProps) {
   };
 
   const handleSelectChannel = (channel: FoundChannel) => {
-    // Open player with this channel AND pass all found channels as alternatives
     openPlayer(
       channel.url,
       channel.name,
@@ -114,7 +94,6 @@ export default function MatchCard({ match }: MatchCardProps) {
     );
   };
 
-  // Try to auto-play the first channel directly
   const handleQuickPlay = async () => {
     if (findingStream) return;
     setFindingStream(true);
@@ -128,6 +107,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           awayTeam: match.awayTeam,
           competition: match.competition,
           matchDate: match.matchDate,
+          sport: 'basketball',
         }),
       });
 
@@ -135,19 +115,16 @@ export default function MatchCard({ match }: MatchCardProps) {
       const data = await res.json();
       const channels: FoundChannel[] = data.channels || [];
 
-      // Store broadcaster info
       if (data.broadcasters && data.broadcasters.length > 0) {
         setBroadcasterInfo(data.broadcasters.join(', '));
       }
 
       if (channels.length > 0) {
-        // Open player with first channel, pass rest as alternatives
         const first = channels[0];
         const alternatives = channels.slice(1);
         openPlayer(first.url, first.name, first.logo || undefined, alternatives);
       } else {
         setError('Aucune chaîne trouvée');
-        // Show channel picker so user can see the result
         setFoundChannels(channels);
         setShowChannels(true);
       }
@@ -163,29 +140,22 @@ export default function MatchCard({ match }: MatchCardProps) {
     <div
       className={`group relative rounded-xl overflow-hidden transition-all duration-200 ${
         isLive
-          ? 'bg-gradient-to-r from-red-950/30 via-card to-red-950/20 border border-red-500/20 shadow-lg shadow-red-500/5'
+          ? 'bg-gradient-to-r from-orange-950/30 via-card to-orange-950/20 border border-orange-500/20 shadow-lg shadow-orange-500/5'
           : 'bg-card/80 border border-border/40 hover:border-border/70 hover:bg-card'
       }`}
     >
       <div className="px-4 py-3.5">
         {/* Top row: competition + date/time/status */}
         <div className="flex items-center justify-between mb-3">
-          <span className="text-[11px] text-muted-foreground/60 font-medium">
-            {match.competition || 'Amical'}
+          <span className="text-[11px] text-muted-foreground/60 font-medium flex items-center gap-1">
+            🏀 {match.competition || 'Basketball'}
           </span>
           {isLive ? (
-            <div className="flex items-center gap-2">
-              {timeStr && (
-                <span className="text-[10px] text-muted-foreground/50 font-medium">
-                  {timeStr}
-                </span>
-              )}
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[11px] font-bold text-red-500 tracking-wide">
-                  {match.minute != null ? `${match.minute}'` : 'LIVE'}
-                </span>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+              <span className="text-[11px] font-bold text-orange-500 tracking-wide">
+                {livePeriodStr || 'LIVE'}
+              </span>
             </div>
           ) : (
             <div className="flex items-center gap-1">
@@ -209,11 +179,18 @@ export default function MatchCard({ match }: MatchCardProps) {
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             ) : (
-              <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center text-[11px] font-bold shrink-0">
-                {match.homeTeam.slice(0, 2).toUpperCase()}
+              <div className="w-9 h-9 rounded-lg bg-orange-500/10 flex items-center justify-center text-[11px] font-bold shrink-0 text-orange-500">
+                {match.homeAbbreviation || match.homeTeam.slice(0, 2).toUpperCase()}
               </div>
             )}
-            <span className={`font-semibold text-sm truncate ${homeFav ? 'text-green-500' : ''}`}>{match.homeTeam}</span>
+            <div className="min-w-0">
+              <span className={`font-semibold text-sm truncate block ${homeFav ? 'text-green-500' : ''}`}>
+                {match.homeTeam}
+              </span>
+              {match.homeRecord && (
+                <span className="text-[10px] text-muted-foreground/50">{match.homeRecord}</span>
+              )}
+            </div>
             <button
               onClick={(e) => { e.stopPropagation(); toggleTeamFavorite(match.homeTeam, match.homeLogo); }}
               className="shrink-0 ml-auto"
@@ -227,9 +204,9 @@ export default function MatchCard({ match }: MatchCardProps) {
           <div className="flex flex-col items-center shrink-0 px-1">
             {isLive ? (
               <div className="flex items-center gap-1.5">
-                <span className="text-lg font-black tabular-nums text-red-400">{match.homeScore ?? 0}</span>
+                <span className="text-lg font-black tabular-nums text-orange-400">{match.homeScore ?? 0}</span>
                 <span className="text-xs text-muted-foreground/40 font-medium">-</span>
-                <span className="text-lg font-black tabular-nums text-red-400">{match.awayScore ?? 0}</span>
+                <span className="text-lg font-black tabular-nums text-orange-400">{match.awayScore ?? 0}</span>
               </div>
             ) : (
               <div className="px-3 py-1 rounded-md bg-muted/40 border border-border/20">
@@ -247,7 +224,14 @@ export default function MatchCard({ match }: MatchCardProps) {
             >
               <Heart className={`h-3.5 w-3.5 transition-colors ${awayFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
             </button>
-            <span className={`font-semibold text-sm truncate text-right ${awayFav ? 'text-green-500' : ''}`}>{match.awayTeam}</span>
+            <div className="min-w-0 text-right">
+              <span className={`font-semibold text-sm truncate block ${awayFav ? 'text-green-500' : ''}`}>
+                {match.awayTeam}
+              </span>
+              {match.awayRecord && (
+                <span className="text-[10px] text-muted-foreground/50">{match.awayRecord}</span>
+              )}
+            </div>
             {match.awayLogo ? (
               <img
                 src={match.awayLogo}
@@ -256,8 +240,8 @@ export default function MatchCard({ match }: MatchCardProps) {
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             ) : (
-              <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center text-[11px] font-bold shrink-0">
-                {match.awayTeam.slice(0, 2).toUpperCase()}
+              <div className="w-9 h-9 rounded-lg bg-orange-500/10 flex items-center justify-center text-[11px] font-bold shrink-0 text-orange-500">
+                {match.awayAbbreviation || match.awayTeam.slice(0, 2).toUpperCase()}
               </div>
             )}
           </div>
@@ -271,7 +255,7 @@ export default function MatchCard({ match }: MatchCardProps) {
             disabled={findingStream}
             className={`flex-1 h-8 gap-2 text-xs font-semibold rounded-lg transition-all ${
               isLive
-                ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-600/20'
+                ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-sm shadow-orange-600/20'
                 : 'bg-green-600 hover:bg-green-700 text-white shadow-sm shadow-green-600/20'
             }`}
           >
@@ -299,7 +283,7 @@ export default function MatchCard({ match }: MatchCardProps) {
               if (foundChannels.length > 0 && showChannels) {
                 setShowChannels(false);
               } else {
-                handleWatch();
+                findAndShowChannels();
               }
             }}
             disabled={findingStream}

@@ -3,11 +3,12 @@
 import { useEffect } from 'react';
 import { useAppStore, ViewType } from '@/lib/store';
 import LiveMatches from '@/components/live-matches';
+import BasketballMatches from '@/components/basketball-matches';
 import ChannelsList from '@/components/channels-list';
 import StandingsView from '@/components/standings-view';
 import FavoritesView from '@/components/favorites-view';
 import VideoPlayer from '@/components/video-player';
-import { Zap, Tv, BarChart3, Trophy, Menu, Download, WifiOff, Heart } from 'lucide-react';
+import { Zap, Tv, BarChart3, Trophy, Menu, Download, WifiOff, Heart, Dribbble } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
@@ -15,15 +16,17 @@ import { usePWA } from '@/hooks/use-pwa';
 import { useFavorites } from '@/hooks/use-favorites';
 
 function AppHeader() {
-  const { currentView, setCurrentView, footballMatches } = useAppStore();
+  const { currentView, setCurrentView, footballMatches, basketballMatches } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { installPrompt, installApp, isOnline } = usePWA();
   const { totalFavorites } = useFavorites();
 
-  const liveCount = footballMatches.filter((m) => m.status === 'live').length;
+  const footballLiveCount = footballMatches.filter((m) => m.status === 'live').length;
+  const bballLiveCount = basketballMatches.filter((m) => m.status === 'live').length;
 
   const navItems = [
     { view: 'live' as ViewType, icon: <Zap className="h-4 w-4" />, label: 'Matchs' },
+    { view: 'basketball' as ViewType, icon: <Dribbble className="h-4 w-4" />, label: 'Basketball' },
     { view: 'favorites' as ViewType, icon: <Heart className="h-4 w-4" />, label: 'Favoris' },
     { view: 'channels' as ViewType, icon: <Tv className="h-4 w-4" />, label: 'Chaînes' },
     { view: 'standings' as ViewType, icon: <BarChart3 className="h-4 w-4" />, label: 'Classement' },
@@ -40,7 +43,7 @@ function AppHeader() {
             </div>
             <div>
               <h1 className="text-base font-extrabold leading-tight tracking-tight">GoalStream</h1>
-              <p className="text-[9px] text-muted-foreground/60 leading-tight font-medium uppercase tracking-wider">Football en direct</p>
+              <p className="text-[9px] text-muted-foreground/60 leading-tight font-medium uppercase tracking-wider">Sport en direct</p>
             </div>
           </div>
 
@@ -78,10 +81,16 @@ function AppHeader() {
                 >
                   {item.icon}
                   <span>{item.label}</span>
-                  {item.view === 'live' && liveCount > 0 && (
+                  {item.view === 'live' && footballLiveCount > 0 && (
                     <span className="ml-0.5 flex items-center gap-0.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                      <span className="text-[10px] font-bold text-red-500">{liveCount}</span>
+                      <span className="text-[10px] font-bold text-red-500">{footballLiveCount}</span>
+                    </span>
+                  )}
+                  {item.view === 'basketball' && bballLiveCount > 0 && (
+                    <span className="ml-0.5 flex items-center gap-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                      <span className="text-[10px] font-bold text-orange-500">{bballLiveCount}</span>
                     </span>
                   )}
                   {item.view === 'favorites' && totalFavorites > 0 && (
@@ -143,10 +152,16 @@ function AppHeader() {
                     >
                       {item.icon}
                       <span>{item.label}</span>
-                      {item.view === 'live' && liveCount > 0 && (
+                      {item.view === 'live' && footballLiveCount > 0 && (
                         <span className="ml-auto flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                          <span className="text-[10px] font-bold text-red-500">{liveCount}</span>
+                          <span className="text-[10px] font-bold text-red-500">{footballLiveCount}</span>
+                        </span>
+                      )}
+                      {item.view === 'basketball' && bballLiveCount > 0 && (
+                        <span className="ml-auto flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                          <span className="text-[10px] font-bold text-orange-500">{bballLiveCount}</span>
                         </span>
                       )}
                       {item.view === 'favorites' && totalFavorites > 0 && (
@@ -167,12 +182,14 @@ function AppHeader() {
 }
 
 function MobileBottomNav() {
-  const { currentView, setCurrentView, footballMatches } = useAppStore();
+  const { currentView, setCurrentView, footballMatches, basketballMatches } = useAppStore();
   const { totalFavorites } = useFavorites();
-  const liveCount = footballMatches.filter((m) => m.status === 'live').length;
+  const footballLiveCount = footballMatches.filter((m) => m.status === 'live').length;
+  const bballLiveCount = basketballMatches.filter((m) => m.status === 'live').length;
 
   const navItems = [
     { view: 'live' as ViewType, icon: <Zap className="h-5 w-5" />, label: 'Matchs' },
+    { view: 'basketball' as ViewType, icon: <Dribbble className="h-5 w-5" />, label: 'Basket' },
     { view: 'favorites' as ViewType, icon: <Heart className="h-5 w-5" />, label: 'Favoris' },
     { view: 'channels' as ViewType, icon: <Tv className="h-5 w-5" />, label: 'Chaînes' },
     { view: 'standings' as ViewType, icon: <BarChart3 className="h-5 w-5" />, label: 'Classement' },
@@ -180,33 +197,38 @@ function MobileBottomNav() {
 
   return (
     <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-xl border-t border-border/30 safe-area-bottom">
-      <div className="flex items-center justify-around h-16 px-2">
+      <div className="flex items-center justify-around h-16 px-1">
         {navItems.map((item) => {
           const isActive = currentView === item.view;
           return (
             <button
               key={item.view}
               onClick={() => setCurrentView(item.view)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all relative ${
+              className={`flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl transition-all relative ${
                 isActive
-                  ? 'text-green-500'
+                  ? item.view === 'basketball' ? 'text-orange-500' : 'text-green-500'
                   : 'text-muted-foreground/60'
               }`}
             >
               {item.icon}
               <span className="text-[10px] font-semibold">{item.label}</span>
-              {item.view === 'live' && liveCount > 0 && (
-                <span className="absolute top-0.5 right-2 flex items-center justify-center">
+              {item.view === 'live' && footballLiveCount > 0 && (
+                <span className="absolute top-0.5 right-1 flex items-center justify-center">
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                 </span>
               )}
+              {item.view === 'basketball' && bballLiveCount > 0 && (
+                <span className="absolute top-0.5 right-1 flex items-center justify-center">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                </span>
+              )}
               {item.view === 'favorites' && totalFavorites > 0 && (
-                <span className="absolute top-0.5 right-1 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-green-500 text-[8px] font-bold text-white">
+                <span className="absolute top-0.5 right-0 flex items-center justify-center w-3.5 h-3.5 rounded-full bg-green-500 text-[8px] font-bold text-white">
                   {totalFavorites > 9 ? '9+' : totalFavorites}
                 </span>
               )}
               {isActive && (
-                <span className="absolute -bottom-2 w-8 h-0.5 rounded-full bg-green-500" />
+                <span className={`absolute -bottom-2 w-8 h-0.5 rounded-full ${item.view === 'basketball' ? 'bg-orange-500' : 'bg-green-500'}`} />
               )}
             </button>
           );
@@ -217,13 +239,14 @@ function MobileBottomNav() {
 }
 
 export default function Home() {
-  const { currentView, fetchChannels, fetchFootballMatches } = useAppStore();
+  const { currentView, fetchChannels, fetchFootballMatches, fetchBasketballMatches } = useAppStore();
   const { isOnline } = usePWA();
 
   useEffect(() => {
     fetchChannels();
     fetchFootballMatches();
-  }, [fetchChannels, fetchFootballMatches]);
+    fetchBasketballMatches();
+  }, [fetchChannels, fetchFootballMatches, fetchBasketballMatches]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -241,6 +264,7 @@ export default function Home() {
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-5 pb-20 sm:pb-5">
         {currentView === 'live' && <LiveMatches />}
+        {currentView === 'basketball' && <BasketballMatches />}
         {currentView === 'favorites' && <FavoritesView />}
         {currentView === 'channels' && <ChannelsList />}
         {currentView === 'standings' && <StandingsView />}
@@ -250,7 +274,7 @@ export default function Home() {
       <footer className="hidden sm:block border-t border-border/20 bg-muted/10">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <p className="text-[11px] text-muted-foreground/50 font-medium">
-            GoalStream — Streaming football gratuit via IPTV
+            GoalStream — Streaming sportif gratuit via IPTV
           </p>
           <p className="text-[11px] text-muted-foreground/50">
             Flux issus de{' '}
