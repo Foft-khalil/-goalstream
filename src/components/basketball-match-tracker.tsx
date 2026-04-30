@@ -1,14 +1,17 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { X, RefreshCw, Loader2, Circle, Square, ArrowRightLeft, AlertTriangle, Eye, Tv } from 'lucide-react';
+import { X, RefreshCw, Loader2, Circle, ArrowRightLeft, AlertTriangle, Tv, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 
-interface MatchEvent {
+interface BasketballMatchEvent {
   id: string;
-  type: 'goal' | 'yellow_card' | 'red_card' | 'substitution' | 'period_start' | 'period_end' | 'var_review';
-  minute: number;
+  type: 'field_goal' | 'three_pointer' | 'free_throw' | 'rebound' | 'assist' | 'turnover' |
+        'foul' | 'technical_foul' | 'flagrant_foul' | 'ejection' | 'timeout' |
+        'period_start' | 'period_end' | 'substitution' | 'jump_ball' | 'review';
+  minute: string;
+  period: string;
   team: string;
   teamLogo: string | null;
   player: string;
@@ -17,9 +20,10 @@ interface MatchEvent {
   detail?: string;
   homeScore: number;
   awayScore: number;
+  scoringPlay: boolean;
 }
 
-interface MatchTrackerProps {
+interface BasketballMatchTrackerProps {
   isOpen: boolean;
   onClose: () => void;
   match: {
@@ -30,114 +34,95 @@ interface MatchTrackerProps {
     awayScore: number | null;
     homeLogo: string | null;
     awayLogo: string | null;
+    homeAbbreviation?: string | null;
+    awayAbbreviation?: string | null;
     status: string;
     competition: string | null;
     matchDate: string | null;
-    displayClock?: string | null;
-    period?: number | null;
-    statusDescription?: string | null;
-    isHalftime?: boolean;
-    minute?: number | null;
+    periodDisplay?: string | null;
+    clockDisplay?: string | null;
   };
 }
 
-// ─── Football Pitch SVG Component ──────────────────────────────────────────────
-function FootballPitch({ homeAbbr, awayAbbr, homeColor, awayColor, possession }: {
+// ─── Basketball Court SVG Component ───────────────────────────────────────────
+function BasketballCourt({ possession, homeAbbr, awayAbbr, homeColor, awayColor }: {
+  possession: 'home' | 'away' | null;
   homeAbbr: string;
   awayAbbr: string;
   homeColor: string;
   awayColor: string;
-  possession: 'home' | 'away' | null;
 }) {
   return (
     <div className="relative w-full max-w-sm mx-auto">
-      <svg viewBox="0 0 500 320" className="w-full h-auto rounded-xl overflow-hidden border border-border/30">
-        {/* Pitch background */}
-        <rect x="0" y="0" width="500" height="320" fill="#0f2b1a" />
+      <svg viewBox="0 0 500 300" className="w-full h-auto rounded-xl overflow-hidden border border-border/30">
+        {/* Court background */}
+        <rect x="0" y="0" width="500" height="300" fill="#1a1a2e" />
 
-        {/* Grass stripes */}
-        <rect x="10" y="10" width="60" height="300" fill="#0f2b1a" opacity="0.5" />
-        <rect x="70" y="10" width="60" height="300" fill="#133a22" opacity="0.3" />
-        <rect x="130" y="10" width="60" height="300" fill="#0f2b1a" opacity="0.5" />
-        <rect x="190" y="10" width="60" height="300" fill="#133a22" opacity="0.3" />
-        <rect x="250" y="10" width="60" height="300" fill="#0f2b1a" opacity="0.5" />
-        <rect x="310" y="10" width="60" height="300" fill="#133a22" opacity="0.3" />
-        <rect x="370" y="10" width="60" height="300" fill="#0f2b1a" opacity="0.5" />
-        <rect x="430" y="10" width="60" height="300" fill="#133a22" opacity="0.3" />
+        {/* Court outline */}
+        <rect x="10" y="10" width="480" height="280" fill="none" stroke="#3d3d5c" strokeWidth="2" rx="2" />
 
-        {/* Pitch outline */}
-        <rect x="10" y="10" width="480" height="300" fill="none" stroke="#2d6b45" strokeWidth="2" rx="1" />
-
-        {/* Half-way line */}
-        <line x1="250" y1="10" x2="250" y2="310" stroke="#2d6b45" strokeWidth="1.5" />
+        {/* Half court line */}
+        <line x1="250" y1="10" x2="250" y2="290" stroke="#3d3d5c" strokeWidth="2" />
 
         {/* Center circle */}
-        <circle cx="250" cy="160" r="50" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        <circle cx="250" cy="160" r="4" fill="#2d6b45" />
+        <circle cx="250" cy="150" r="40" fill="none" stroke="#3d3d5c" strokeWidth="2" />
+        <circle cx="250" cy="150" r="4" fill="#3d3d5c" />
 
-        {/* Left penalty area */}
-        <rect x="10" y="80" width="80" height="160" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        {/* Left goal area */}
-        <rect x="10" y="120" width="30" height="80" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        {/* Left penalty spot */}
-        <circle cx="65" cy="160" r="3" fill="#2d6b45" />
-        {/* Left penalty arc */}
-        <path d="M 90 120 Q 110 160 90 200" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        {/* Left goal */}
-        <rect x="2" y="140" width="8" height="40" fill="none" stroke="#3d8b5c" strokeWidth="2" rx="2" />
+        {/* Left key/paint */}
+        <rect x="10" y="100" width="80" height="100" fill="rgba(255,107,0,0.06)" stroke="#3d3d5c" strokeWidth="1.5" />
+        {/* Left basket circle */}
+        <circle cx="40" cy="150" r="20" fill="none" stroke="#3d3d5c" strokeWidth="1.5" />
+        <circle cx="40" cy="150" r="3" fill="#ff6b00" opacity="0.6" />
+        {/* Left free throw circle */}
+        <circle cx="90" cy="150" r="40" fill="none" stroke="#3d3d5c" strokeWidth="1" strokeDasharray="4 4" />
+        {/* Left 3-point arc */}
+        <path d="M 10 35 Q 170 35 170 150 Q 170 265 10 265" fill="none" stroke="#3d3d5c" strokeWidth="1.5" />
 
-        {/* Right penalty area */}
-        <rect x="410" y="80" width="80" height="160" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        {/* Right goal area */}
-        <rect x="460" y="120" width="30" height="80" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        {/* Right penalty spot */}
-        <circle cx="435" cy="160" r="3" fill="#2d6b45" />
-        {/* Right penalty arc */}
-        <path d="M 410 120 Q 390 160 410 200" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        {/* Right goal */}
-        <rect x="490" y="140" width="8" height="40" fill="none" stroke="#3d8b5c" strokeWidth="2" rx="2" />
+        {/* Right key/paint */}
+        <rect x="410" y="100" width="80" height="100" fill="rgba(34,197,94,0.06)" stroke="#3d3d5c" strokeWidth="1.5" />
+        {/* Right basket circle */}
+        <circle cx="460" cy="150" r="20" fill="none" stroke="#3d3d5c" strokeWidth="1.5" />
+        <circle cx="460" cy="150" r="3" fill="#22c55e" opacity="0.6" />
+        {/* Right free throw circle */}
+        <circle cx="410" cy="150" r="40" fill="none" stroke="#3d3d5c" strokeWidth="1" strokeDasharray="4 4" />
+        {/* Right 3-point arc */}
+        <path d="M 490 35 Q 330 35 330 150 Q 330 265 490 265" fill="none" stroke="#3d3d5c" strokeWidth="1.5" />
 
-        {/* Corner arcs */}
-        <path d="M 10 15 Q 15 10 20 10" fill="none" stroke="#2d6b45" strokeWidth="1" />
-        <path d="M 10 305 Q 15 310 20 310" fill="none" stroke="#2d6b45" strokeWidth="1" />
-        <path d="M 480 10 Q 485 10 490 15" fill="none" stroke="#2d6b45" strokeWidth="1" />
-        <path d="M 480 310 Q 485 310 490 305" fill="none" stroke="#2d6b45" strokeWidth="1" />
-
-        {/* Possession indicator — glowing ball */}
+        {/* Possession indicator — glowing ball on the side with possession */}
         {possession === 'home' && (
           <>
-            <circle cx="170" cy="160" r="7" fill="#ffffff" opacity="0.9">
+            <circle cx="180" cy="150" r="8" fill="#ff6b00" opacity="0.9">
               <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite" />
             </circle>
-            <circle cx="170" cy="160" r="7" fill="none" stroke={homeColor} strokeWidth="2" opacity="0.6">
-              <animate attributeName="r" values="8;12;8" dur="1.5s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1.5s" repeatCount="indefinite" />
+            <circle cx="180" cy="150" r="12" fill="none" stroke="#ff6b00" strokeWidth="1" opacity="0.4">
+              <animate attributeName="r" values="10;16;10" dur="1.5s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.4;0.1;0.4" dur="1.5s" repeatCount="indefinite" />
             </circle>
           </>
         )}
         {possession === 'away' && (
           <>
-            <circle cx="330" cy="160" r="7" fill="#ffffff" opacity="0.9">
+            <circle cx="320" cy="150" r="8" fill="#22c55e" opacity="0.9">
               <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite" />
             </circle>
-            <circle cx="330" cy="160" r="7" fill="none" stroke={awayColor} strokeWidth="2" opacity="0.6">
-              <animate attributeName="r" values="8;12;8" dur="1.5s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1.5s" repeatCount="indefinite" />
+            <circle cx="320" cy="150" r="12" fill="none" stroke="#22c55e" strokeWidth="1" opacity="0.4">
+              <animate attributeName="r" values="10;16;10" dur="1.5s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.4;0.1;0.4" dur="1.5s" repeatCount="indefinite" />
             </circle>
           </>
         )}
 
         {/* Team labels */}
-        <text x="50" y="30" fill={homeColor} fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif" opacity="0.8">
+        <text x="60" y="25" fill={homeColor} fontSize="12" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
           {homeAbbr}
         </text>
-        <text x="450" y="30" fill={awayColor} fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif" opacity="0.8">
+        <text x="440" y="25" fill={awayColor} fontSize="12" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
           {awayAbbr}
         </text>
 
         {/* Possession label */}
         {possession && (
-          <text x="250" y="300" fill={possession === 'home' ? homeColor : awayColor} fontSize="9" textAnchor="middle" fontFamily="sans-serif" opacity="0.6">
+          <text x="250" y="285" fill={possession === 'home' ? homeColor : awayColor} fontSize="9" textAnchor="middle" fontFamily="sans-serif" opacity="0.7">
             Possession: {possession === 'home' ? homeAbbr : awayAbbr}
           </text>
         )}
@@ -146,44 +131,76 @@ function FootballPitch({ homeAbbr, awayAbbr, homeColor, awayColor, possession }:
   );
 }
 
-// Event icon component
-function EventIcon({ type }: { type: MatchEvent['type'] }) {
+// ─── Event icon component ─────────────────────────────────────────────────────
+function EventIcon({ type }: { type: BasketballMatchEvent['type'] }) {
   switch (type) {
-    case 'goal':
-      return <span className="text-base">⚽</span>;
-    case 'yellow_card':
-      return <div className="w-3.5 h-4.5 rounded-[2px] bg-yellow-400 border border-yellow-500/50" />;
-    case 'red_card':
-      return <div className="w-3.5 h-4.5 rounded-[2px] bg-red-500 border border-red-600/50" />;
+    case 'field_goal':
+      return <span className="text-sm">🏀</span>;
+    case 'three_pointer':
+      return <span className="text-sm font-bold text-green-400">3️⃣</span>;
+    case 'free_throw':
+      return <span className="text-sm">🎯</span>;
+    case 'rebound':
+      return <span className="text-sm">↩️</span>;
+    case 'assist':
+      return <span className="text-sm">🤝</span>;
+    case 'turnover':
+      return <span className="text-sm">❌</span>;
+    case 'foul':
+      return <div className="w-3 h-4 rounded-[2px] bg-yellow-400 border border-yellow-500/50" />;
+    case 'technical_foul':
+      return <div className="w-3 h-4 rounded-[2px] bg-yellow-500 border border-yellow-600/50 flex items-center justify-center">
+        <span className="text-[6px] font-black text-black">T</span>
+      </div>;
+    case 'flagrant_foul':
+      return <div className="w-3 h-4 rounded-[2px] bg-red-500 border border-red-600/50 flex items-center justify-center">
+        <span className="text-[6px] font-black text-white">F</span>
+      </div>;
+    case 'ejection':
+      return <span className="text-sm">🟥</span>;
+    case 'timeout':
+      return <span className="text-sm">⏱️</span>;
     case 'substitution':
       return <ArrowRightLeft className="h-3.5 w-3.5 text-green-500" />;
-    case 'var_review':
-      return <Eye className="h-3.5 w-3.5 text-violet-500" />;
+    case 'jump_ball':
+      return <span className="text-sm">⬆️</span>;
+    case 'review':
+      return <span className="text-sm">📺</span>;
     case 'period_start':
       return <Circle className="h-3 w-3 text-green-500 fill-green-500" />;
     case 'period_end':
-      return <Square className="h-3 w-3 text-red-400 fill-red-400" />;
+      return <span className="text-sm">🏁</span>;
     default:
       return null;
   }
 }
 
-// Event label in French
-function eventLabel(type: MatchEvent['type']): string {
+// ─── Event label in French ────────────────────────────────────────────────────
+function eventLabel(type: BasketballMatchEvent['type']): string {
   switch (type) {
-    case 'goal': return 'But';
-    case 'yellow_card': return 'Carton jaune';
-    case 'red_card': return 'Carton rouge';
+    case 'field_goal': return 'Panier';
+    case 'three_pointer': return '3 points';
+    case 'free_throw': return 'Lancé franc';
+    case 'rebound': return 'Rebond';
+    case 'assist': return 'Passe décisive';
+    case 'turnover': return 'Ball perdu';
+    case 'foul': return 'Faute';
+    case 'technical_foul': return 'Faute technique';
+    case 'flagrant_foul': return 'Faute flagrante';
+    case 'ejection': return 'Expulsion';
+    case 'timeout': return 'Temps mort';
     case 'substitution': return 'Remplacement';
-    case 'var_review': return 'VAR';
+    case 'jump_ball': return 'Entre-deux';
+    case 'review': return 'Révision vidéo';
     case 'period_start': return 'Début';
     case 'period_end': return 'Fin';
     default: return '';
   }
 }
 
-export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerProps) {
-  const [events, setEvents] = useState<MatchEvent[]>([]);
+// ─── Main Component ───────────────────────────────────────────────────────────
+export default function BasketballMatchTracker({ isOpen, onClose, match }: BasketballMatchTrackerProps) {
+  const [events, setEvents] = useState<BasketballMatchEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -193,27 +210,13 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
 
   // Derive league from match competition
   const getLeagueCode = useCallback((competition: string | null): string => {
-    if (!competition) return 'eng.1';
+    if (!competition) return 'nba';
     const c = competition.toLowerCase();
-    if (c.includes('ligue 1')) return 'fra.1';
-    if (c.includes('premier league')) return 'eng.1';
-    if (c.includes('la liga')) return 'esp.1';
-    if (c.includes('serie a')) return 'ita.1';
-    if (c.includes('bundesliga')) return 'ger.1';
-    if (c.includes('champions league')) return 'uefa.champions';
-    if (c.includes('europa league') && !c.includes('conference')) return 'uefa.europa';
-    if (c.includes('conference league')) return 'uefa.europa.conf';
-    if (c.includes('liga portugal')) return 'por.1';
-    if (c.includes('eredivisie')) return 'ned.1';
-    if (c.includes('süper lig')) return 'tur.1';
-    if (c.includes('brasileir')) return 'bra.1';
-    if (c.includes('liga profesional')) return 'arg.1';
-    if (c.includes('liga mx')) return 'mex.1';
-    if (c.includes('mls')) return 'usa.1';
-    if (c.includes('saudi')) return 'saudi.1';
-    if (c.includes('afc champions')) return 'afc.champions';
-    if (c.includes('caf champions')) return 'caf.champions';
-    return 'eng.1'; // Default
+    if (c.includes('nba')) return 'nba';
+    if (c.includes('euroleague')) return 'euroleague';
+    if (c.includes('ncaa') || c.includes('college')) return 'mens-college-basketball';
+    if (c.includes('wnba')) return 'wnba';
+    return 'nba';
   }, []);
 
   const fetchEvents = useCallback(async () => {
@@ -225,7 +228,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
     try {
       const league = getLeagueCode(match.competition);
       const matchId = match.id.startsWith('espn_') ? match.id : `espn_${match.id}`;
-      const res = await fetch(`/api/match-events?matchId=${encodeURIComponent(matchId)}&league=${encodeURIComponent(league)}`);
+      const res = await fetch(`/api/basketball-events?matchId=${encodeURIComponent(matchId)}&league=${encodeURIComponent(league)}`);
 
       if (!res.ok) throw new Error('Erreur serveur');
 
@@ -235,20 +238,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
       } else {
         setEvents(data.events || []);
         setLastUpdated(data.lastUpdated);
-        // Determine possession from the latest event's team
-        if (data.events && data.events.length > 0) {
-          const latestEvt = data.events[data.events.length - 1];
-          if (latestEvt.team) {
-            const homeTeamLower = match.homeTeam.toLowerCase();
-            const awayTeamLower = match.awayTeam.toLowerCase();
-            const evtTeamLower = latestEvt.team.toLowerCase();
-            if (evtTeamLower.includes(homeTeamLower) || homeTeamLower.includes(evtTeamLower)) {
-              setPossession('home');
-            } else if (evtTeamLower.includes(awayTeamLower) || awayTeamLower.includes(evtTeamLower)) {
-              setPossession('away');
-            }
-          }
-        }
+        setPossession(data.possession || null);
       }
     } catch (err: any) {
       setError('Impossible de charger les événements');
@@ -293,7 +283,16 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
   const homeScore = match.homeScore ?? 0;
   const awayScore = match.awayScore ?? 0;
 
-  // Determine if match is about to start (within 30 min of kickoff)
+  // Find latest score from events
+  const latestEvent = events.length > 0 ? events[0] : null; // Newest first
+  const displayHomeScore = latestEvent ? latestEvent.homeScore : homeScore;
+  const displayAwayScore = latestEvent ? latestEvent.awayScore : awayScore;
+
+  // Team abbreviations
+  const homeAbbr = match.homeAbbreviation || match.homeTeam.slice(0, 3).toUpperCase();
+  const awayAbbr = match.awayAbbreviation || match.awayTeam.slice(0, 3).toUpperCase();
+
+  // Determine if match is about to start
   const isAboutToStart = (() => {
     if (!match.matchDate || isLive || isFinished) return false;
     const matchDate = new Date(match.matchDate);
@@ -302,17 +301,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
     return diffMs <= 30 * 60 * 1000 && diffMs > -5 * 60 * 1000;
   })();
 
-  // Only show watch button for live or about-to-start matches
   const canWatchLive = isLive || isAboutToStart;
-
-  // Find latest score from events
-  const latestEvent = events.length > 0 ? events[events.length - 1] : null;
-  const displayHomeScore = latestEvent ? latestEvent.homeScore : homeScore;
-  const displayAwayScore = latestEvent ? latestEvent.awayScore : awayScore;
-
-  // Team abbreviations for pitch display
-  const homeAbbr = match.homeTeam.slice(0, 3).toUpperCase();
-  const awayAbbr = match.awayTeam.slice(0, 3).toUpperCase();
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-xl overflow-hidden flex flex-col">
@@ -321,13 +310,13 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             {isLive && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[10px] font-bold text-red-500">LIVE</span>
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20">
+                <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                <span className="text-[10px] font-bold text-orange-500">LIVE</span>
               </div>
             )}
-            <span className="text-xs text-muted-foreground font-medium">
-              {match.competition || 'Match'}
+            <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+              🏀 {match.competition || 'Basketball'}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -352,10 +341,11 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
         </div>
       </div>
 
-      {/* Score Banner */}
-      <div className="bg-gradient-to-b from-muted/40 to-transparent px-4 py-6">
+      {/* Score Banner + Court */}
+      <div className="bg-gradient-to-b from-muted/40 to-transparent px-4 py-4">
         <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-center gap-4">
+          {/* Score banner */}
+          <div className="flex items-center justify-center gap-4 mb-4">
             {/* Home team */}
             <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
               {match.homeLogo ? (
@@ -366,8 +356,8 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : (
-                <div className="w-12 h-12 rounded-xl bg-muted/60 flex items-center justify-center text-sm font-bold">
-                  {match.homeTeam.slice(0, 2).toUpperCase()}
+                <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-sm font-bold text-orange-500">
+                  {homeAbbr}
                 </div>
               )}
               <span className="text-sm font-bold text-center truncate w-full">{match.homeTeam}</span>
@@ -376,26 +366,24 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
             {/* Score */}
             <div className="flex flex-col items-center gap-1">
               <div className="flex items-center gap-3">
-                <span className={`text-4xl font-black tabular-nums ${isLive ? 'text-red-400' : ''}`}>
+                <span className={`text-4xl font-black tabular-nums ${isLive ? 'text-orange-400' : ''}`}>
                   {displayHomeScore}
                 </span>
                 <span className="text-xl text-muted-foreground/30 font-light">—</span>
-                <span className={`text-4xl font-black tabular-nums ${isLive ? 'text-red-400' : ''}`}>
+                <span className={`text-4xl font-black tabular-nums ${isLive ? 'text-orange-400' : ''}`}>
                   {displayAwayScore}
                 </span>
               </div>
-              {isLive && match.displayClock && (
+              {/* Live clock display */}
+              {isLive && (match.clockDisplay || match.periodDisplay) && (
                 <div className="flex items-center gap-1.5 mt-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-xs font-bold text-green-500">
-                    {match.displayClock}
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                  <span className="text-xs font-bold text-orange-500">
+                    {match.periodDisplay || ''}{match.clockDisplay && match.clockDisplay !== '0:00' ? ` ${match.clockDisplay}` : ''}
                   </span>
-                  {match.isHalftime && (
-                    <span className="text-[10px] font-semibold text-amber-500 ml-1">MI-TEMPS</span>
-                  )}
                 </div>
               )}
-              {match.status === 'finished' && (
+              {isFinished && (
                 <span className="text-xs font-semibold text-muted-foreground mt-1">Terminé</span>
               )}
               {match.status === 'upcoming' && match.matchDate && (
@@ -415,24 +403,22 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : (
-                <div className="w-12 h-12 rounded-xl bg-muted/60 flex items-center justify-center text-sm font-bold">
-                  {match.awayTeam.slice(0, 2).toUpperCase()}
+                <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center text-sm font-bold text-green-500">
+                  {awayAbbr}
                 </div>
               )}
               <span className="text-sm font-bold text-center truncate w-full">{match.awayTeam}</span>
             </div>
           </div>
 
-          {/* Football Pitch Visualization */}
-          <div className="mt-4">
-            <FootballPitch
-              homeAbbr={homeAbbr}
-              awayAbbr={awayAbbr}
-              homeColor="#ef4444"
-              awayColor="#3b82f6"
-              possession={possession}
-            />
-          </div>
+          {/* Basketball Court Visualization */}
+          <BasketballCourt
+            possession={possession}
+            homeAbbr={homeAbbr}
+            awayAbbr={awayAbbr}
+            homeColor="#ff6b00"
+            awayColor="#22c55e"
+          />
         </div>
       </div>
 
@@ -451,7 +437,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
           {/* Loading state */}
           {loading && events.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-green-500 mb-3" />
+              <Loader2 className="h-8 w-8 animate-spin text-orange-500 mb-3" />
               <p className="text-sm text-muted-foreground">Chargement des événements...</p>
             </div>
           )}
@@ -471,30 +457,33 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
           {/* Events list */}
           {events.length > 0 && (
             <div className="space-y-1">
-              {events.map((event, idx) => {
+              {events.map((event) => {
                 const isHome = event.team.toLowerCase().includes(match.homeTeam.toLowerCase()) ||
                   match.homeTeam.toLowerCase().includes(event.team.toLowerCase());
-                const isAway = event.team.toLowerCase().includes(match.awayTeam.toLowerCase()) ||
-                  match.awayTeam.toLowerCase().includes(event.team.toLowerCase());
 
                 return (
                   <div
                     key={event.id}
                     className={`flex items-start gap-3 py-3 px-4 rounded-xl transition-colors ${
-                      event.type === 'goal'
-                        ? 'bg-green-500/5 border border-green-500/10'
-                        : event.type === 'red_card'
+                      event.scoringPlay
+                        ? 'bg-orange-500/5 border border-orange-500/10'
+                        : event.type === 'flagrant_foul' || event.type === 'ejection'
                           ? 'bg-red-500/5 border border-red-500/10'
-                          : event.type === 'var_review'
-                            ? 'bg-violet-500/5 border border-violet-500/10'
+                          : event.type === 'technical_foul'
+                            ? 'bg-yellow-500/5 border border-yellow-500/10'
                             : 'hover:bg-muted/30'
                     }`}
                   >
-                    {/* Minute */}
-                    <div className="flex-shrink-0 w-10 text-right">
+                    {/* Clock + Period */}
+                    <div className="flex-shrink-0 w-16 text-right">
                       <span className="text-xs font-bold tabular-nums text-muted-foreground">
-                        {event.minute}&apos;
+                        {event.minute || '—'}
                       </span>
+                      {event.period && (
+                        <span className="block text-[9px] text-muted-foreground/50 truncate">
+                          {event.period}
+                        </span>
+                      )}
                     </div>
 
                     {/* Timeline dot */}
@@ -506,16 +495,16 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className={`text-xs font-semibold ${
-                          event.type === 'goal' ? 'text-green-600' :
-                          event.type === 'red_card' ? 'text-red-500' :
-                          event.type === 'yellow_card' ? 'text-yellow-600' :
-                          event.type === 'var_review' ? 'text-violet-500' :
+                          event.scoringPlay ? 'text-orange-500' :
+                          event.type === 'technical_foul' ? 'text-yellow-600' :
+                          event.type === 'flagrant_foul' || event.type === 'ejection' ? 'text-red-500' :
+                          event.type === 'foul' ? 'text-yellow-600' :
                           'text-foreground'
                         }`}>
                           {eventLabel(event.type)}
                         </span>
                         {event.detail && (
-                          <span className="text-[10px] text-muted-foreground/60 font-medium">
+                          <span className="text-[10px] text-muted-foreground/60 font-medium truncate max-w-[200px]">
                             ({event.detail})
                           </span>
                         )}
@@ -530,7 +519,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                           <span className="text-sm font-medium truncate">{event.player}</span>
                           {event.assistPlayer && (
                             <span className="text-xs text-muted-foreground/60">
-                              (passe décisive: {event.assistPlayer})
+                              (passe: {event.assistPlayer})
                             </span>
                           )}
                           {event.playerIn && event.type === 'substitution' && (
@@ -542,16 +531,16 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                         </div>
                       )}
 
-                      {/* Team name if not matching player */}
+                      {/* Team name if no player */}
                       {!event.player && event.team && (
                         <span className="text-xs text-muted-foreground">{event.team}</span>
                       )}
                     </div>
 
-                    {/* Score at this point */}
-                    {event.type === 'goal' && (
-                      <div className="flex-shrink-0 px-2 py-0.5 rounded-md bg-green-500/10 border border-green-500/15">
-                        <span className="text-xs font-bold tabular-nums text-green-600">
+                    {/* Score at this point for scoring plays */}
+                    {event.scoringPlay && (
+                      <div className="flex-shrink-0 px-2 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/15">
+                        <span className="text-xs font-bold tabular-nums text-orange-500">
                           {event.homeScore} - {event.awayScore}
                         </span>
                       </div>
@@ -565,7 +554,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
           {/* No events */}
           {!loading && !error && events.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Circle className="h-8 w-8 text-muted-foreground/30 mb-3" />
+              <span className="text-4xl mb-3">🏀</span>
               <p className="text-sm text-muted-foreground">
                 {isLive
                   ? 'Les événements apparaîtront ici en temps réel'
@@ -588,7 +577,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
               <Button
                 className={`w-full gap-2 h-10 font-semibold ${
                   isLive
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    ? 'bg-orange-600 hover:bg-orange-700 text-white'
                     : 'bg-green-600 hover:bg-green-700 text-white'
                 }`}
                 onClick={async () => {
@@ -604,7 +593,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                         awayTeam: match.awayTeam,
                         competition: match.competition,
                         matchDate: match.matchDate,
-                        sport: 'football',
+                        sport: 'basketball',
                       }),
                       signal: controller.signal,
                     });
@@ -617,12 +606,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                       if (channels.length > 0) {
                         const first = channels[0];
                         const alternatives = channels.slice(1);
-                        openPlayer(
-                          first.url,
-                          first.name,
-                          first.logo || undefined,
-                          alternatives
-                        );
+                        openPlayer(first.url, first.name, first.logo || undefined, alternatives);
                         onClose();
                       }
                     }

@@ -56,3 +56,29 @@ Stage Summary:
 - Finished matches show "Terminé" badge and "Voir le résumé" button
 - Match Tracker "Regarder" button now functional (calls match-stream API, opens video player)
 - TypeScript errors in match-events route fixed
+
+---
+Task ID: 3
+Agent: main
+Task: Add Live Match Tracker for basketball + court/pitch visualizations for both sports
+
+Work Log:
+- Created /api/basketball-events/route.ts: Full basketball match events API using ESPN basketball summary endpoint
+- Basketball events API supports: field_goal, three_pointer, free_throw, rebound, assist, turnover, foul, technical_foul, flagrant_foul, ejection, timeout, substitution, jump_ball, review, period_start, period_end
+- Basketball events API includes possession detection from ESPN drives/commentary data
+- Basketball events API uses basketball cache (15s TTL for live, 5min otherwise)
+- Created basketball-match-tracker.tsx: Full-screen overlay with basketball court SVG visualization, score banner, event timeline, and watch live button
+- Basketball court SVG includes: full court markings (3-point arcs, paint, free throw circles, center circle), possession indicator (animated glowing ball), team abbreviations
+- Basketball tracker uses orange theme (matching live match color scheme)
+- Basketball tracker has French labels for all event types (Panier, 3 points, Lancé franc, Rebond, Passe décisive, Ball perdu, Faute, etc.)
+- Added FootballPitch SVG component to match-tracker.tsx with: green pitch with grass stripes, penalty areas, goal areas, center circle, corner arcs, goals, possession indicator (animated ball)
+- Football pitch uses possession state derived from latest event's team
+- Updated basketball-match-card.tsx: Added "Suivre" tracker button, "Voir le résumé" for finished matches, final score display, "Terminé" badge, conditional watch button (same as football match card)
+- Both court/pitch visualizations show possession with animated glowing ball and label
+
+Stage Summary:
+- Basketball Live Match Tracker fully functional with court visualization
+- Football Match Tracker enhanced with pitch visualization and possession indicator
+- Basketball match card updated with same UX improvements as football (conditional buttons, finished score display, tracker integration)
+- Basketball events API working (tested with WNBA live match)
+- All lint checks pass, dev server running without errors
