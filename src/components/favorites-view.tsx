@@ -65,7 +65,7 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
         setError('Aucune chaîne trouvée');
       }
     } catch {
-      setError('Erreur lors de la recherche');
+      setError('Aucune chaîne trouvée — réessayez');
     } finally {
       setFindingStream(false);
     }

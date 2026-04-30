@@ -520,8 +520,17 @@ export async function POST(request: NextRequest) {
 
     const compLower = (competition || '').toLowerCase();
 
-    // ─── Step 3: Find the real broadcaster via web search ────────────────────
-    const searchBroadcasters = await findBroadcasterViaSearch(homeTeam, awayTeam, competition || '', sport || 'football');
+    // ─── Step 3: Find the real broadcaster via web search (with timeout) ──────
+    // Web search is optional - don't let it block the response for too long
+    let searchBroadcasters: string[] = [];
+    try {
+      searchBroadcasters = await Promise.race([
+        findBroadcasterViaSearch(homeTeam, awayTeam, competition || '', sport || 'football'),
+        new Promise<string[]>(resolve => setTimeout(() => resolve([]), 8000)), // 8s timeout for web search
+      ]);
+    } catch {
+      // Web search failed, continue without it
+    }
 
     // ─── Step 4: Get known broadcasters for this competition (structured) ────
     const knownBroadcasters = getKnownBroadcasters(compLower);
@@ -753,15 +762,19 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── Step 8: Real-time health check on top candidates ────────────────────
-    // Check top 12 channels to verify they're actually online
-    const topCandidates = merged.slice(0, 12);
+    // Check top 8 channels with a timeout to avoid blocking the response too long
+    const topCandidates = merged.slice(0, 8);
     const urlsToCheck = topCandidates
       .filter(ch => ch.health !== 'online') // Skip already-known-online channels
       .map(ch => ch.url);
 
     if (urlsToCheck.length > 0) {
       try {
-        const healthResults = await checkStreamsBatch(urlsToCheck, 5, 5000);
+        // Race health checks against a 6s timeout
+        const healthResults = await Promise.race([
+          checkStreamsBatch(urlsToCheck, 4, 4000),
+          new Promise<Map<string, boolean>>(resolve => setTimeout(() => resolve(new Map()), 6000)),
+        ]);
 
         // Persist health results to the shared channel-health map
         const healthBatchEntries: Array<{ url: string; status: 'online' | 'offline' }> = [];

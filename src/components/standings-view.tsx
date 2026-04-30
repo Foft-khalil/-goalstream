@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Loader2, Trophy, RefreshCw, AlertCircle, ChevronDown, ChevronUp, Globe, Shield } from 'lucide-react';
+import { Loader2, Trophy, RefreshCw, AlertCircle, Globe, Shield, Users, Calendar, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TeamDetailDialog from '@/components/team-detail-dialog';
 
@@ -73,7 +73,7 @@ const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: st
   ],
   nationales: [
     { code: 'fifa.rankings', name: 'Classement FIFA', flag: '🌍' },
-    { code: 'fifa.world', name: 'Coupe du Monde', flag: '🌍' },
+    { code: 'fifa.world', name: 'Coupe du Monde', flag: '🏆' },
     { code: 'uefa.euro', name: 'Euro', flag: '🇪🇺' },
     { code: 'caf.nations', name: 'CAN', flag: '🌍' },
   ],
@@ -84,13 +84,14 @@ const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: st
 function getNoteStyle(note: string | null, noteColor: string | null) {
   if (!note) return '';
   const c = noteColor?.toLowerCase() || '';
-  if (c.includes('81d6ac') || c.includes('green') || note.toLowerCase().includes('champions') || note.toLowerCase().includes('top 10')) {
+  const n = note.toLowerCase();
+  if (c.includes('81d6ac') || c.includes('green') || n.includes('champions') || n.includes('top 10') || n.includes('qualif') || n.includes('advance') || n.includes('round of')) {
     return 'bg-green-500/15 text-green-400 border-green-500/20';
   }
-  if (c.includes('7ec8e3') || c.includes('blue') || note.toLowerCase().includes('europa') || note.toLowerCase().includes('conference')) {
+  if (c.includes('7ec8e3') || c.includes('blue') || n.includes('europa') || n.includes('conference') || n.includes('playoff')) {
     return 'bg-blue-500/15 text-blue-400 border-blue-500/20';
   }
-  if (c.includes('f4a460') || c.includes('orange') || note.toLowerCase().includes('relegation')) {
+  if (c.includes('f4a460') || c.includes('orange') || n.includes('relegation')) {
     return 'bg-red-500/15 text-red-400 border-red-500/20';
   }
   return 'bg-muted/30 text-muted-foreground border-border/30';
@@ -106,11 +107,11 @@ export default function StandingsView() {
     nationales: null,
   });
   const [loading, setLoading] = useState<Record<Category, boolean>>({
-    championnats: true,
+    championnats: false,
     coupes: false,
     nationales: false,
   });
-  const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set(['fra.1']));
+  const [selectedLeague, setSelectedLeague] = useState<string>('fra.1');
   const [selectedTeam, setSelectedTeam] = useState<{
     teamId: string;
     leagueCode: string;
@@ -141,31 +142,21 @@ export default function StandingsView() {
     }
   }, []);
 
-  // Fetch championnats on mount
+  // Fetch all categories on mount (in parallel)
   useEffect(() => {
     fetchStandings('championnats');
+    fetchStandings('coupes');
+    fetchStandings('nationales');
   }, [fetchStandings]);
 
-  // Fetch category when tab changes
+  // Handle category tab change
   const handleCategoryChange = (category: Category) => {
     setActiveCategory(category);
-    if (!data[category]) {
-      fetchStandings(category);
-    }
-    // Auto-expand first league of the category
+    // Auto-select first league of the category
     const firstCode = LEAGUE_TABS[category][0]?.code;
     if (firstCode) {
-      setExpandedLeagues(new Set([firstCode]));
+      setSelectedLeague(firstCode);
     }
-  };
-
-  const toggleLeague = (code: string) => {
-    setExpandedLeagues((prev) => {
-      const next = new Set(prev);
-      if (next.has(code)) next.delete(code);
-      else next.add(code);
-      return next;
-    });
   };
 
   const handleTeamClick = (team: StandingTeam) => {
@@ -184,7 +175,15 @@ export default function StandingsView() {
   const standings = currentData?.standings || [];
   const isFIFARankings = activeCategory === 'nationales';
 
-  // Loading state
+  // Get standings for the currently selected league
+  const selectedStandings = standings.filter((s) => s.leagueCode === selectedLeague);
+
+  // Count teams for each league tab
+  const getTeamCount = (code: string) => {
+    return standings.filter((s) => s.leagueCode === code).reduce((sum, s) => sum + s.teams.length, 0);
+  };
+
+  // Loading state (only show full loading for the initial load of current category)
   if (currentLoading && !currentData) {
     return (
       <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
@@ -227,6 +226,9 @@ export default function StandingsView() {
       <div className="flex gap-1 bg-muted/40 rounded-xl p-1">
         {CATEGORIES.map((cat) => {
           const isActive = activeCategory === cat.key;
+          const catData = data[cat.key];
+          const catLoading = loading[cat.key];
+          const teamCount = catData?.standings?.reduce((sum, s) => sum + s.teams.length, 0) || 0;
           return (
             <button
               key={cat.key}
@@ -239,32 +241,38 @@ export default function StandingsView() {
             >
               {cat.icon}
               <span>{cat.label}</span>
+              {catLoading && !catData && (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              )}
+              {!catLoading && teamCount > 0 && (
+                <span className="text-[10px] text-green-500/60">{teamCount}</span>
+              )}
             </button>
           );
         })}
       </div>
 
-      {/* League tabs (sub-tabs within category) */}
+      {/* League sub-tabs */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {currentTabs.map((tab) => {
-          const isExpanded = expandedLeagues.has(tab.code);
-          // Check if data is available for this tab
-          const hasData = standings.some(
-            (s) => s.leagueCode === tab.code || (tab.code === 'fifa.rankings' && s.leagueCode === 'fifa.rankings')
-          );
+          const isSelected = selectedLeague === tab.code;
+          const teamCount = getTeamCount(tab.code);
           return (
             <button
               key={tab.code}
-              onClick={() => toggleLeague(tab.code)}
+              onClick={() => setSelectedLeague(tab.code)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                isExpanded
+                isSelected
                   ? 'bg-green-500/15 text-green-400 border border-green-500/20'
                   : 'bg-muted/30 text-muted-foreground border border-border/20 hover:bg-muted/50'
               }`}
             >
               <span className="text-sm">{tab.flag}</span>
               <span>{tab.name}</span>
-              {hasData && (
+              {teamCount > 0 && (
+                <span className="text-[10px] text-muted-foreground/50">({teamCount})</span>
+              )}
+              {teamCount > 0 && (
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
               )}
             </button>
@@ -272,11 +280,27 @@ export default function StandingsView() {
         })}
       </div>
 
+      {/* Loading overlay for refresh */}
+      {currentLoading && currentData && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500/5 border border-green-500/10 text-xs text-green-500">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <span>Mise à jour en cours...</span>
+        </div>
+      )}
+
       {/* Error banner */}
       {currentData?.error && (
         <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/15 text-xs text-red-400">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
           <span>{currentData.error}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fetchStandings(activeCategory)}
+            className="ml-auto h-6 px-2 text-[10px] text-red-400 hover:text-red-300"
+          >
+            Réessayer
+          </Button>
         </div>
       )}
 
@@ -292,18 +316,22 @@ export default function StandingsView() {
         </div>
       )}
 
-      {/* Standings tables */}
-      {standings
-        .filter((s) => expandedLeagues.has(s.leagueCode) || expandedLeagues.size === 0)
-        .map((league) => (
+      {/* Selected league standings */}
+      {selectedStandings.length > 0 ? (
+        selectedStandings.map((league) => (
           <section key={`${league.leagueCode}-${league.groupName || 'all'}`} className="space-y-0">
             {/* League header */}
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">{league.flag}</span>
-              <div>
+              <div className="flex-1">
                 <h3 className="text-sm font-bold">{league.league}</h3>
                 <p className="text-[10px] text-muted-foreground/50">{league.season}</p>
               </div>
+              {league.isGroup && selectedStandings.length > 1 && (
+                <span className="text-[10px] text-muted-foreground/40">
+                  {selectedStandings.indexOf(league) + 1}/{selectedStandings.length} groupes
+                </span>
+              )}
             </div>
 
             {/* Table */}
@@ -391,8 +419,8 @@ export default function StandingsView() {
                 ))}
               </div>
 
-              {/* Legend */}
-              {!isFIFARankings && (
+              {/* Legend - adaptive per category */}
+              {activeCategory === 'championnats' && (
                 <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
                   <div className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-green-500/40" />
@@ -408,32 +436,68 @@ export default function StandingsView() {
                   </div>
                 </div>
               )}
+              {activeCategory === 'coupes' && (
+                <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-green-500/40" />
+                    <span className="text-[9px] text-muted-foreground/50">Qualifié tour suivant</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-blue-500/40" />
+                    <span className="text-[9px] text-muted-foreground/50">Barrages</span>
+                  </div>
+                </div>
+              )}
+              {activeCategory === 'nationales' && selectedLeague === 'fifa.rankings' && (
+                <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-green-500/40" />
+                    <span className="text-[9px] text-muted-foreground/50">Top 10</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-blue-500/40" />
+                    <span className="text-[9px] text-muted-foreground/50">Top 20</span>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
-        ))}
-
-      {/* No standings selected */}
-      {expandedLeagues.size === 0 && (
+        ))
+      ) : !currentLoading ? (
+        /* No data for selected league */
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Trophy className="h-10 w-10 text-muted-foreground/20 mb-3" />
-          <p className="text-sm text-muted-foreground">Sélectionnez un championnat ci-dessus</p>
+          {selectedLeague === 'fifa.world' ? (
+            <>
+              <Trophy className="h-12 w-12 text-amber-500/30 mb-3" />
+              <p className="text-sm font-semibold mb-1">Coupe du Monde 2026</p>
+              <p className="text-xs text-muted-foreground/60 max-w-xs">
+                Les groupes et le calendrier de la Coupe du Monde 2026 seront disponibles prochainement.
+                Cliquez sur les équipes du classement pour voir leurs détails.
+              </p>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-10 w-10 text-muted-foreground/20 mb-3" />
+              <p className="text-sm font-semibold text-muted-foreground mb-1">Aucune donnée disponible</p>
+              <p className="text-xs text-muted-foreground/60">Les données ne sont pas encore disponibles pour cette compétition</p>
+              <Button
+                onClick={() => fetchStandings(activeCategory)}
+                size="sm"
+                className="mt-3 gap-2 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Réessayer
+              </Button>
+            </>
+          )}
         </div>
-      )}
+      ) : null}
 
-      {/* No data at all */}
-      {standings.length === 0 && !currentLoading && !currentData?.error && (
+      {/* Loading for selected league */}
+      {currentLoading && selectedStandings.length === 0 && currentData && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <AlertCircle className="h-10 w-10 text-muted-foreground/20 mb-3" />
-          <p className="text-sm font-semibold text-muted-foreground mb-1">Aucune donnée disponible</p>
-          <p className="text-xs text-muted-foreground/60">Les données ne sont pas encore disponibles pour cette catégorie</p>
-          <Button
-            onClick={() => fetchStandings(activeCategory)}
-            size="sm"
-            className="mt-3 gap-2 bg-green-600 hover:bg-green-700 text-white"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Réessayer
-          </Button>
+          <Loader2 className="h-8 w-8 animate-spin text-green-500 mb-3" />
+          <p className="text-sm text-muted-foreground">Chargement en cours...</p>
         </div>
       )}
 

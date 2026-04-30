@@ -77,7 +77,7 @@ export default function MatchCard({ match }: MatchCardProps) {
     setError(null);
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      const timeout = setTimeout(() => controller.abort(), 45000); // 45s timeout
 
       const res = await fetch('/api/match-stream', {
         method: 'POST',
@@ -116,7 +116,7 @@ export default function MatchCard({ match }: MatchCardProps) {
       if (err.name === 'AbortError') {
         setError('Recherche trop longue — réessayez');
       } else {
-        setError('Erreur lors de la recherche — réessayez');
+        setError('Aucune chaîne trouvée — réessayez');
       }
       setFoundChannels([]);
     } finally {
@@ -141,7 +141,7 @@ export default function MatchCard({ match }: MatchCardProps) {
     setError(null);
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      const timeout = setTimeout(() => controller.abort(), 45000); // 45s timeout
 
       const res = await fetch('/api/match-stream', {
         method: 'POST',
@@ -185,7 +185,7 @@ export default function MatchCard({ match }: MatchCardProps) {
       if (err.name === 'AbortError') {
         setError('Recherche trop longue — réessayez');
       } else {
-        setError('Erreur lors de la recherche — réessayez');
+        setError('Aucune chaîne trouvée — réessayez');
       }
     } finally {
       setFindingStream(false);

@@ -80,7 +80,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
       }
     } catch (err) {
       console.error('Error finding channels:', err);
-      setError('Erreur lors de la recherche');
+      setError('Aucune chaîne trouvée — réessayez');
       setFoundChannels([]);
     } finally {
       setFindingStream(false);
@@ -132,7 +132,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
       }
     } catch (err) {
       console.error('Error finding channels:', err);
-      setError('Erreur lors de la recherche');
+      setError('Aucune chaîne trouvée — réessayez');
     } finally {
       setFindingStream(false);
     }

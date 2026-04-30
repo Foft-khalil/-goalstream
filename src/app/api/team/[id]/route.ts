@@ -73,15 +73,72 @@ interface TeamDetailResponse {
 }
 
 /**
- * Get current season year for a league.
- * European football seasons span Aug-May, so from Jan-Jul the "current" season
- * started the previous year (e.g., Jan 2026 → season 2025-2026 → use 2025).
+ * Known season years for international competitions.
+ * These tournaments don't follow the European club season pattern.
  */
-function getCurrentSeasonYear(): number {
+const INTERNATIONAL_SEASONS: Record<string, number> = {
+  'fifa.world': 2026,
+  'uefa.euro': 2024,
+  'caf.nations': 2025,
+};
+
+/**
+ * Season cache to avoid repeated API calls for the same league.
+ */
+const seasonCache = new Map<string, { year: number; timestamp: number }>();
+const SEASON_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Get current season year for a league.
+ * - For international competitions (World Cup, Euro, CAN), use known season years.
+ * - For club leagues, fetch the latest season from ESPN API (with fallback).
+ * - European club seasons span Aug-May, so from Jan-Jul the "current" season
+ *   started the previous year.
+ */
+function getDefaultSeasonYear(): number {
   const now = new Date();
   const month = now.getMonth(); // 0-indexed
   // Jan-Jul: season started previous year; Aug-Dec: season started this year
   return month < 7 ? now.getFullYear() - 1 : now.getFullYear();
+}
+
+async function getCurrentSeasonYear(leagueCode: string): Promise<number> {
+  // Check international competitions first
+  if (INTERNATIONAL_SEASONS[leagueCode]) {
+    return INTERNATIONAL_SEASONS[leagueCode];
+  }
+
+  // Check cache
+  const cached = seasonCache.get(leagueCode);
+  if (cached && Date.now() - cached.timestamp < SEASON_CACHE_TTL) {
+    return cached.year;
+  }
+
+  // Try to fetch the latest season from ESPN API
+  try {
+    const data = await fetchJSON(
+      `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${leagueCode}/seasons`,
+      5000
+    );
+    const items = data.items || [];
+    if (items.length > 0) {
+      // The first item is the most recent season
+      const ref = items[0].$ref || '';
+      const seasonMatch = ref.match(/\/seasons\/(\d{4})/);
+      if (seasonMatch) {
+        const year = parseInt(seasonMatch[1], 10);
+        seasonCache.set(leagueCode, { year, timestamp: Date.now() });
+        return year;
+      }
+    }
+  } catch {
+    // Fall back to default calculation
+  }
+
+  // Default: use the standard calculation for European club leagues
+  const year = getDefaultSeasonYear();
+  seasonCache.set(leagueCode, { year, timestamp: Date.now() });
+  return year;
 }
 
 async function fetchJSON(url: string, timeout = 8000): Promise<any> {
@@ -140,7 +197,7 @@ async function fetchTeamInfo(
   leagueCode: string
 ): Promise<{ info: TeamInfo; roster: Player[] } | null> {
   try {
-    const seasonYear = getCurrentSeasonYear();
+    const seasonYear = await getCurrentSeasonYear(leagueCode);
 
     // Use ESPN Core API for team basic info
     const data = await fetchJSON(
@@ -206,38 +263,65 @@ async function fetchTeamInfo(
     })();
 
     // Fetch roster from season-specific athletes endpoint
+    // Try with the calculated season first, then fallback to trying recent seasons
     const roster: Player[] = [];
-    try {
-      const athletesUrl = `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${leagueCode}/seasons/${seasonYear}/teams/${teamId}/athletes`;
-      const athletesData = await fetchJSON(athletesUrl);
-      const athleteItems = athletesData.items || [];
+    const seasonsToTry = [seasonYear];
+    // Add fallback seasons for international tournaments
+    if (leagueCode === 'fifa.world') {
+      seasonsToTry.push(2026, 2022);
+    } else if (leagueCode === 'uefa.euro') {
+      seasonsToTry.push(2024, 2020);
+    } else if (leagueCode === 'caf.nations') {
+      seasonsToTry.push(2025, 2023);
+    } else {
+      // For club leagues, try adjacent years
+      seasonsToTry.push(seasonYear - 1, seasonYear + 1);
+    }
 
-      // Fetch athletes in parallel (max 30, with short timeout)
-      const fetches = athleteItems.slice(0, 30).map(async (item: any) => {
-        try {
-          const a = item.$ref ? await fetchJSON(item.$ref, 4000) : item;
-          return {
-            id: String(a.id || ''),
-            name: a.displayName || a.name || '',
-            position: a.position?.abbreviation || a.position?.displayName || '',
-            number: a.jersey ? parseInt(a.jersey, 10) : null,
-            age: a.age || null,
-            nationality: a.nationality || a.birthPlace?.country || null,
-            image: a.headshot?.href || null,
-          } as Player;
-        } catch {
-          return null;
-        }
-      });
+    for (const trySeason of seasonsToTry) {
+      if (roster.length > 0) break; // Already have data
+      try {
+        const athletesUrl = `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${leagueCode}/seasons/${trySeason}/teams/${teamId}/athletes`;
+        const athletesData = await fetchJSON(athletesUrl);
+        const athleteItems = athletesData.items || [];
 
-      const results = await Promise.allSettled(fetches);
-      for (const result of results) {
-        if (result.status === 'fulfilled' && result.value) {
-          roster.push(result.value);
+        if (athleteItems.length === 0) continue; // Try next season
+
+        // Fetch athletes in parallel (max 30, with short timeout)
+        const fetches = athleteItems.slice(0, 30).map(async (item: any) => {
+          try {
+            const a = item.$ref ? await fetchJSON(item.$ref, 4000) : item;
+            return {
+              id: String(a.id || ''),
+              name: a.displayName || a.name || '',
+              position: a.position?.abbreviation || a.position?.displayName || '',
+              number: a.jersey ? parseInt(a.jersey, 10) : null,
+              age: a.age || null,
+              nationality: a.nationality || a.birthPlace?.country || null,
+              image: a.headshot?.href || null,
+            } as Player;
+          } catch {
+            return null;
+          }
+        });
+
+        const results = await Promise.allSettled(fetches);
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value) {
+            roster.push(result.value);
+          }
         }
+
+        if (roster.length > 0) {
+          console.log(`[Team API] Found ${roster.length} athletes using season ${trySeason} for ${leagueCode}`);
+        }
+      } catch {
+        // Try next season
       }
-    } catch (err) {
-      console.warn('[Team API] Failed to fetch roster:', err);
+    }
+
+    if (roster.length === 0) {
+      console.warn(`[Team API] No roster found for team ${teamId} in ${leagueCode} (tried seasons: ${seasonsToTry.join(', ')})`);
     }
 
     // Await coach result (ran in parallel with roster)
@@ -326,55 +410,206 @@ async function fetchTeamSchedule(teamId: string, leagueCode: string): Promise<Te
 
 /**
  * Fetch basic team info for FIFA-ranked national teams via web search.
+ * Tries ESPN API first for teams that have a league code, then falls back to web search.
  */
-async function fetchFIFATeamInfo(teamName: string): Promise<TeamDetailResponse | null> {
+async function fetchFIFATeamInfo(teamName: string, teamId?: string): Promise<TeamDetailResponse | null> {
   try {
-    const sdk = await ZAI.create();
-    const results = await sdk.functions.invoke('web_search', {
-      query: `${teamName} national football team coach manager stadium 2025`,
-      num: 3,
-      recency_days: 90,
-    });
-
-    if (!results || results.length === 0) return null;
-
-    const snippets = results.map((r: any) => r.snippet).join('\n');
-
-    const chatResponse = await sdk.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content: `You are a football data extractor. From the search results, extract: 1) the head coach name, 2) the home stadium name. Return as JSON: {"coach":"...","venue":"..."}. If unknown, use null.`,
-        },
-        {
-          role: 'user',
-          content: `Team: ${teamName}\nSearch results:\n${snippets}`,
-        },
-      ],
-    });
-
-    const content = chatResponse?.choices?.[0]?.message?.content?.trim();
     let coach: string | null = null;
     let venue: string | null = null;
+    let logo: string | null = null;
+    const roster: Player[] = [];
+    const schedule: TeamMatch[] = [];
 
-    if (content) {
-      try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          coach = parsed.coach || null;
-          venue = parsed.venue || null;
+    // Try to get team info from ESPN Core API
+    // First try fifa.world, then other international leagues
+    const leaguesToTry = ['fifa.world', 'uefa.euro', 'caf.nations'];
+    
+    // If we have a fake FIFA ID (like fifa_1), try to find the real ESPN team ID by name
+    let realTeamId = teamId;
+    if (teamId && teamId.startsWith('fifa_') && teamName) {
+      // Try to find the team in the World Cup standings to get its real ESPN ID
+      for (const leagueCode of leaguesToTry) {
+        try {
+          const standingsUrl = `https://site.web.api.espn.com/apis/v2/sports/soccer/${leagueCode}/standings`;
+          const standingsData = await fetchJSON(standingsUrl, 5000);
+          const children = standingsData.children || [];
+          for (const child of children) {
+            const entries = child.standings?.entries || [];
+            for (const entry of entries) {
+              const entryName = (entry.team?.displayName || '').toLowerCase();
+              if (entryName === teamName.toLowerCase() || 
+                  entryName.includes(teamName.toLowerCase()) ||
+                  teamName.toLowerCase().includes(entryName)) {
+                realTeamId = String(entry.team?.id || teamId);
+                console.log(`[Team API] Mapped FIFA team "${teamName}" to ESPN ID ${realTeamId} in ${leagueCode}`);
+                break;
+              }
+            }
+            if (!realTeamId.startsWith('fifa_')) break;
+          }
+          if (!realTeamId.startsWith('fifa_')) break;
+        } catch {
+          continue;
         }
-      } catch {}
+      }
+    }
+    
+    if (realTeamId && !realTeamId.startsWith('fifa_')) {
+      for (const leagueCode of leaguesToTry) {
+        try {
+          const seasonYear = await getCurrentSeasonYear(leagueCode);
+          const data = await fetchJSON(
+            `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${leagueCode}/teams/${realTeamId}`,
+            5000
+          );
+          
+          if (data) {
+            logo = data.logos?.[0]?.href || null;
+            
+            // Extract venue
+            if (data.venue && typeof data.venue === 'object') {
+              const parts: string[] = [];
+              if (data.venue.fullName) parts.push(data.venue.fullName);
+              if (data.venue.address?.city) parts.push(data.venue.address.city);
+              venue = parts.join(', ') || null;
+            }
+
+            // Try to fetch roster
+            try {
+              const athletesUrl = `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${leagueCode}/seasons/${seasonYear}/teams/${realTeamId}/athletes`;
+              const athletesData = await fetchJSON(athletesUrl, 5000);
+              const athleteItems = athletesData.items || [];
+              
+              const fetches = athleteItems.slice(0, 30).map(async (item: any) => {
+                try {
+                  const a = item.$ref ? await fetchJSON(item.$ref, 4000) : item;
+                  return {
+                    id: String(a.id || ''),
+                    name: a.displayName || a.name || '',
+                    position: a.position?.abbreviation || a.position?.displayName || '',
+                    number: a.jersey ? parseInt(a.jersey, 10) : null,
+                    age: a.age || null,
+                    nationality: a.nationality || a.birthPlace?.country || null,
+                    image: a.headshot?.href || null,
+                  } as Player;
+                } catch {
+                  return null;
+                }
+              });
+
+              const results = await Promise.allSettled(fetches);
+              for (const result of results) {
+                if (result.status === 'fulfilled' && result.value) {
+                  roster.push(result.value);
+                }
+              }
+            } catch {
+              // Roster not available
+            }
+
+            // Try to fetch schedule
+            try {
+              const scheduleData = await fetchJSON(
+                `https://site.api.espn.com/apis/site/v2/sports/soccer/${leagueCode}/teams/${realTeamId}/schedule`,
+                5000
+              );
+              const events = scheduleData.events || [];
+              for (const event of events) {
+                try {
+                  const competition = event.competitions?.[0];
+                  if (!competition) continue;
+                  const competitors = competition.competitors || [];
+                  const homeComp = competitors.find((c: any) => c.homeAway === 'home');
+                  const awayComp = competitors.find((c: any) => c.homeAway === 'away');
+                  if (!homeComp || !awayComp) continue;
+                  const isHome = String(homeComp.team.id) === String(realTeamId);
+                  const opponent = isHome ? awayComp : homeComp;
+                  const matchDate = event.date;
+                  const status = determineMatchStatus(matchDate);
+                  const rawHomeScore = parseScore(homeComp.score);
+                  const rawAwayScore = parseScore(awayComp.score);
+                  let homeScore: number | null = null;
+                  let awayScore: number | null = null;
+                  if (status === 'finished' || status === 'live') {
+                    homeScore = rawHomeScore;
+                    awayScore = rawAwayScore;
+                  }
+                  const competitionName = event.league?.name || competition.type?.group?.name || '';
+                  schedule.push({
+                    id: `espn_${event.id}`,
+                    opponent: opponent.team.displayName || opponent.team.name || '',
+                    opponentLogo: opponent.team.logo || opponent.team.logos?.[0]?.href || null,
+                    homeAway: isHome ? 'home' : 'away',
+                    date: matchDate,
+                    status,
+                    homeScore,
+                    awayScore,
+                    competition: competitionName,
+                  });
+                } catch {
+                  continue;
+                }
+              }
+            } catch {
+              // Schedule not available
+            }
+
+            // If we got data from this league, use it
+            if (logo || roster.length > 0) break;
+          }
+        } catch {
+          continue;
+        }
+      }
+    }
+
+    // Use web search for coach info (supplement ESPN data)
+    try {
+      const sdk = await ZAI.create();
+      const results = await sdk.functions.invoke('web_search', {
+        query: `${teamName} national football team coach manager stadium 2025`,
+        num: 3,
+        recency_days: 90,
+      });
+
+      if (results && results.length > 0) {
+        const snippets = results.map((r: any) => r.snippet).join('\n');
+        const chatResponse = await sdk.chat.completions.create({
+          messages: [
+            {
+              role: 'system',
+              content: `You are a football data extractor. From the search results, extract: 1) the head coach name, 2) the home stadium name. Return as JSON: {"coach":"...","venue":"..."}. If unknown, use null.`,
+            },
+            {
+              role: 'user',
+              content: `Team: ${teamName}\nSearch results:\n${snippets}`,
+            },
+          ],
+        });
+
+        const content = chatResponse?.choices?.[0]?.message?.content?.trim();
+        if (content) {
+          try {
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              if (!coach) coach = parsed.coach || null;
+              if (!venue) venue = parsed.venue || null;
+            }
+          } catch {}
+        }
+      }
+    } catch {
+      // Web search failed, continue with what we have
     }
 
     return {
       team: {
-        id: `fifa_${teamName.toLowerCase().replace(/\s+/g, '_')}`,
+        id: teamId || `fifa_${teamName.toLowerCase().replace(/\s+/g, '_')}`,
         name: teamName,
         shortName: teamName.slice(0, 3).toUpperCase(),
         abbreviation: teamName.slice(0, 3).toUpperCase(),
-        logo: null,
+        logo,
         color: null,
         venue,
         coach,
@@ -382,8 +617,8 @@ async function fetchFIFATeamInfo(teamName: string): Promise<TeamDetailResponse |
         leagueCode: 'fifa.rankings',
         leagueName: 'Classement FIFA',
       },
-      roster: [],
-      schedule: [],
+      roster,
+      schedule,
       form: [],
       stats: [],
       lastUpdated: new Date().toISOString(),
@@ -468,13 +703,16 @@ export async function GET(
     // FIFA rankings teams don't have a real ESPN league code
     // Try to find the team in a national league instead
     if (leagueCode === 'fifa.rankings') {
-      // For FIFA-ranked teams, we try to use web search to find team details
-      // since there's no ESPN league code for FIFA rankings
+      // For FIFA-ranked teams, we try to use web search + ESPN API to find team details
       const teamName = searchParams.get('name') || '';
       if (teamName) {
-        // Return basic info from web search
-        const basicInfo = await fetchFIFATeamInfo(teamName);
+        // Try ESPN API first (for teams that have real team IDs), then web search
+        const basicInfo = await fetchFIFATeamInfo(teamName, id);
         if (basicInfo) {
+          // Compute form and stats from any schedule we found
+          const { form, stats } = computeFormAndStats(basicInfo.schedule);
+          basicInfo.form = form;
+          basicInfo.stats = stats;
           return NextResponse.json(basicInfo);
         }
       }

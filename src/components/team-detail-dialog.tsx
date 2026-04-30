@@ -332,6 +332,7 @@ export default function TeamDetailDialog({
                     <div className="flex flex-col items-center py-8 text-center">
                       <Trophy className="h-8 w-8 text-muted-foreground/20 mb-2" />
                       <p className="text-sm text-muted-foreground/60">Informations limitées pour cette équipe</p>
+                      <p className="text-[10px] text-muted-foreground/40 mt-1">Les données détaillées seront disponibles prochainement</p>
                     </div>
                   )}
                 </div>
@@ -344,6 +345,11 @@ export default function TeamDetailDialog({
                     <div className="flex flex-col items-center py-8 text-center">
                       <Users className="h-8 w-8 text-muted-foreground/20 mb-2" />
                       <p className="text-sm text-muted-foreground/60">Effectif non disponible</p>
+                      <p className="text-[10px] text-muted-foreground/40 mt-1">
+                        {leagueCode === 'fifa.rankings' || leagueCode === 'fifa.world'
+                          ? 'L\'effectif sera annoncé avant la compétition'
+                          : 'Les données de l\'effectif seront bientôt disponibles'}
+                      </p>
                     </div>
                   ) : (
                     sortedPositions.map(([position, players]) => (
@@ -448,6 +454,11 @@ export default function TeamDetailDialog({
                     <div className="flex flex-col items-center py-8 text-center">
                       <Calendar className="h-8 w-8 text-muted-foreground/20 mb-2" />
                       <p className="text-sm text-muted-foreground/60">Calendrier non disponible</p>
+                      <p className="text-[10px] text-muted-foreground/40 mt-1">
+                        {leagueCode === 'fifa.rankings' || leagueCode === 'fifa.world'
+                          ? 'Les matchs seront programmés prochainement'
+                          : 'Les données du calendrier seront bientôt disponibles'}
+                      </p>
                     </div>
                   )}
                 </div>
