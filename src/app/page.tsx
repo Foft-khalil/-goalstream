@@ -279,14 +279,23 @@ export default function Home() {
   const { isOnline } = usePWA();
 
   useEffect(() => {
-    // Only fetch data for the current view to reduce memory pressure
-    fetchFootballMatches();
+    // Delay initial fetch to stagger Turbopack compilation and avoid OOM
+    // The page compilation + football API compilation + ESPN fetch = too much memory
+    // Staggering ensures they happen one at a time
+    const timer = setTimeout(() => {
+      fetchFootballMatches();
+    }, 5000);
+    return () => clearTimeout(timer);
   }, [fetchFootballMatches]);
 
   // Fetch secondary data when user navigates to those views
+  // Add delays to prevent concurrent route compilations
   useEffect(() => {
-    if (currentView === 'channels') fetchChannels();
-    if (currentView === 'basketball') fetchBasketballMatches();
+    const timer = setTimeout(() => {
+      if (currentView === 'channels') fetchChannels();
+      if (currentView === 'basketball') fetchBasketballMatches();
+    }, 1000);
+    return () => clearTimeout(timer);
   }, [currentView, fetchChannels, fetchBasketballMatches]);
 
   return (

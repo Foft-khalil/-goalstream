@@ -255,7 +255,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedDate: 'today',
   setSelectedDate: (date) => set({ selectedDate: date }),
   fetchFootballMatches: async (dates?: string[]) => {
-    set({ footballLoading: true, footballError: null });
+    // Don't show loading spinner if we already have data (for background refreshes)
+    const currentMatches = get().footballMatches;
+    if (currentMatches.length === 0) {
+      set({ footballLoading: true });
+    }
+    set({ footballError: null });
     try {
       const params = new URLSearchParams();
       if (dates && dates.length > 0) {
@@ -270,9 +275,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         footballLoading: false,
         footballLastUpdated: data.lastUpdated || new Date().toISOString(),
         footballDates: data.dates || [],
+        footballError: data.error || null,
       });
     } catch (error: any) {
-      set({ footballError: error.message, footballLoading: false });
+      // Keep existing data on error (don't wipe it)
+      set({
+        footballError: currentMatches.length > 0
+          ? 'Mise à jour échouée — données en cache'
+          : 'Échec du chargement des matchs',
+        footballLoading: false,
+      });
     }
   },
 
@@ -285,7 +297,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedBasketballDate: 'today',
   setSelectedBasketballDate: (date) => set({ selectedBasketballDate: date }),
   fetchBasketballMatches: async (dates?: string[]) => {
-    set({ basketballLoading: true, basketballError: null });
+    const currentMatches = get().basketballMatches;
+    if (currentMatches.length === 0) {
+      set({ basketballLoading: true });
+    }
+    set({ basketballError: null });
     try {
       const params = new URLSearchParams();
       if (dates && dates.length > 0) {
@@ -300,9 +316,15 @@ export const useAppStore = create<AppState>((set, get) => ({
         basketballLoading: false,
         basketballLastUpdated: data.lastUpdated || new Date().toISOString(),
         basketballDates: data.dates || [],
+        basketballError: data.error || null,
       });
     } catch (error: any) {
-      set({ basketballError: error.message, basketballLoading: false });
+      set({
+        basketballError: currentMatches.length > 0
+          ? 'Mise à jour échouée — données en cache'
+          : 'Échec du chargement des matchs de basketball',
+        basketballLoading: false,
+      });
     }
   },
 

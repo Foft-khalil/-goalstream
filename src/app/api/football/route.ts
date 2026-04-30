@@ -40,12 +40,12 @@ interface ESPNCompetitor {
 
 interface ESPNStatus {
   type: {
-    name: string;       // "status_in_progress" | "status_scheduled" | "status_complete" | etc.
-    state: string;      // "in" | "pre" | "post"
+    name: string;
+    state: string;
     completed?: boolean;
-    description: string; // "1st Half", "Halftime", "Full Time", etc.
+    description: string;
   };
-  displayClock?: string; // "45:00"
+  displayClock?: string;
   period?: number;
 }
 
@@ -91,12 +91,10 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): FootballMatch | n
     const homeTeam = homeComp.team.displayName || homeComp.team.name;
     const awayTeam = awayComp.team.displayName || awayComp.team.name;
 
-    // Determine status
-    const state = event.status.type.state; // "in" = live, "pre" = upcoming, "post" = finished
+    const state = event.status.type.state;
     let status: FootballMatch['status'] = 'upcoming';
     let minute: number | null = null;
 
-    // Detailed clock/period info from ESPN
     const displayClock = (state === 'in') ? (event.status.displayClock || null) : null;
     const period = (state === 'in') ? (event.status.period || null) : null;
     const statusDescription = event.status.type.description || null;
@@ -116,18 +114,15 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): FootballMatch | n
 
     if (state === 'in') {
       status = 'live';
-      // Parse minute from displayClock or period
       if (event.status.displayClock) {
         const parts = event.status.displayClock.split(':');
         if (parts.length === 2) {
           minute = parseInt(parts[0], 10);
-          // Add period offset (period 2 = +45 min)
           if (event.status.period && event.status.period > 1) {
             minute += 45 * (event.status.period - 1);
           }
         }
       }
-      // HT = 45
       if (isHalftime) {
         minute = 45;
       }
@@ -135,7 +130,6 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): FootballMatch | n
       status = 'finished';
     }
 
-    // Parse scores
     let homeScore: number | null = null;
     let awayScore: number | null = null;
     if (state === 'in' || state === 'post') {
@@ -143,7 +137,6 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): FootballMatch | n
       awayScore = awayComp.score ? parseInt(awayComp.score, 10) : 0;
     }
 
-    // Team logos
     const homeLogo = homeComp.team.logo || null;
     const awayLogo = awayComp.team.logo || null;
 
@@ -170,39 +163,41 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): FootballMatch | n
   }
 }
 
-// ─── Fetch from ESPN API for a specific date ─────────────────────────────────
+// ─── Fetch a single league for a single date ────────────────────────────────
+async function fetchLeague(league: typeof ESPN_LEAGUES[0], date: string): Promise<FootballMatch[]> {
+  try {
+    const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${league.code}/scoreboard?dates=${date}`;
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const events: ESPNEvent[] = data.events || [];
+    return events.map(e => parseESPNMatch(e, league.name)).filter(Boolean) as FootballMatch[];
+  } catch {
+    return [];
+  }
+}
+
+// ─── Fetch from ESPN API for a specific date (sequential, memory-safe) ──────
 async function fetchESPNMatchesForDate(date: string): Promise<FootballMatch[]> {
   const allMatches: FootballMatch[] = [];
   const errors: string[] = [];
 
-  // Fetch all leagues in parallel (batches of 5 to be nice)
-  const batchSize = 5;
+  // Fetch leagues in small batches of 3 to avoid memory spikes
+  const batchSize = 3;
   for (let i = 0; i < ESPN_LEAGUES.length; i += batchSize) {
     const batch = ESPN_LEAGUES.slice(i, i + batchSize);
     const results = await Promise.allSettled(
       batch.map(async (league) => {
-        const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${league.code}/scoreboard?dates=${date}`;
-        const res = await fetch(url, {
-          headers: { 'Accept': 'application/json' },
-          signal: AbortSignal.timeout(8000),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status} for ${league.code}`);
-        const data = await res.json();
-        return { league, data };
+        return await fetchLeague(league, date);
       })
     );
 
     for (const result of results) {
       if (result.status === 'fulfilled') {
-        const { league, data } = result.value;
-        const events: ESPNEvent[] = data.events || [];
-        for (const event of events) {
-          const match = parseESPNMatch(event, league.name);
-          // Include all matches including finished for past days
-          if (match) {
-            allMatches.push(match);
-          }
-        }
+        allMatches.push(...result.value);
       } else {
         errors.push(result.reason?.message || 'Unknown error');
       }
@@ -216,17 +211,19 @@ async function fetchESPNMatchesForDate(date: string): Promise<FootballMatch[]> {
   return allMatches;
 }
 
-// ─── Fetch from ESPN API (multi-date) ────────────────────────────────────────
+// ─── Fetch from ESPN API (multi-date, sequential to avoid OOM) ──────────────
 async function fetchESPNMatches(dates: string[]): Promise<FootballMatch[]> {
-  // Fetch all dates in parallel
-  const results = await Promise.allSettled(
-    dates.map((date) => fetchESPNMatchesForDate(date))
-  );
-
+  // Fetch dates SEQUENTIALLY (not parallel) to avoid OOM crashes
+  // Each date fetches 18 leagues in batches of 3 = 6 batches
+  // Parallel dates would triple the concurrent connections
   const allMatches: FootballMatch[] = [];
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      allMatches.push(...result.value);
+
+  for (const date of dates) {
+    try {
+      const dayMatches = await fetchESPNMatchesForDate(date);
+      allMatches.push(...dayMatches);
+    } catch {
+      // Continue with other dates even if one fails
     }
   }
 
@@ -257,7 +254,6 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
 
-    // Parse date/dates params
     const dateParam = searchParams.get('date');
     const datesParam = searchParams.get('dates');
 
@@ -267,27 +263,19 @@ export async function GET(request: NextRequest) {
     } else if (dateParam) {
       dates = [dateParam];
     } else {
-      // Default: 3 days (today + tomorrow + day after)
       dates = getDefaultDates();
     }
 
-    // Cache key based on dates
     const cacheKey = dates.length === 1
       ? `football-matches-${dates[0]}`
       : `football-matches-3day`;
 
-    // Check cache first — use shorter TTL if there are live matches in cached data
+    // Check cache first
     const cachedPrev = getCachedStale<FootballMatchesResponse>(cacheKey);
     const hasLive = cachedPrev?.matches?.some(m => m.status === 'live') ?? false;
     const cached = getCached<FootballMatchesResponse>(cacheKey, hasLive);
     if (cached) {
       const age = getCacheAge(cacheKey);
-      // IMPORTANT: Do NOT reset lastUpdated on cache hits!
-      // The client uses lastUpdated to extrapolate the clock forward.
-      // If we reset lastUpdated but keep the old displayClock, the client's
-      // extrapolation resets and the clock JUMPS BACKWARDS every poll cycle.
-      // Keeping the original lastUpdated lets the clock tick forward smoothly,
-      // and it snaps to the correct ESPN value on the next fresh fetch.
       console.log(`[Football API] Returning cached data (age: ${age}s, ${cached.matches.length} matches, live: ${hasLive})`);
       return NextResponse.json(cached, {
         headers: { 'X-Cache': 'HIT', 'X-Cache-Age': String(age) },
@@ -295,7 +283,14 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[Football API] Cache miss, fetching from ESPN API for dates: ${dates.join(', ')}...`);
-    const matches = await fetchESPNMatches(dates);
+
+    // Race the fetch against a 45s global timeout to prevent server hangs
+    const matches = await Promise.race([
+      fetchESPNMatches(dates),
+      new Promise<FootballMatch[]>((resolve) =>
+        setTimeout(() => resolve([]), 45000)
+      ),
+    ]);
 
     const response: FootballMatchesResponse = {
       matches,

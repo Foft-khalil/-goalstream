@@ -48,20 +48,22 @@ export default function LiveMatches() {
   const [countdown, setCountdown] = useState(60);
   const lastUpdatedRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    fetchFootballMatches();
-  }, [fetchFootballMatches]);
+  // Initial fetch is handled by parent (page.tsx) with a delay to avoid OOM
+  // Only poll for updates here
+  const hasFetchedOnce = footballMatches.length > 0 || footballError !== null;
 
   // Adaptive polling: 15s when live matches exist, 2 min otherwise
   const hasLive = footballMatches.some(m => m.status === 'live');
   const pollInterval = hasLive ? 15 * 1000 : 120 * 1000;
 
   useEffect(() => {
+    // Only start polling after first fetch has completed
+    if (!hasFetchedOnce) return;
     const interval = setInterval(() => {
       fetchFootballMatches();
     }, pollInterval);
     return () => clearInterval(interval);
-  }, [fetchFootballMatches, pollInterval]);
+  }, [fetchFootballMatches, pollInterval, hasFetchedOnce]);
 
   useEffect(() => {
     if (footballLastUpdated !== lastUpdatedRef.current) {
