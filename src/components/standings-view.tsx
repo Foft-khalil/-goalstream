@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Loader2, Trophy, RefreshCw, AlertCircle, Globe, Shield, Users, Calendar, Info } from 'lucide-react';
+import { Loader2, Trophy, RefreshCw, AlertCircle, Globe, Shield, Users, Calendar, Info, MapPin, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TeamDetailDialog from '@/components/team-detail-dialog';
 
@@ -34,6 +34,9 @@ interface LeagueStanding {
   teams: StandingTeam[];
   isGroup?: boolean;
   groupName?: string;
+  placeholder?: boolean;
+  placeholderMessage?: string;
+  placeholderInfo?: Record<string, string>;
 }
 
 interface StandingsData {
@@ -79,6 +82,15 @@ const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: st
   ],
 };
 
+// ─── Per-league error tracking ───────────────────────────────────────────────
+
+interface LeagueError {
+  code: string;
+  name: string;
+  message: string;
+  retrying: boolean;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getNoteStyle(note: string | null, noteColor: string | null) {
@@ -95,6 +107,112 @@ function getNoteStyle(note: string | null, noteColor: string | null) {
     return 'bg-red-500/15 text-red-400 border-red-500/20';
   }
   return 'bg-muted/30 text-muted-foreground border-border/30';
+}
+
+// ─── World Cup Info Card ─────────────────────────────────────────────────────
+
+function WorldCupInfoCard({ placeholder }: { placeholder: LeagueStanding }) {
+  const info = placeholder.placeholderInfo || {};
+  return (
+    <div className="rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-orange-500/5 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/10 border-b border-amber-500/15">
+        <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-xl">
+          🏆
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-bold text-amber-200">Coupe du Monde FIFA 2026</h3>
+          <p className="text-[10px] text-amber-300/60">Prochaine édition</p>
+        </div>
+      </div>
+
+      {/* Info grid */}
+      <div className="px-4 py-3 space-y-2.5">
+        {Object.entries(info).map(([key, value]) => (
+          <div key={key} className="flex items-start gap-2">
+            <span className="text-[10px] font-semibold text-amber-300/50 min-w-[70px] pt-0.5">{key}</span>
+            <span className="text-xs text-foreground/80">{value}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Message */}
+      {placeholder.placeholderMessage && (
+        <div className="px-4 py-2.5 bg-amber-500/5 border-t border-amber-500/10">
+          <div className="flex items-start gap-2">
+            <Info className="h-3.5 w-3.5 text-amber-400/60 shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground/70">{placeholder.placeholderMessage}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Empty State per League ──────────────────────────────────────────────────
+
+function EmptyLeagueState({
+  leagueCode,
+  leagueName,
+  onRetry,
+  retrying,
+}: {
+  leagueCode: string;
+  leagueName: string;
+  onRetry: () => void;
+  retrying: boolean;
+}) {
+  // World Cup is handled by the placeholder card, not this component
+  if (leagueCode === 'fifa.world') {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Trophy className="h-12 w-12 text-amber-500/30 mb-3" />
+        <p className="text-sm font-semibold mb-1">Coupe du Monde 2026</p>
+        <p className="text-xs text-muted-foreground/60 max-w-xs">
+          Les groupes et le calendrier ne sont pas encore formés. Consultez le classement FIFA pour voir les meilleures équipes du monde.
+        </p>
+      </div>
+    );
+  }
+
+  // Specific messages per competition type
+  const getEmptyMessage = () => {
+    switch (leagueCode) {
+      case 'uefa.champions':
+        return 'Les phases de groupes de la Ligue des Champions ne sont pas encore disponibles. La compétition reprend avec les phases à élimination directe.';
+      case 'uefa.europa':
+        return 'Les données de l\'Europa League ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
+      case 'uefa.europa.conf':
+        return 'Les données de la Conference League ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
+      case 'uefa.euro':
+        return 'Les groupes de l\'Euro ne sont pas encore formés pour la prochaine édition. Consultez le classement FIFA pour suivre les équipes.';
+      case 'caf.nations':
+        return 'Les données de la CAN ne sont pas disponibles actuellement. Les phases de qualification sont peut-être en cours.';
+      default:
+        return 'Les données ne sont pas encore disponibles pour cette compétition. Réessayez dans quelques minutes.';
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <AlertCircle className="h-10 w-10 text-muted-foreground/20 mb-3" />
+      <p className="text-sm font-semibold text-muted-foreground mb-1">{leagueName}</p>
+      <p className="text-xs text-muted-foreground/60 max-w-xs">{getEmptyMessage()}</p>
+      <Button
+        onClick={onRetry}
+        disabled={retrying}
+        size="sm"
+        className="mt-3 gap-2 bg-green-600 hover:bg-green-700 text-white"
+      >
+        {retrying ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <RefreshCw className="h-3.5 w-3.5" />
+        )}
+        {retrying ? 'Chargement...' : 'Réessayer'}
+      </Button>
+    </div>
+  );
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -118,15 +236,18 @@ export default function StandingsView() {
     teamName: string;
     teamLogo: string | null;
   } | null>(null);
+  const [leagueErrors, setLeagueErrors] = useState<LeagueError[]>([]);
+  const [retryingLeague, setRetryingLeague] = useState<string | null>(null);
 
   // Fetch standings for a category on demand
-  // For memory efficiency, fetch one league at a time instead of the whole category
   const fetchStandings = useCallback(async (category: Category) => {
     setLoading((prev) => ({ ...prev, [category]: true }));
+    setLeagueErrors([]);
     try {
       const leagues = LEAGUE_TABS[category];
       const allStandings: LeagueStanding[] = [];
       const allErrors: string[] = [];
+      const newLeagueErrors: LeagueError[] = [];
       
       // Fetch each league individually to avoid OOM
       for (const league of leagues) {
@@ -139,10 +260,18 @@ export default function StandingsView() {
           }
           if (json.errors) allErrors.push(...json.errors);
         } catch {
-          // Continue with other leagues even if one fails
+          // Track per-league errors for retry functionality
+          newLeagueErrors.push({
+            code: league.code,
+            name: league.name,
+            message: 'Échec du chargement',
+            retrying: false,
+          });
         }
       }
       
+      setLeagueErrors(newLeagueErrors);
+
       const json: StandingsData = {
         standings: allStandings,
         category,
@@ -165,6 +294,42 @@ export default function StandingsView() {
       setLoading((prev) => ({ ...prev, [category]: false }));
     }
   }, []);
+
+  // Retry a single league
+  const retryLeague = useCallback(async (leagueCode: string, leagueName: string) => {
+    setRetryingLeague(leagueCode);
+    try {
+      const res = await fetch(`/api/standings?league=${leagueCode}`);
+      if (!res.ok) throw new Error('Échec du chargement');
+      const json: StandingsData = await res.json();
+
+      setData((prev) => {
+        const categoryData = prev[activeCategory];
+        if (!categoryData) return prev;
+
+        // Remove old data for this league and replace with new
+        const filtered = categoryData.standings.filter((s) => s.leagueCode !== leagueCode);
+        const newStandings = [...filtered, ...json.standings];
+
+        return {
+          ...prev,
+          [activeCategory]: {
+            ...categoryData,
+            standings: newStandings,
+            errors: categoryData.errors?.filter((e) => !e.startsWith(leagueName)),
+            errorCount: categoryData.errors ? Math.max(0, (categoryData.errorCount || 0) - 1) : undefined,
+          },
+        };
+      });
+
+      // Remove the league from errors list
+      setLeagueErrors((prev) => prev.filter((e) => e.code !== leagueCode));
+    } catch {
+      // Still failed, keep the error
+    } finally {
+      setRetryingLeague(null);
+    }
+  }, [activeCategory]);
 
   // Fetch only the current category on mount (sequential to avoid OOM)
   useEffect(() => {
@@ -207,9 +372,15 @@ export default function StandingsView() {
   // Get standings for the currently selected league
   const selectedStandings = standings.filter((s) => s.leagueCode === selectedLeague);
 
+  // Check if selected league has a placeholder (World Cup)
+  const placeholderStanding = selectedStandings.find((s) => s.placeholder);
+
+  // Check if selected league is in the error list
+  const selectedLeagueError = leagueErrors.find((e) => e.code === selectedLeague);
+
   // Count teams for each league tab
   const getTeamCount = (code: string) => {
-    return standings.filter((s) => s.leagueCode === code).reduce((sum, s) => sum + s.teams.length, 0);
+    return standings.filter((s) => s.leagueCode === code && !s.placeholder).reduce((sum, s) => sum + s.teams.length, 0);
   };
 
   // Loading state (only show full loading for the initial load of current category)
@@ -257,7 +428,7 @@ export default function StandingsView() {
           const isActive = activeCategory === cat.key;
           const catData = data[cat.key];
           const catLoading = loading[cat.key];
-          const teamCount = catData?.standings?.reduce((sum, s) => sum + s.teams.length, 0) || 0;
+          const teamCount = catData?.standings?.reduce((sum, s) => sum + (s.placeholder ? 0 : s.teams.length), 0) || 0;
           return (
             <button
               key={cat.key}
@@ -286,6 +457,8 @@ export default function StandingsView() {
         {currentTabs.map((tab) => {
           const isSelected = selectedLeague === tab.code;
           const teamCount = getTeamCount(tab.code);
+          const hasError = leagueErrors.some((e) => e.code === tab.code);
+          const isPlaceholder = standings.some((s) => s.leagueCode === tab.code && s.placeholder);
           return (
             <button
               key={tab.code}
@@ -293,6 +466,8 @@ export default function StandingsView() {
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                 isSelected
                   ? 'bg-green-500/15 text-green-400 border border-green-500/20'
+                  : hasError
+                  ? 'bg-red-500/5 text-red-400 border border-red-500/10 hover:bg-red-500/10'
                   : 'bg-muted/30 text-muted-foreground border border-border/20 hover:bg-muted/50'
               }`}
             >
@@ -303,6 +478,12 @@ export default function StandingsView() {
               )}
               {teamCount > 0 && (
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              )}
+              {isPlaceholder && !hasError && teamCount === 0 && (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              )}
+              {hasError && (
+                <AlertCircle className="h-3 w-3 text-red-400" />
               )}
             </button>
           );
@@ -347,180 +528,191 @@ export default function StandingsView() {
 
       {/* Selected league standings */}
       {selectedStandings.length > 0 ? (
-        selectedStandings.map((league) => (
-          <section key={`${league.leagueCode}-${league.groupName || 'all'}`} className="space-y-0">
-            {/* League header */}
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">{league.flag}</span>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold">{league.league}</h3>
-                <p className="text-[10px] text-muted-foreground/50">{league.season}</p>
-              </div>
-              {league.isGroup && selectedStandings.length > 1 && (
-                <span className="text-[10px] text-muted-foreground/40">
-                  {selectedStandings.indexOf(league) + 1}/{selectedStandings.length} groupes
-                </span>
-              )}
-            </div>
+        selectedStandings.map((league) => {
+          // If this is a placeholder (World Cup), render the info card
+          if (league.placeholder) {
+            return <WorldCupInfoCard key={league.leagueCode} placeholder={league} />;
+          }
 
-            {/* Table */}
-            <div className="rounded-xl border border-border/30 overflow-hidden bg-card/50">
-              {/* Header */}
-              <div className={`grid gap-0 px-2.5 py-2 bg-muted/30 border-b border-border/20 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider ${
-                isFIFARankings && league.leagueCode === 'fifa.rankings'
-                  ? 'grid-cols-[28px_1fr_60px]'
-                  : 'grid-cols-[28px_1fr_32px_32px_32px_32px_40px]'
-              }`}>
-                <span className="text-center">#</span>
-                <span>Équipe</span>
-                {isFIFARankings && league.leagueCode === 'fifa.rankings' ? (
-                  <span className="text-center">Points</span>
-                ) : (
-                  <>
-                    <span className="text-center">J</span>
-                    <span className="text-center">V</span>
-                    <span className="text-center">N</span>
-                    <span className="text-center">D</span>
-                    <span className="text-center font-bold">Pts</span>
-                  </>
+          return (
+            <section key={`${league.leagueCode}-${league.groupName || 'all'}`} className="space-y-0">
+              {/* League header */}
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">{league.flag}</span>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold">{league.league}</h3>
+                  <p className="text-[10px] text-muted-foreground/50">{league.season}</p>
+                </div>
+                {league.isGroup && selectedStandings.filter((s) => !s.placeholder).length > 1 && (
+                  <span className="text-[10px] text-muted-foreground/40">
+                    {selectedStandings.filter((s) => !s.placeholder).indexOf(league) + 1}/{selectedStandings.filter((s) => !s.placeholder).length} groupes
+                  </span>
                 )}
               </div>
 
-              {/* Rows */}
-              <div className="divide-y divide-border/10">
-                {league.teams.map((team) => (
-                  <div
-                    key={team.team}
-                    onClick={() => handleTeamClick(team)}
-                    className={`grid gap-0 px-2.5 py-2 items-center text-xs hover:bg-green-500/5 transition-colors cursor-pointer ${
-                      isFIFARankings && league.leagueCode === 'fifa.rankings'
-                        ? 'grid-cols-[28px_1fr_60px]'
-                        : 'grid-cols-[28px_1fr_32px_32px_32px_32px_40px]'
-                    } ${
-                      team.rank <= 3
-                        ? 'bg-green-500/[0.03]'
-                        : team.rank >= league.teams.length - 2
-                        ? 'bg-red-500/[0.03]'
-                        : ''
-                    }`}
-                  >
-                    {/* Rank */}
-                    <div className="flex justify-center">
-                      {team.note ? (
-                        <span className={`inline-flex items-center justify-center w-5 h-5 rounded text-[9px] font-bold border ${getNoteStyle(team.note, team.noteColor)}`}>
-                          {team.rank}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/50 font-medium">{team.rank}</span>
-                      )}
-                    </div>
+              {/* Table */}
+              <div className="rounded-xl border border-border/30 overflow-hidden bg-card/50">
+                {/* Header */}
+                <div className={`grid gap-0 px-2.5 py-2 bg-muted/30 border-b border-border/20 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider ${
+                  isFIFARankings && league.leagueCode === 'fifa.rankings'
+                    ? 'grid-cols-[28px_1fr_60px]'
+                    : 'grid-cols-[28px_1fr_32px_32px_32px_32px_40px]'
+                }`}>
+                  <span className="text-center">#</span>
+                  <span>Équipe</span>
+                  {isFIFARankings && league.leagueCode === 'fifa.rankings' ? (
+                    <span className="text-center">Points</span>
+                  ) : (
+                    <>
+                      <span className="text-center">J</span>
+                      <span className="text-center">V</span>
+                      <span className="text-center">N</span>
+                      <span className="text-center">D</span>
+                      <span className="text-center font-bold">Pts</span>
+                    </>
+                  )}
+                </div>
 
-                    {/* Team */}
-                    <div className="flex items-center gap-2 min-w-0">
-                      {team.logo ? (
-                        <img
-                          src={team.logo}
-                          alt=""
-                          className="w-5 h-5 rounded object-contain shrink-0"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      ) : (
-                        <div className="w-5 h-5 rounded bg-muted/40 flex items-center justify-center text-[8px] font-bold shrink-0">
-                          {team.shortName.slice(0, 2)}
-                        </div>
-                      )}
-                      <span className="font-medium truncate text-[11px] hover:text-green-500 transition-colors">{team.shortName}</span>
-                    </div>
+                {/* Rows */}
+                <div className="divide-y divide-border/10">
+                  {league.teams.map((team) => (
+                    <div
+                      key={team.team}
+                      onClick={() => handleTeamClick(team)}
+                      className={`grid gap-0 px-2.5 py-2 items-center text-xs hover:bg-green-500/5 transition-colors cursor-pointer ${
+                        isFIFARankings && league.leagueCode === 'fifa.rankings'
+                          ? 'grid-cols-[28px_1fr_60px]'
+                          : 'grid-cols-[28px_1fr_32px_32px_32px_32px_40px]'
+                      } ${
+                        team.rank <= 3
+                          ? 'bg-green-500/[0.03]'
+                          : team.rank >= league.teams.length - 2
+                          ? 'bg-red-500/[0.03]'
+                          : ''
+                      }`}
+                    >
+                      {/* Rank */}
+                      <div className="flex justify-center">
+                        {team.note ? (
+                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded text-[9px] font-bold border ${getNoteStyle(team.note, team.noteColor)}`}>
+                            {team.rank}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/50 font-medium">{team.rank}</span>
+                        )}
+                      </div>
 
-                    {/* Stats */}
-                    {isFIFARankings && league.leagueCode === 'fifa.rankings' ? (
-                      <span className="text-center font-black text-foreground tabular-nums">{team.points}</span>
-                    ) : (
-                      <>
-                        <span className="text-center text-muted-foreground tabular-nums">{team.played}</span>
-                        <span className="text-center text-green-400/80 tabular-nums">{team.wins}</span>
-                        <span className="text-center text-muted-foreground/60 tabular-nums">{team.draws}</span>
-                        <span className="text-center text-red-400/60 tabular-nums">{team.losses}</span>
+                      {/* Team */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        {team.logo ? (
+                          <img
+                            src={team.logo}
+                            alt=""
+                            className="w-5 h-5 rounded object-contain shrink-0"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-5 h-5 rounded bg-muted/40 flex items-center justify-center text-[8px] font-bold shrink-0">
+                            {team.shortName.slice(0, 2)}
+                          </div>
+                        )}
+                        <span className="font-medium truncate text-[11px] hover:text-green-500 transition-colors">{team.shortName}</span>
+                      </div>
+
+                      {/* Stats */}
+                      {isFIFARankings && league.leagueCode === 'fifa.rankings' ? (
                         <span className="text-center font-black text-foreground tabular-nums">{team.points}</span>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
+                      ) : (
+                        <>
+                          <span className="text-center text-muted-foreground tabular-nums">{team.played}</span>
+                          <span className="text-center text-green-400/80 tabular-nums">{team.wins}</span>
+                          <span className="text-center text-muted-foreground/60 tabular-nums">{team.draws}</span>
+                          <span className="text-center text-red-400/60 tabular-nums">{team.losses}</span>
+                          <span className="text-center font-black text-foreground tabular-nums">{team.points}</span>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
 
-              {/* Legend - adaptive per category */}
-              {activeCategory === 'championnats' && (
-                <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-green-500/40" />
-                    <span className="text-[9px] text-muted-foreground/50">Ligue des Champions</span>
+                {/* Legend - adaptive per category */}
+                {activeCategory === 'championnats' && (
+                  <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
+                    <div className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-green-500/40" />
+                      <span className="text-[9px] text-muted-foreground/50">Ligue des Champions</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-blue-500/40" />
+                      <span className="text-[9px] text-muted-foreground/50">Europa / Conf.</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-red-500/40" />
+                      <span className="text-[9px] text-muted-foreground/50">Relégation</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-blue-500/40" />
-                    <span className="text-[9px] text-muted-foreground/50">Europa / Conf.</span>
+                )}
+                {activeCategory === 'coupes' && (
+                  <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
+                    <div className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-green-500/40" />
+                      <span className="text-[9px] text-muted-foreground/50">Qualifié tour suivant</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-blue-500/40" />
+                      <span className="text-[9px] text-muted-foreground/50">Barrages</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-red-500/40" />
-                    <span className="text-[9px] text-muted-foreground/50">Relégation</span>
+                )}
+                {activeCategory === 'nationales' && selectedLeague === 'fifa.rankings' && (
+                  <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
+                    <div className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-green-500/40" />
+                      <span className="text-[9px] text-muted-foreground/50">Top 10</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-blue-500/40" />
+                      <span className="text-[9px] text-muted-foreground/50">Top 20</span>
+                    </div>
                   </div>
-                </div>
-              )}
-              {activeCategory === 'coupes' && (
-                <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-green-500/40" />
-                    <span className="text-[9px] text-muted-foreground/50">Qualifié tour suivant</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-blue-500/40" />
-                    <span className="text-[9px] text-muted-foreground/50">Barrages</span>
-                  </div>
-                </div>
-              )}
-              {activeCategory === 'nationales' && selectedLeague === 'fifa.rankings' && (
-                <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-green-500/40" />
-                    <span className="text-[9px] text-muted-foreground/50">Top 10</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-blue-500/40" />
-                    <span className="text-[9px] text-muted-foreground/50">Top 20</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-        ))
+                )}
+              </div>
+            </section>
+          );
+        })
       ) : !currentLoading ? (
         /* No data for selected league */
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          {selectedLeague === 'fifa.world' ? (
-            <>
-              <Trophy className="h-12 w-12 text-amber-500/30 mb-3" />
-              <p className="text-sm font-semibold mb-1">Coupe du Monde 2026</p>
-              <p className="text-xs text-muted-foreground/60 max-w-xs">
-                Les groupes et le calendrier de la Coupe du Monde 2026 seront disponibles prochainement.
-                Cliquez sur les équipes du classement pour voir leurs détails.
-              </p>
-            </>
-          ) : (
-            <>
-              <AlertCircle className="h-10 w-10 text-muted-foreground/20 mb-3" />
-              <p className="text-sm font-semibold text-muted-foreground mb-1">Aucune donnée disponible</p>
-              <p className="text-xs text-muted-foreground/60">Les données ne sont pas encore disponibles pour cette compétition</p>
-              <Button
-                onClick={() => fetchStandings(activeCategory)}
-                size="sm"
-                className="mt-3 gap-2 bg-green-600 hover:bg-green-700 text-white"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Réessayer
-              </Button>
-            </>
+        <EmptyLeagueState
+          leagueCode={selectedLeague}
+          leagueName={currentTabs.find((t) => t.code === selectedLeague)?.name || selectedLeague}
+          onRetry={() => retryLeague(
+            selectedLeague,
+            currentTabs.find((t) => t.code === selectedLeague)?.name || selectedLeague
           )}
-        </div>
+          retrying={retryingLeague === selectedLeague}
+        />
       ) : null}
+
+      {/* Per-league error indicators with retry */}
+      {selectedLeagueError && !currentLoading && (
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/15 text-xs text-red-400">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          <span className="flex-1">Erreur lors du chargement de {selectedLeagueError.name}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => retryLeague(selectedLeagueError.code, selectedLeagueError.name)}
+            disabled={retryingLeague === selectedLeagueError.code}
+            className="h-6 px-2 text-[10px] text-red-400 hover:text-red-300"
+          >
+            {retryingLeague === selectedLeagueError.code ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3 w-3" />
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Loading for selected league */}
       {currentLoading && selectedStandings.length === 0 && currentData && (

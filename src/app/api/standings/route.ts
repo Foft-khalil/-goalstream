@@ -56,6 +56,9 @@ interface ParsedStanding {
   teams: ParsedTeam[];
   isGroup?: boolean;
   groupName?: string;
+  placeholder?: boolean;
+  placeholderMessage?: string;
+  placeholderInfo?: Record<string, string>;
 }
 
 interface ParsedTeam {
@@ -79,19 +82,65 @@ interface ParsedTeam {
 
 // ─── Fetch from ESPN API ─────────────────────────────────────────────────────
 
-async function fetchStandingsForLeague(code: string) {
-  const url = `https://site.web.api.espn.com/apis/v2/sports/soccer/${code}/standings`;
+const ESPN_PRIMARY_BASE = 'https://site.web.api.espn.com/apis/v2/sports/soccer';
+const ESPN_FALLBACK_BASE = 'https://site.api.espn.com/apis/v2/sports/soccer';
+
+async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
   const res = await fetch(url, {
     headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  return res;
+}
+
+async function fetchStandingsForLeague(code: string) {
+  const primaryUrl = `${ESPN_PRIMARY_BASE}/${code}/standings`;
+  const fallbackUrl = `${ESPN_FALLBACK_BASE}/${code}/standings`;
+  const timeout = 12000; // Reduced from 20s to 12s to reduce memory pressure
+
+  // Helper to safely parse JSON with size limit
+  async function safeParseJson(res: Response): Promise<any> {
+    // Clone and check content-length to avoid parsing huge responses
+    const contentLength = res.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > 500_000) {
+      // Response too large (>500KB) — skip to avoid memory issues
+      console.warn(`[Standings API] Response too large for ${code}: ${contentLength} bytes, skipping`);
+      return null;
+    }
+    return await res.json();
+  }
+
+  // Try primary URL first
+  try {
+    const res = await fetchWithTimeout(primaryUrl, timeout);
+    if (res.ok) {
+      const data = await safeParseJson(res);
+      if (data) return data;
+    }
+    // If primary returns non-200 or data too large, try fallback
+    console.warn(`[Standings API] Primary URL failed for ${code}, trying fallback...`);
+  } catch (err: any) {
+    console.warn(`[Standings API] Primary URL failed for ${code}: ${err.message}, trying fallback...`);
+  }
+
+  // Try fallback URL
+  try {
+    const res = await fetchWithTimeout(fallbackUrl, timeout);
+    if (res.ok) {
+      const data = await safeParseJson(res);
+      if (data) return data;
+      throw new Error('Réponse trop volumineuse');
+    }
+    throw new Error(`HTTP ${res.status} des deux sources ESPN`);
+  } catch (err: any) {
+    if (err.message?.includes('HTTP') || err.message?.includes('volumineuse')) throw err;
+    throw new Error(`Impossible de contacter ESPN pour ${code}: ${err.message || 'Timeout'}`);
+  }
 }
 
 // ─── Parse standings data ────────────────────────────────────────────────────
 
-const MAX_TEAMS_PER_GROUP = 24; // Limit teams to reduce memory
+const MAX_TEAMS_PER_GROUP = 12; // Limit teams per group to reduce memory
 
 function parseStandings(data: any, leagueName: string, leagueFlag: string, code: string): ParsedStanding[] {
   try {
@@ -103,7 +152,9 @@ function parseStandings(data: any, leagueName: string, leagueFlag: string, code:
 
     const results: ParsedStanding[] = [];
 
-    for (const child of children) {
+    // Limit number of groups to prevent memory issues with large competitions
+    const MAX_GROUPS = 12;
+    for (const child of children.slice(0, MAX_GROUPS)) {
       if (!child.standings?.entries) continue;
 
       const entries: StandingEntry[] = child.standings.entries;
@@ -225,6 +276,47 @@ function getFIFARankings(): ParsedStanding {
   };
 }
 
+// ─── World Cup 2026 Placeholder ──────────────────────────────────────────────
+
+function getWorldCupPlaceholder(): ParsedStanding {
+  return {
+    league: 'Coupe du Monde FIFA 2026',
+    flag: '🏆',
+    season: 'Prochaine édition',
+    leagueCode: 'fifa.world',
+    teams: [],
+    isGroup: false,
+    placeholder: true,
+    placeholderMessage: 'Les groupes et le calendrier de la Coupe du Monde 2026 seront disponibles prochainement.',
+    placeholderInfo: {
+      'Pays hôtes': '🇺🇸 États-Unis, 🇨🇦 Canada, 🇲🇽 Mexique',
+      'Dates': '11 juin — 19 juillet 2026',
+      'Équipes': '48 (première édition à 48 équipes)',
+      'Groupes': '12 groupes de 4 équipes',
+      'Statut': 'Les groupes seront tirés après les qualifications',
+    },
+  };
+}
+
+// ─── Friendly error messages for specific competitions ───────────────────────
+
+function getFriendlyErrorMessage(code: string, leagueName: string, originalError: string): string {
+  switch (code) {
+    case 'uefa.euro':
+      return `${leagueName}: Les données de l'Euro ne sont pas encore disponibles pour le prochain tournoi`;
+    case 'caf.nations':
+      return `${leagueName}: Les données de la CAN ne sont pas disponibles actuellement`;
+    case 'uefa.champions':
+      return `${leagueName}: Les données ne sont pas disponibles — la compétition est peut-être en pause`;
+    case 'uefa.europa':
+      return `${leagueName}: Les données ne sont pas disponibles — la compétition est peut-être en pause`;
+    case 'uefa.europa.conf':
+      return `${leagueName}: Les données ne sont pas disponibles — la compétition est peut-être en pause`;
+    default:
+      return `${leagueName}: ${originalError || 'Données non disponibles'}`;
+  }
+}
+
 // ─── GET handler ─────────────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
@@ -247,10 +339,15 @@ export async function GET(request: Request) {
 
     let leaguesToFetch: Array<{ code: string; name: string; flag: string }>;
     let includeFIFARankings = false;
+    let includeWorldCupPlaceholder = false;
 
     if (league === 'fifa.rankings') {
       // Special case: FIFA rankings is not an ESPN league
       includeFIFARankings = true;
+      leaguesToFetch = [];
+    } else if (league === 'fifa.world') {
+      // Special case: World Cup placeholder (groups not formed yet)
+      includeWorldCupPlaceholder = true;
       leaguesToFetch = [];
     } else if (league) {
       // Specific league requested
@@ -258,7 +355,7 @@ export async function GET(request: Request) {
       leaguesToFetch = allLeagues.filter((l) => l.code === league);
       if (leaguesToFetch.length === 0) {
         return NextResponse.json(
-          { standings: [], error: 'League not found' },
+          { standings: [], error: 'Compétition non trouvée' },
           { status: 200 }
         );
       }
@@ -271,6 +368,7 @@ export async function GET(request: Request) {
         case 'nationales':
           leaguesToFetch = NATIONALES;
           includeFIFARankings = true;
+          includeWorldCupPlaceholder = true;
           break;
         case 'championnats':
         default:
@@ -284,24 +382,39 @@ export async function GET(request: Request) {
 
     // Fetch leagues SEQUENTIALLY to avoid OOM (instead of Promise.allSettled)
     for (const l of leaguesToFetch) {
+      // Skip fifa.world in the fetch loop — it's handled by placeholder
+      if (l.code === 'fifa.world') {
+        continue;
+      }
+
       try {
         const data = await fetchStandingsForLeague(l.code);
         const parsed = parseStandings(data, l.name, l.flag, l.code);
         if (parsed.length > 0) {
           standings.push(...parsed);
         } else {
-          errors.push(`${l.name}: Pas de données disponibles`);
+          errors.push(getFriendlyErrorMessage(l.code, l.name, 'Pas de données disponibles'));
         }
       } catch (err: any) {
-        errors.push(`${l.name}: ${err.message || 'Failed'}`);
+        errors.push(getFriendlyErrorMessage(l.code, l.name, err.message || 'Échec du chargement'));
       }
     }
 
     // Include FIFA Rankings for national teams category
     if (includeFIFARankings) {
-      // Use fallback data directly (web search removed to save memory)
       const fifaData = getFIFARankings();
       standings.unshift(fifaData);
+    }
+
+    // Include World Cup placeholder
+    if (includeWorldCupPlaceholder) {
+      const wcData = getWorldCupPlaceholder();
+      // Insert after FIFA rankings if present, otherwise at the beginning
+      if (includeFIFARankings) {
+        standings.splice(1, 0, wcData);
+      } else {
+        standings.unshift(wcData);
+      }
     }
 
     const response: Record<string, any> = {

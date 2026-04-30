@@ -279,12 +279,13 @@ export default function Home() {
   const { isOnline } = usePWA();
 
   useEffect(() => {
-    // Delay initial fetch to stagger Turbopack compilation and avoid OOM
-    // The page compilation + football API compilation + ESPN fetch = too much memory
-    // Staggering ensures they happen one at a time
+    // Initial fetch: only today's matches to be fast and memory-safe
+    // The polling in LiveMatches will fetch the full 3-day schedule later
     const timer = setTimeout(() => {
-      fetchFootballMatches();
-    }, 5000);
+      const now = new Date();
+      const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      fetchFootballMatches([today]);
+    }, 2000);
     return () => clearTimeout(timer);
   }, [fetchFootballMatches]);
 

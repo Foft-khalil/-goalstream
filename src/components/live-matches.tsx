@@ -60,7 +60,11 @@ export default function LiveMatches() {
     // Only start polling after first fetch has completed
     if (!hasFetchedOnce) return;
     const interval = setInterval(() => {
-      fetchFootballMatches();
+      // Only fetch today's matches during polling (memory-safe)
+      // Other days are fetched on-demand when user switches tabs
+      const now = new Date();
+      const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      fetchFootballMatches([today]);
     }, pollInterval);
     return () => clearInterval(interval);
   }, [fetchFootballMatches, pollInterval, hasFetchedOnce]);
@@ -79,7 +83,9 @@ export default function LiveMatches() {
   }, [footballLastUpdated, hasLive]);
 
   const handleRetry = useCallback(() => {
-    fetchFootballMatches();
+    const now = new Date();
+    const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    fetchFootballMatches([today]);
     setCountdown(60);
   }, [fetchFootballMatches]);
 
@@ -87,6 +93,15 @@ export default function LiveMatches() {
   const todayKey = useMemo(() => getDateForTab('today'), []);
   const tomorrowKey = useMemo(() => getDateForTab('tomorrow'), []);
   const dayAfterKey = useMemo(() => getDateForTab('dayAfter'), []);
+
+  // On-demand fetch when user switches to a date tab that has no matches
+  useEffect(() => {
+    const dateKey = selectedDate === 'today' ? todayKey : selectedDate === 'tomorrow' ? tomorrowKey : dayAfterKey;
+    const hasMatchesForDate = footballMatches.some((m) => isMatchOnDate(m.matchDate, dateKey));
+    if (!hasMatchesForDate && !footballLoading) {
+      fetchFootballMatches([dateKey]);
+    }
+  }, [selectedDate, todayKey, tomorrowKey, dayAfterKey, footballMatches, footballLoading, fetchFootballMatches]);
 
   // Filter matches by selected date tab
   const dateKey = selectedDate === 'today' ? todayKey : selectedDate === 'tomorrow' ? tomorrowKey : dayAfterKey;

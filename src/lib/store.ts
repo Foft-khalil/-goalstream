@@ -261,31 +261,72 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ footballLoading: true });
     }
     set({ footballError: null });
-    try {
-      const params = new URLSearchParams();
-      if (dates && dates.length > 0) {
-        params.set('dates', dates.join(','));
+
+    const attemptFetch = async (isRetry: boolean): Promise<void> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+      try {
+        const params = new URLSearchParams();
+        // Default to 3-day schedule if no dates provided
+        if (dates && dates.length > 0) {
+          params.set('dates', dates.join(','));
+        } else {
+          const now = new Date();
+          const d = (offset: number) => {
+            const dt = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
+            return `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
+          };
+          params.set('dates', [d(0), d(1), d(2)].join(','));
+        }
+        const url = `/api/football?${params.toString()}`;
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        // Try to parse JSON regardless of HTTP status
+        let data: any;
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error('Réponse invalide du serveur');
+        }
+
+        if (!res.ok) {
+          // Use the error message from the response if available
+          const errorMsg = data?.error || `Erreur serveur (${res.status})`;
+          throw new Error(errorMsg);
+        }
+
+        set({
+          footballMatches: data.matches || [],
+          footballLoading: false,
+          footballLastUpdated: data.lastUpdated || new Date().toISOString(),
+          footballDates: data.dates || [],
+          footballError: data.error || null,
+        });
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+
+        // On first failure, retry once after 5 seconds with exponential backoff
+        if (!isRetry && error.name !== 'AbortError') {
+          console.warn('[Football] Fetch failed, retrying in 5s...', error.message);
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+          return attemptFetch(true);
+        }
+
+        // Keep existing data on error (don't wipe it)
+        set({
+          footballError: currentMatches.length > 0
+            ? 'Mise à jour échouée — données en cache'
+            : (error.name === 'AbortError'
+              ? 'Délai d\'attente dépassé'
+              : 'Échec du chargement des matchs'),
+          footballLoading: false,
+        });
       }
-      const url = `/api/football${params.toString() ? `?${params.toString()}` : ''}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Échec du chargement des matchs');
-      const data = await res.json();
-      set({
-        footballMatches: data.matches || [],
-        footballLoading: false,
-        footballLastUpdated: data.lastUpdated || new Date().toISOString(),
-        footballDates: data.dates || [],
-        footballError: data.error || null,
-      });
-    } catch (error: any) {
-      // Keep existing data on error (don't wipe it)
-      set({
-        footballError: currentMatches.length > 0
-          ? 'Mise à jour échouée — données en cache'
-          : 'Échec du chargement des matchs',
-        footballLoading: false,
-      });
-    }
+    };
+
+    await attemptFetch(false);
   },
 
   // Basketball matches (API - real data)

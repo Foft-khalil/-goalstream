@@ -3,14 +3,19 @@ import { getCached, getCachedStale, setCache, getCacheAge } from '@/lib/football
 import type { FootballMatch, FootballMatchesResponse } from '@/lib/football/types';
 
 // ─── ESPN API league codes ───────────────────────────────────────────────────
-const ESPN_LEAGUES = [
-  { code: 'eng.1', name: 'Premier League' },
+// Primary leagues: fetched by default (top 5 most popular for French users)
+const ESPN_LEAGUES_PRIMARY = [
   { code: 'fra.1', name: 'Ligue 1' },
+  { code: 'eng.1', name: 'Premier League' },
   { code: 'esp.1', name: 'La Liga' },
-  { code: 'ita.1', name: 'Serie A' },
-  { code: 'ger.1', name: 'Bundesliga' },
   { code: 'uefa.champions', name: 'Champions League' },
   { code: 'uefa.europa', name: 'Europa League' },
+];
+
+// Extended leagues: fetched on demand (leagues=extended)
+const ESPN_LEAGUES_EXTENDED = [
+  { code: 'ita.1', name: 'Serie A' },
+  { code: 'ger.1', name: 'Bundesliga' },
   { code: 'uefa.europa.conf', name: 'Conference League' },
   { code: 'por.1', name: 'Liga Portugal' },
   { code: 'ned.1', name: 'Eredivisie' },
@@ -164,7 +169,7 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): FootballMatch | n
 }
 
 // ─── Fetch a single league for a single date ────────────────────────────────
-async function fetchLeague(league: typeof ESPN_LEAGUES[0], date: string): Promise<FootballMatch[]> {
+async function fetchLeague(league: typeof ESPN_LEAGUES_PRIMARY[0], date: string): Promise<FootballMatch[]> {
   try {
     const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${league.code}/scoreboard?dates=${date}`;
     const res = await fetch(url, {
@@ -181,14 +186,18 @@ async function fetchLeague(league: typeof ESPN_LEAGUES[0], date: string): Promis
 }
 
 // ─── Fetch from ESPN API for a specific date (sequential, memory-safe) ──────
-async function fetchESPNMatchesForDate(date: string): Promise<FootballMatch[]> {
+async function fetchESPNMatchesForDate(date: string, includeAllLeagues: boolean): Promise<FootballMatch[]> {
   const allMatches: FootballMatch[] = [];
   const errors: string[] = [];
 
-  // Fetch leagues in small batches of 3 to avoid memory spikes
-  const batchSize = 3;
-  for (let i = 0; i < ESPN_LEAGUES.length; i += batchSize) {
-    const batch = ESPN_LEAGUES.slice(i, i + batchSize);
+  const leagues = includeAllLeagues
+    ? [...ESPN_LEAGUES_PRIMARY, ...ESPN_LEAGUES_EXTENDED]
+    : ESPN_LEAGUES_PRIMARY;
+
+  // Fetch leagues sequentially (batch size 1) to minimize memory
+  const batchSize = 1;
+  for (let i = 0; i < leagues.length; i += batchSize) {
+    const batch = leagues.slice(i, i + batchSize);
     const results = await Promise.allSettled(
       batch.map(async (league) => {
         return await fetchLeague(league, date);
@@ -202,6 +211,11 @@ async function fetchESPNMatchesForDate(date: string): Promise<FootballMatch[]> {
         errors.push(result.reason?.message || 'Unknown error');
       }
     }
+
+    // Add 200ms delay between batches to reduce memory spikes
+    if (i + batchSize < leagues.length) {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
   }
 
   if (errors.length > 0) {
@@ -212,15 +226,15 @@ async function fetchESPNMatchesForDate(date: string): Promise<FootballMatch[]> {
 }
 
 // ─── Fetch from ESPN API (multi-date, sequential to avoid OOM) ──────────────
-async function fetchESPNMatches(dates: string[]): Promise<FootballMatch[]> {
+async function fetchESPNMatches(dates: string[], includeAllLeagues: boolean): Promise<FootballMatch[]> {
   // Fetch dates SEQUENTIALLY (not parallel) to avoid OOM crashes
-  // Each date fetches 18 leagues in batches of 3 = 6 batches
+  // Each date fetches 8 primary leagues in batches of 2 = 4 batches (or 18 if all)
   // Parallel dates would triple the concurrent connections
   const allMatches: FootballMatch[] = [];
 
   for (const date of dates) {
     try {
-      const dayMatches = await fetchESPNMatchesForDate(date);
+      const dayMatches = await fetchESPNMatchesForDate(date, includeAllLeagues);
       allMatches.push(...dayMatches);
     } catch {
       // Continue with other dates even if one fails
@@ -259,11 +273,12 @@ export async function GET(request: NextRequest) {
 
     let dates: string[];
     if (datesParam) {
-      dates = datesParam.split(',').filter(Boolean);
+      dates = datesParam.split(',').filter(Boolean).slice(0, 3); // Max 3 dates
     } else if (dateParam) {
       dates = [dateParam];
     } else {
-      dates = getDefaultDates();
+      // Default: only today to reduce memory. Client can request more dates.
+      dates = [formatDateYMD(new Date())];
     }
 
     const cacheKey = dates.length === 1
@@ -282,13 +297,16 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    console.log(`[Football API] Cache miss, fetching from ESPN API for dates: ${dates.join(', ')}...`);
+    // Check if all leagues should be fetched (on demand)
+    const includeAllLeagues = searchParams.get('leagues') === 'all' || searchParams.get('leagues') === 'extended';
 
-    // Race the fetch against a 45s global timeout to prevent server hangs
+    console.log(`[Football API] Cache miss, fetching from ESPN API for dates: ${dates.join(', ')}${includeAllLeagues ? ' (all leagues)' : ' (primary leagues)'}...`);
+
+    // Race the fetch against a 30s global timeout to prevent server hangs
     const matches = await Promise.race([
-      fetchESPNMatches(dates),
+      fetchESPNMatches(dates, includeAllLeagues),
       new Promise<FootballMatch[]>((resolve) =>
-        setTimeout(() => resolve([]), 45000)
+        setTimeout(() => resolve([]), 30000)
       ),
     ]);
 
