@@ -125,7 +125,7 @@ export default function TeamDetailDialog({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/team/${teamId}?league=${leagueCode}`);
+      const res = await fetch(`/api/team/${teamId}?league=${leagueCode}&name=${encodeURIComponent(teamName)}`);
       if (!res.ok) throw new Error('Échec du chargement');
       const data = await res.json();
       if (data.error && !data.team) {

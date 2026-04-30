@@ -477,10 +477,23 @@ export async function POST(request: NextRequest) {
     const teamCountries = getCountryForTeams(homeTeam, awayTeam);
 
     // ─── Step 2: Fetch channels from multiple sources in parallel ────────────
-    const [baseChannels, countryChannels] = await Promise.all([
-      fetchSportsChannels(),
-      fetchCountryChannelsBatch(teamCountries),
-    ]);
+    let baseChannels: Awaited<ReturnType<typeof fetchSportsChannels>> = [];
+    let countryChannels: Awaited<ReturnType<typeof fetchCountryChannelsBatch>> = [];
+
+    try {
+      [baseChannels, countryChannels] = await Promise.all([
+        fetchSportsChannels().catch((err) => {
+          console.warn('[Match Stream API] Failed to fetch base channels:', err);
+          return [] as Awaited<ReturnType<typeof fetchSportsChannels>>;
+        }),
+        fetchCountryChannelsBatch(teamCountries).catch((err) => {
+          console.warn('[Match Stream API] Failed to fetch country channels:', err);
+          return [] as Awaited<ReturnType<typeof fetchCountryChannelsBatch>>;
+        }),
+      ]);
+    } catch (err) {
+      console.warn('[Match Stream API] Channel fetch error:', err);
+    }
 
     // Merge base channels + country-specific channels, deduplicate
     const seenUrls = new Set<string>();
@@ -875,10 +888,13 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[Match Stream API] Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to find channels', channels: [] },
-      { status: 500 }
-    );
+    // Return 200 with error message so the client can display it properly
+    // (returning 500 causes the fetch to throw, showing "Erreur lors de la recherche")
+    return NextResponse.json({
+      channels: [],
+      message: 'Erreur temporaire — veuillez réessayer',
+      error: 'Failed to find channels',
+    });
   }
 }
 

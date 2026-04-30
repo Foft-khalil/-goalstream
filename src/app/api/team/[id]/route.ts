@@ -12,6 +12,13 @@ const LEAGUE_NAMES: Record<string, string> = {
   'ger.1': 'Bundesliga',
   'por.1': 'Liga Portugal',
   'ned.1': 'Eredivisie',
+  'uefa.champions': 'Ligue des Champions',
+  'uefa.europa': 'Europa League',
+  'uefa.europa.conf': 'Conference League',
+  'fifa.world': 'Coupe du Monde',
+  'uefa.euro': 'Euro',
+  'caf.nations': 'CAN',
+  'fifa.rankings': 'Classement FIFA',
 };
 
 interface TeamInfo {
@@ -317,6 +324,75 @@ async function fetchTeamSchedule(teamId: string, leagueCode: string): Promise<Te
   }
 }
 
+/**
+ * Fetch basic team info for FIFA-ranked national teams via web search.
+ */
+async function fetchFIFATeamInfo(teamName: string): Promise<TeamDetailResponse | null> {
+  try {
+    const sdk = await ZAI.create();
+    const results = await sdk.functions.invoke('web_search', {
+      query: `${teamName} national football team coach manager stadium 2025`,
+      num: 3,
+      recency_days: 90,
+    });
+
+    if (!results || results.length === 0) return null;
+
+    const snippets = results.map((r: any) => r.snippet).join('\n');
+
+    const chatResponse = await sdk.chat.completions.create({
+      messages: [
+        {
+          role: 'system',
+          content: `You are a football data extractor. From the search results, extract: 1) the head coach name, 2) the home stadium name. Return as JSON: {"coach":"...","venue":"..."}. If unknown, use null.`,
+        },
+        {
+          role: 'user',
+          content: `Team: ${teamName}\nSearch results:\n${snippets}`,
+        },
+      ],
+    });
+
+    const content = chatResponse?.choices?.[0]?.message?.content?.trim();
+    let coach: string | null = null;
+    let venue: string | null = null;
+
+    if (content) {
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          coach = parsed.coach || null;
+          venue = parsed.venue || null;
+        }
+      } catch {}
+    }
+
+    return {
+      team: {
+        id: `fifa_${teamName.toLowerCase().replace(/\s+/g, '_')}`,
+        name: teamName,
+        shortName: teamName.slice(0, 3).toUpperCase(),
+        abbreviation: teamName.slice(0, 3).toUpperCase(),
+        logo: null,
+        color: null,
+        venue,
+        coach,
+        founded: null,
+        leagueCode: 'fifa.rankings',
+        leagueName: 'Classement FIFA',
+      },
+      roster: [],
+      schedule: [],
+      form: [],
+      stats: [],
+      lastUpdated: new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
 function computeFormAndStats(schedule: TeamMatch[]): { form: string[]; stats: TeamStats[] } {
   const finished = schedule.filter((m) => m.status === 'finished');
   // Take last 5 finished matches for form
@@ -387,7 +463,45 @@ export async function GET(
   const { id } = await params;
   try {
     const { searchParams } = new URL(request.url);
-    const leagueCode = searchParams.get('league') || 'eng.1';
+    let leagueCode = searchParams.get('league') || 'eng.1';
+
+    // FIFA rankings teams don't have a real ESPN league code
+    // Try to find the team in a national league instead
+    if (leagueCode === 'fifa.rankings') {
+      // For FIFA-ranked teams, we try to use web search to find team details
+      // since there's no ESPN league code for FIFA rankings
+      const teamName = searchParams.get('name') || '';
+      if (teamName) {
+        // Return basic info from web search
+        const basicInfo = await fetchFIFATeamInfo(teamName);
+        if (basicInfo) {
+          return NextResponse.json(basicInfo);
+        }
+      }
+      return NextResponse.json(
+        {
+          team: {
+            id,
+            name: teamName || `Équipe #${id}`,
+            shortName: (teamName || '').slice(0, 3).toUpperCase(),
+            abbreviation: (teamName || '').slice(0, 3).toUpperCase(),
+            logo: null,
+            color: null,
+            venue: null,
+            coach: null,
+            founded: null,
+            leagueCode: 'fifa.rankings',
+            leagueName: 'Classement FIFA',
+          },
+          roster: [],
+          schedule: [],
+          form: [],
+          stats: [],
+          lastUpdated: new Date().toISOString(),
+        },
+        { status: 200 }
+      );
+    }
 
     const cacheKey = `${CACHE_PREFIX}-${id}-${leagueCode}`;
 

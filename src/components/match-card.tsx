@@ -76,6 +76,9 @@ export default function MatchCard({ match }: MatchCardProps) {
     setShowChannels(true);
     setError(null);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
       const res = await fetch('/api/match-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -85,9 +88,15 @@ export default function MatchCard({ match }: MatchCardProps) {
           competition: match.competition,
           matchDate: match.matchDate,
         }),
+        signal: controller.signal,
       });
 
-      if (!res.ok) throw new Error('Failed to find channels');
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to find channels');
+      }
       const data = await res.json();
       const channels = data.channels || [];
       setFoundChannels(channels);
@@ -100,11 +109,15 @@ export default function MatchCard({ match }: MatchCardProps) {
       }
 
       if (channels.length === 0) {
-        setError('Aucune chaîne trouvée');
+        setError('Aucune chaîne trouvée pour ce match');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error finding channels:', err);
-      setError('Erreur lors de la recherche');
+      if (err.name === 'AbortError') {
+        setError('Recherche trop longue — réessayez');
+      } else {
+        setError('Erreur lors de la recherche — réessayez');
+      }
       setFoundChannels([]);
     } finally {
       setFindingStream(false);
@@ -127,6 +140,9 @@ export default function MatchCard({ match }: MatchCardProps) {
     setFindingStream(true);
     setError(null);
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
       const res = await fetch('/api/match-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -136,9 +152,15 @@ export default function MatchCard({ match }: MatchCardProps) {
           competition: match.competition,
           matchDate: match.matchDate,
         }),
+        signal: controller.signal,
       });
 
-      if (!res.ok) throw new Error('Failed to find channels');
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to find channels');
+      }
       const data = await res.json();
       const channels: FoundChannel[] = data.channels || [];
 
@@ -153,14 +175,18 @@ export default function MatchCard({ match }: MatchCardProps) {
         const alternatives = channels.slice(1);
         openPlayer(first.url, first.name, first.logo || undefined, alternatives);
       } else {
-        setError('Aucune chaîne trouvée');
+        setError('Aucune chaîne trouvée pour ce match');
         // Show channel picker so user can see the result
         setFoundChannels(channels);
         setShowChannels(true);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error finding channels:', err);
-      setError('Erreur lors de la recherche');
+      if (err.name === 'AbortError') {
+        setError('Recherche trop longue — réessayez');
+      } else {
+        setError('Erreur lors de la recherche — réessayez');
+      }
     } finally {
       setFindingStream(false);
     }

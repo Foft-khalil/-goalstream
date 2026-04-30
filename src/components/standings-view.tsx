@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Loader2, Trophy, RefreshCw, AlertCircle } from 'lucide-react';
+import { Loader2, Trophy, RefreshCw, AlertCircle, ChevronDown, ChevronUp, Globe, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TeamDetailDialog from '@/components/team-detail-dialog';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface StandingTeam {
   teamId: string;
@@ -30,28 +32,59 @@ interface LeagueStanding {
   season: string;
   leagueCode: string;
   teams: StandingTeam[];
+  isGroup?: boolean;
+  groupName?: string;
 }
 
 interface StandingsData {
   standings: LeagueStanding[];
+  category: string;
   lastUpdated: string;
+  errors?: string[];
+  errorCount?: number;
   error?: string;
 }
 
-const LEAGUE_TABS = [
-  { code: 'fra.1', name: 'Ligue 1', flag: '🇫🇷' },
-  { code: 'eng.1', name: 'Premier League', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-  { code: 'esp.1', name: 'La Liga', flag: '🇪🇸' },
-  { code: 'ita.1', name: 'Serie A', flag: '🇮🇹' },
-  { code: 'ger.1', name: 'Bundesliga', flag: '🇩🇪' },
-  { code: 'por.1', name: 'Liga Portugal', flag: '🇵🇹' },
-  { code: 'ned.1', name: 'Eredivisie', flag: '🇳🇱' },
+// ─── Category definitions ────────────────────────────────────────────────────
+
+type Category = 'championnats' | 'coupes' | 'nationales';
+
+const CATEGORIES: { key: Category; label: string; icon: React.ReactNode }[] = [
+  { key: 'championnats', label: 'Championnats', icon: <Trophy className="h-3.5 w-3.5" /> },
+  { key: 'coupes', label: 'Coupes Clubs', icon: <Shield className="h-3.5 w-3.5" /> },
+  { key: 'nationales', label: 'Éq. Nationales', icon: <Globe className="h-3.5 w-3.5" /> },
 ];
+
+// League tabs per category
+const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: string }>> = {
+  championnats: [
+    { code: 'eng.1', name: 'Premier League', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+    { code: 'fra.1', name: 'Ligue 1', flag: '🇫🇷' },
+    { code: 'esp.1', name: 'La Liga', flag: '🇪🇸' },
+    { code: 'ita.1', name: 'Serie A', flag: '🇮🇹' },
+    { code: 'ger.1', name: 'Bundesliga', flag: '🇩🇪' },
+    { code: 'por.1', name: 'Liga Portugal', flag: '🇵🇹' },
+    { code: 'ned.1', name: 'Eredivisie', flag: '🇳🇱' },
+  ],
+  coupes: [
+    { code: 'uefa.champions', name: 'Ligue des Champions', flag: '🏆' },
+    { code: 'uefa.europa', name: 'Europa League', flag: '🏆' },
+    { code: 'uefa.europa.conf', name: 'Conference League', flag: '🏆' },
+  ],
+  nationales: [
+    { code: 'fifa.rankings', name: 'Classement FIFA', flag: '🌍' },
+    { code: 'fifa.world', name: 'Coupe du Monde', flag: '🌍' },
+    { code: 'uefa.euro', name: 'Euro', flag: '🇪🇺' },
+    { code: 'caf.nations', name: 'CAN', flag: '🌍' },
+  ],
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getNoteStyle(note: string | null, noteColor: string | null) {
   if (!note) return '';
   const c = noteColor?.toLowerCase() || '';
-  if (c.includes('81d6ac') || c.includes('green') || note.toLowerCase().includes('champions')) {
+  if (c.includes('81d6ac') || c.includes('green') || note.toLowerCase().includes('champions') || note.toLowerCase().includes('top 10')) {
     return 'bg-green-500/15 text-green-400 border-green-500/20';
   }
   if (c.includes('7ec8e3') || c.includes('blue') || note.toLowerCase().includes('europa') || note.toLowerCase().includes('conference')) {
@@ -63,14 +96,21 @@ function getNoteStyle(note: string | null, noteColor: string | null) {
   return 'bg-muted/30 text-muted-foreground border-border/30';
 }
 
-export default function StandingsView() {
-  const [activeLeague, setActiveLeague] = useState('fra.1');
-  const [data, setData] = useState<StandingsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set(['fra.1']));
+// ─── Component ───────────────────────────────────────────────────────────────
 
-  // Team detail dialog state
+export default function StandingsView() {
+  const [activeCategory, setActiveCategory] = useState<Category>('championnats');
+  const [data, setData] = useState<Record<Category, StandingsData | null>>({
+    championnats: null,
+    coupes: null,
+    nationales: null,
+  });
+  const [loading, setLoading] = useState<Record<Category, boolean>>({
+    championnats: true,
+    coupes: false,
+    nationales: false,
+  });
+  const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set(['fra.1']));
   const [selectedTeam, setSelectedTeam] = useState<{
     teamId: string;
     leagueCode: string;
@@ -78,25 +118,46 @@ export default function StandingsView() {
     teamLogo: string | null;
   } | null>(null);
 
-  const fetchStandings = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  // Fetch standings for a category on demand
+  const fetchStandings = useCallback(async (category: Category) => {
+    setLoading((prev) => ({ ...prev, [category]: true }));
     try {
-      const res = await fetch('/api/standings');
+      const res = await fetch(`/api/standings?category=${category}`);
       if (!res.ok) throw new Error('Échec du chargement');
       const json: StandingsData = await res.json();
-      setData(json);
-      if (json.error) setError(json.error);
+      setData((prev) => ({ ...prev, [category]: json }));
     } catch (err: any) {
-      setError(err.message);
+      setData((prev) => ({
+        ...prev,
+        [category]: {
+          standings: [],
+          category,
+          lastUpdated: new Date().toISOString(),
+          error: err.message,
+        },
+      }));
     } finally {
-      setLoading(false);
+      setLoading((prev) => ({ ...prev, [category]: false }));
     }
   }, []);
 
+  // Fetch championnats on mount
   useEffect(() => {
-    fetchStandings();
+    fetchStandings('championnats');
   }, [fetchStandings]);
+
+  // Fetch category when tab changes
+  const handleCategoryChange = (category: Category) => {
+    setActiveCategory(category);
+    if (!data[category]) {
+      fetchStandings(category);
+    }
+    // Auto-expand first league of the category
+    const firstCode = LEAGUE_TABS[category][0]?.code;
+    if (firstCode) {
+      setExpandedLeagues(new Set([firstCode]));
+    }
+  };
 
   const toggleLeague = (code: string) => {
     setExpandedLeagues((prev) => {
@@ -116,8 +177,15 @@ export default function StandingsView() {
     });
   };
 
+  // Current category data
+  const currentData = data[activeCategory];
+  const currentLoading = loading[activeCategory];
+  const currentTabs = LEAGUE_TABS[activeCategory];
+  const standings = currentData?.standings || [];
+  const isFIFARankings = activeCategory === 'nationales';
+
   // Loading state
-  if (loading && !data) {
+  if (currentLoading && !currentData) {
     return (
       <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
         <div className="relative mb-6">
@@ -131,25 +199,6 @@ export default function StandingsView() {
     );
   }
 
-  // Error state
-  if (error && !data?.standings?.length) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
-          <AlertCircle className="h-8 w-8 text-red-400" />
-        </div>
-        <h3 className="text-lg font-semibold mb-2">Impossible de charger</h3>
-        <p className="text-sm text-muted-foreground mb-5">{error}</p>
-        <Button onClick={fetchStandings} size="sm" className="gap-2 bg-green-600 hover:bg-green-700 text-white">
-          <RefreshCw className="h-4 w-4" />
-          Réessayer
-        </Button>
-      </div>
-    );
-  }
-
-  const standings = data?.standings || [];
-
   return (
     <div className="space-y-4 pb-4">
       {/* Header */}
@@ -160,54 +209,94 @@ export default function StandingsView() {
             Classements
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {standings.length} championnat{standings.length !== 1 ? 's' : ''} · Cliquez sur une équipe
+            {standings.length} classement{standings.length !== 1 ? 's' : ''} · Cliquez sur une équipe
           </p>
         </div>
         <Button
           variant="outline"
           size="icon"
-          onClick={fetchStandings}
-          disabled={loading}
+          onClick={() => fetchStandings(activeCategory)}
+          disabled={currentLoading}
           className="h-8 w-8 rounded-lg border-border/50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${currentLoading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
 
-      {/* League tabs */}
+      {/* Category tabs */}
+      <div className="flex gap-1 bg-muted/40 rounded-xl p-1">
+        {CATEGORIES.map((cat) => {
+          const isActive = activeCategory === cat.key;
+          return (
+            <button
+              key={cat.key}
+              onClick={() => handleCategoryChange(cat.key)}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                isActive
+                  ? 'bg-green-500/15 text-green-400 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+              }`}
+            >
+              {cat.icon}
+              <span>{cat.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* League tabs (sub-tabs within category) */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {LEAGUE_TABS.map((tab) => {
-          const isActive = expandedLeagues.has(tab.code);
+        {currentTabs.map((tab) => {
+          const isExpanded = expandedLeagues.has(tab.code);
+          // Check if data is available for this tab
+          const hasData = standings.some(
+            (s) => s.leagueCode === tab.code || (tab.code === 'fifa.rankings' && s.leagueCode === 'fifa.rankings')
+          );
           return (
             <button
               key={tab.code}
               onClick={() => toggleLeague(tab.code)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                isActive
+                isExpanded
                   ? 'bg-green-500/15 text-green-400 border border-green-500/20'
                   : 'bg-muted/30 text-muted-foreground border border-border/20 hover:bg-muted/50'
               }`}
             >
               <span className="text-sm">{tab.flag}</span>
               <span>{tab.name}</span>
+              {hasData && (
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              )}
             </button>
           );
         })}
       </div>
 
       {/* Error banner */}
-      {error && data?.standings?.length && (
+      {currentData?.error && (
         <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/15 text-xs text-red-400">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-          <span>{error}</span>
+          <span>{currentData.error}</span>
+        </div>
+      )}
+
+      {/* Warnings (partial errors) */}
+      {currentData?.errors && currentData.errors.length > 0 && (
+        <div className="flex flex-col gap-1 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/15 text-xs text-amber-500">
+          {currentData.errors.map((err, idx) => (
+            <div key={idx} className="flex items-center gap-1.5">
+              <AlertCircle className="h-3 w-3 shrink-0" />
+              <span>{err}</span>
+            </div>
+          ))}
         </div>
       )}
 
       {/* Standings tables */}
       {standings
-        .filter((s) => expandedLeagues.has(LEAGUE_TABS.find((t) => t.name === s.league)?.code || ''))
+        .filter((s) => expandedLeagues.has(s.leagueCode) || expandedLeagues.size === 0)
         .map((league) => (
-          <section key={league.league} className="space-y-0">
+          <section key={`${league.leagueCode}-${league.groupName || 'all'}`} className="space-y-0">
             {/* League header */}
             <div className="flex items-center gap-2 mb-2">
               <span className="text-lg">{league.flag}</span>
@@ -220,14 +309,24 @@ export default function StandingsView() {
             {/* Table */}
             <div className="rounded-xl border border-border/30 overflow-hidden bg-card/50">
               {/* Header */}
-              <div className="grid grid-cols-[28px_1fr_32px_32px_32px_32px_40px] gap-0 px-2.5 py-2 bg-muted/30 border-b border-border/20 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+              <div className={`grid gap-0 px-2.5 py-2 bg-muted/30 border-b border-border/20 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider ${
+                isFIFARankings && league.leagueCode === 'fifa.rankings'
+                  ? 'grid-cols-[28px_1fr_60px]'
+                  : 'grid-cols-[28px_1fr_32px_32px_32px_32px_40px]'
+              }`}>
                 <span className="text-center">#</span>
                 <span>Équipe</span>
-                <span className="text-center">J</span>
-                <span className="text-center">V</span>
-                <span className="text-center">N</span>
-                <span className="text-center">D</span>
-                <span className="text-center font-bold">Pts</span>
+                {isFIFARankings && league.leagueCode === 'fifa.rankings' ? (
+                  <span className="text-center">Points</span>
+                ) : (
+                  <>
+                    <span className="text-center">J</span>
+                    <span className="text-center">V</span>
+                    <span className="text-center">N</span>
+                    <span className="text-center">D</span>
+                    <span className="text-center font-bold">Pts</span>
+                  </>
+                )}
               </div>
 
               {/* Rows */}
@@ -236,7 +335,11 @@ export default function StandingsView() {
                   <div
                     key={team.team}
                     onClick={() => handleTeamClick(team)}
-                    className={`grid grid-cols-[28px_1fr_32px_32px_32px_32px_40px] gap-0 px-2.5 py-2 items-center text-xs hover:bg-green-500/5 transition-colors cursor-pointer ${
+                    className={`grid gap-0 px-2.5 py-2 items-center text-xs hover:bg-green-500/5 transition-colors cursor-pointer ${
+                      isFIFARankings && league.leagueCode === 'fifa.rankings'
+                        ? 'grid-cols-[28px_1fr_60px]'
+                        : 'grid-cols-[28px_1fr_32px_32px_32px_32px_40px]'
+                    } ${
                       team.rank <= 3
                         ? 'bg-green-500/[0.03]'
                         : team.rank >= league.teams.length - 2
@@ -273,30 +376,38 @@ export default function StandingsView() {
                     </div>
 
                     {/* Stats */}
-                    <span className="text-center text-muted-foreground tabular-nums">{team.played}</span>
-                    <span className="text-center text-green-400/80 tabular-nums">{team.wins}</span>
-                    <span className="text-center text-muted-foreground/60 tabular-nums">{team.draws}</span>
-                    <span className="text-center text-red-400/60 tabular-nums">{team.losses}</span>
-                    <span className="text-center font-black text-foreground tabular-nums">{team.points}</span>
+                    {isFIFARankings && league.leagueCode === 'fifa.rankings' ? (
+                      <span className="text-center font-black text-foreground tabular-nums">{team.points}</span>
+                    ) : (
+                      <>
+                        <span className="text-center text-muted-foreground tabular-nums">{team.played}</span>
+                        <span className="text-center text-green-400/80 tabular-nums">{team.wins}</span>
+                        <span className="text-center text-muted-foreground/60 tabular-nums">{team.draws}</span>
+                        <span className="text-center text-red-400/60 tabular-nums">{team.losses}</span>
+                        <span className="text-center font-black text-foreground tabular-nums">{team.points}</span>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
 
               {/* Legend */}
-              <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
-                <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-green-500/40" />
-                  <span className="text-[9px] text-muted-foreground/50">Ligue des Champions</span>
+              {!isFIFARankings && (
+                <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-green-500/40" />
+                    <span className="text-[9px] text-muted-foreground/50">Ligue des Champions</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-blue-500/40" />
+                    <span className="text-[9px] text-muted-foreground/50">Europa / Conf.</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-red-500/40" />
+                    <span className="text-[9px] text-muted-foreground/50">Relégation</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-blue-500/40" />
-                  <span className="text-[9px] text-muted-foreground/50">Europa / Conf.</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-red-500/40" />
-                  <span className="text-[9px] text-muted-foreground/50">Relégation</span>
-                </div>
-              </div>
+              )}
             </div>
           </section>
         ))}
@@ -306,6 +417,23 @@ export default function StandingsView() {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Trophy className="h-10 w-10 text-muted-foreground/20 mb-3" />
           <p className="text-sm text-muted-foreground">Sélectionnez un championnat ci-dessus</p>
+        </div>
+      )}
+
+      {/* No data at all */}
+      {standings.length === 0 && !currentLoading && !currentData?.error && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <AlertCircle className="h-10 w-10 text-muted-foreground/20 mb-3" />
+          <p className="text-sm font-semibold text-muted-foreground mb-1">Aucune donnée disponible</p>
+          <p className="text-xs text-muted-foreground/60">Les données ne sont pas encore disponibles pour cette catégorie</p>
+          <Button
+            onClick={() => fetchStandings(activeCategory)}
+            size="sm"
+            className="mt-3 gap-2 bg-green-600 hover:bg-green-700 text-white"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            Réessayer
+          </Button>
         </div>
       )}
 

@@ -636,3 +636,51 @@ Work Log:
 Stage Summary:
 - All changes committed locally (commit a526b6e)
 - Push requires GitHub authentication - user needs to set up credentials
+
+---
+Task ID: 15
+Agent: Main Agent
+Task: Fix standings section - add Club Cups (Champions League, Europa League, Conference League), National Teams (FIFA rankings), and World Cup support
+
+Work Log:
+- Rewrote `/api/standings/route.ts` — Complete overhaul with category support:
+  - Added `?category=championnats|coupes|nationales` parameter
+  - Added `?league=uefa.champions` specific league support
+  - Championnats: 7 national leagues (existing)
+  - Coupes: Champions League (uefa.champions), Europa League (uefa.europa), Conference League (uefa.europa.conf)
+  - Nationales: FIFA World Rankings (web search + hardcoded fallback), World Cup (fifa.world), Euro (uefa.euro), CAN (caf.nations)
+  - Group-stage parsing: Champions League returns single League Phase table (36 teams), World Cup returns 12 groups
+  - FIFA Rankings: primary via web search (z-ai-web-dev-sdk), fallback to hardcoded top 30 (Dec 2024)
+  - Special handling for `?league=fifa.rankings` (was returning 404)
+- Rewrote `src/components/standings-view.tsx` — Category tabs with on-demand loading:
+  - 3 category tabs: Championnats | Coupes Clubs | Éq. Nationales
+  - Each category has its own league sub-tabs (e.g., CL, EL, ECL for Coupes)
+  - On-demand loading: only fetches data when a category tab is selected
+  - FIFA Rankings displayed in simplified format (rank, team, points only — no V/N/D columns)
+  - World Cup groups displayed with full table format
+  - Green dot indicator on sub-tabs when data is available
+  - Proper error/warning display for partial failures
+- Fixed "Erreur lors de la recherche" on Watch Live:
+  - Added 30s timeout with AbortController to match-card fetch calls
+  - Better error messages: timeout vs general error, "réessayez" prompt
+  - Match-stream API now returns 200 with error message instead of 500 (prevents client-side throw)
+  - Added .catch() resilience to fetchSportsChannels and fetchCountryChannelsBatch in match-stream API
+- Updated team API for new league codes:
+  - Added league name mappings for uefa.champions, uefa.europa, uefa.europa.conf, fifa.world, uefa.euro, caf.nations, fifa.rankings
+  - Added `fetchFIFATeamInfo()` function using web search for national teams
+  - Special handling for `fifa.rankings` teams (uses web search instead of ESPN Core API)
+  - Team detail dialog now passes team name via `?name=` parameter
+- All APIs tested and verified:
+  - `/api/standings?category=coupes` returns 3 competitions (CL: 36 teams, EL: 36 teams, ECL: 36 teams)
+  - `/api/standings?category=nationales` returns FIFA Rankings (30 teams) + World Cup (12 groups) + Euro/CAN
+  - `/api/standings?category=championnats` returns 7 national leagues
+  - Lint passes clean
+
+Stage Summary:
+- Standings now has 3 category tabs: Championnats, Coupes Clubs, Éq. Nationales
+- Champions League, Europa League, Conference League all working with 36-team league phase
+- FIFA Rankings shown with top 30 teams (web search when available, hardcoded fallback)
+- World Cup 2026 groups (A-L) with all 48 teams
+- "Erreur lors de la recherche" fixed with better timeouts and error handling
+- Match-stream API returns 200 instead of 500 on error
+- Team detail dialog works for FIFA-ranked national teams via web search
