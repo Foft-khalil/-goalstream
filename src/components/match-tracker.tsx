@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { X, RefreshCw, Loader2, Circle, Square, ArrowRightLeft, AlertTriangle, Eye, Tv } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
+import DynamicFootballPitch from '@/components/dynamic-football-pitch';
 
 interface MatchEvent {
   id: string;
@@ -41,110 +42,7 @@ interface MatchTrackerProps {
   };
 }
 
-// ─── Football Pitch SVG Component ──────────────────────────────────────────────
-function FootballPitch({ homeAbbr, awayAbbr, homeColor, awayColor, possession }: {
-  homeAbbr: string;
-  awayAbbr: string;
-  homeColor: string;
-  awayColor: string;
-  possession: 'home' | 'away' | null;
-}) {
-  return (
-    <div className="relative w-full max-w-sm mx-auto">
-      <svg viewBox="0 0 500 320" className="w-full h-auto rounded-xl overflow-hidden border border-border/30">
-        {/* Pitch background */}
-        <rect x="0" y="0" width="500" height="320" fill="#0f2b1a" />
-
-        {/* Grass stripes */}
-        <rect x="10" y="10" width="60" height="300" fill="#0f2b1a" opacity="0.5" />
-        <rect x="70" y="10" width="60" height="300" fill="#133a22" opacity="0.3" />
-        <rect x="130" y="10" width="60" height="300" fill="#0f2b1a" opacity="0.5" />
-        <rect x="190" y="10" width="60" height="300" fill="#133a22" opacity="0.3" />
-        <rect x="250" y="10" width="60" height="300" fill="#0f2b1a" opacity="0.5" />
-        <rect x="310" y="10" width="60" height="300" fill="#133a22" opacity="0.3" />
-        <rect x="370" y="10" width="60" height="300" fill="#0f2b1a" opacity="0.5" />
-        <rect x="430" y="10" width="60" height="300" fill="#133a22" opacity="0.3" />
-
-        {/* Pitch outline */}
-        <rect x="10" y="10" width="480" height="300" fill="none" stroke="#2d6b45" strokeWidth="2" rx="1" />
-
-        {/* Half-way line */}
-        <line x1="250" y1="10" x2="250" y2="310" stroke="#2d6b45" strokeWidth="1.5" />
-
-        {/* Center circle */}
-        <circle cx="250" cy="160" r="50" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        <circle cx="250" cy="160" r="4" fill="#2d6b45" />
-
-        {/* Left penalty area */}
-        <rect x="10" y="80" width="80" height="160" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        {/* Left goal area */}
-        <rect x="10" y="120" width="30" height="80" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        {/* Left penalty spot */}
-        <circle cx="65" cy="160" r="3" fill="#2d6b45" />
-        {/* Left penalty arc */}
-        <path d="M 90 120 Q 110 160 90 200" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        {/* Left goal */}
-        <rect x="2" y="140" width="8" height="40" fill="none" stroke="#3d8b5c" strokeWidth="2" rx="2" />
-
-        {/* Right penalty area */}
-        <rect x="410" y="80" width="80" height="160" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        {/* Right goal area */}
-        <rect x="460" y="120" width="30" height="80" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        {/* Right penalty spot */}
-        <circle cx="435" cy="160" r="3" fill="#2d6b45" />
-        {/* Right penalty arc */}
-        <path d="M 410 120 Q 390 160 410 200" fill="none" stroke="#2d6b45" strokeWidth="1.5" />
-        {/* Right goal */}
-        <rect x="490" y="140" width="8" height="40" fill="none" stroke="#3d8b5c" strokeWidth="2" rx="2" />
-
-        {/* Corner arcs */}
-        <path d="M 10 15 Q 15 10 20 10" fill="none" stroke="#2d6b45" strokeWidth="1" />
-        <path d="M 10 305 Q 15 310 20 310" fill="none" stroke="#2d6b45" strokeWidth="1" />
-        <path d="M 480 10 Q 485 10 490 15" fill="none" stroke="#2d6b45" strokeWidth="1" />
-        <path d="M 480 310 Q 485 310 490 305" fill="none" stroke="#2d6b45" strokeWidth="1" />
-
-        {/* Possession indicator — glowing ball */}
-        {possession === 'home' && (
-          <>
-            <circle cx="170" cy="160" r="7" fill="#ffffff" opacity="0.9">
-              <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite" />
-            </circle>
-            <circle cx="170" cy="160" r="7" fill="none" stroke={homeColor} strokeWidth="2" opacity="0.6">
-              <animate attributeName="r" values="8;12;8" dur="1.5s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1.5s" repeatCount="indefinite" />
-            </circle>
-          </>
-        )}
-        {possession === 'away' && (
-          <>
-            <circle cx="330" cy="160" r="7" fill="#ffffff" opacity="0.9">
-              <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite" />
-            </circle>
-            <circle cx="330" cy="160" r="7" fill="none" stroke={awayColor} strokeWidth="2" opacity="0.6">
-              <animate attributeName="r" values="8;12;8" dur="1.5s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.6;0.2;0.6" dur="1.5s" repeatCount="indefinite" />
-            </circle>
-          </>
-        )}
-
-        {/* Team labels */}
-        <text x="50" y="30" fill={homeColor} fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif" opacity="0.8">
-          {homeAbbr}
-        </text>
-        <text x="450" y="30" fill={awayColor} fontSize="11" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif" opacity="0.8">
-          {awayAbbr}
-        </text>
-
-        {/* Possession label */}
-        {possession && (
-          <text x="250" y="300" fill={possession === 'home' ? homeColor : awayColor} fontSize="9" textAnchor="middle" fontFamily="sans-serif" opacity="0.6">
-            Possession: {possession === 'home' ? homeAbbr : awayAbbr}
-          </text>
-        )}
-      </svg>
-    </div>
-  );
-}
+// ─── Football Pitch SVG Component (replaced by DynamicFootballPitch) ──────────
 
 // Event icon component
 function EventIcon({ type }: { type: MatchEvent['type'] }) {
@@ -423,14 +321,18 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
             </div>
           </div>
 
-          {/* Football Pitch Visualization */}
+          {/* Dynamic Football Pitch Visualization */}
           <div className="mt-4">
-            <FootballPitch
+            <DynamicFootballPitch
               homeAbbr={homeAbbr}
               awayAbbr={awayAbbr}
               homeColor="#ef4444"
               awayColor="#3b82f6"
               possession={possession}
+              isLive={isLive}
+              lastEventType={events.length > 0 ? events[events.length - 1].type : null}
+              matchMinute={match.minute ?? (events.length > 0 ? events[events.length - 1].minute : null)}
+              events={events.map(e => ({ type: e.type, minute: e.minute, team: e.team }))}
             />
           </div>
         </div>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { X, RefreshCw, Loader2, Circle, ArrowRightLeft, AlertTriangle, Tv, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
+import DynamicBasketballCourt from '@/components/dynamic-basketball-court';
 
 interface BasketballMatchEvent {
   id: string;
@@ -42,93 +43,6 @@ interface BasketballMatchTrackerProps {
     periodDisplay?: string | null;
     clockDisplay?: string | null;
   };
-}
-
-// ─── Basketball Court SVG Component ───────────────────────────────────────────
-function BasketballCourt({ possession, homeAbbr, awayAbbr, homeColor, awayColor }: {
-  possession: 'home' | 'away' | null;
-  homeAbbr: string;
-  awayAbbr: string;
-  homeColor: string;
-  awayColor: string;
-}) {
-  return (
-    <div className="relative w-full max-w-sm mx-auto">
-      <svg viewBox="0 0 500 300" className="w-full h-auto rounded-xl overflow-hidden border border-border/30">
-        {/* Court background */}
-        <rect x="0" y="0" width="500" height="300" fill="#1a1a2e" />
-
-        {/* Court outline */}
-        <rect x="10" y="10" width="480" height="280" fill="none" stroke="#3d3d5c" strokeWidth="2" rx="2" />
-
-        {/* Half court line */}
-        <line x1="250" y1="10" x2="250" y2="290" stroke="#3d3d5c" strokeWidth="2" />
-
-        {/* Center circle */}
-        <circle cx="250" cy="150" r="40" fill="none" stroke="#3d3d5c" strokeWidth="2" />
-        <circle cx="250" cy="150" r="4" fill="#3d3d5c" />
-
-        {/* Left key/paint */}
-        <rect x="10" y="100" width="80" height="100" fill="rgba(255,107,0,0.06)" stroke="#3d3d5c" strokeWidth="1.5" />
-        {/* Left basket circle */}
-        <circle cx="40" cy="150" r="20" fill="none" stroke="#3d3d5c" strokeWidth="1.5" />
-        <circle cx="40" cy="150" r="3" fill="#ff6b00" opacity="0.6" />
-        {/* Left free throw circle */}
-        <circle cx="90" cy="150" r="40" fill="none" stroke="#3d3d5c" strokeWidth="1" strokeDasharray="4 4" />
-        {/* Left 3-point arc */}
-        <path d="M 10 35 Q 170 35 170 150 Q 170 265 10 265" fill="none" stroke="#3d3d5c" strokeWidth="1.5" />
-
-        {/* Right key/paint */}
-        <rect x="410" y="100" width="80" height="100" fill="rgba(34,197,94,0.06)" stroke="#3d3d5c" strokeWidth="1.5" />
-        {/* Right basket circle */}
-        <circle cx="460" cy="150" r="20" fill="none" stroke="#3d3d5c" strokeWidth="1.5" />
-        <circle cx="460" cy="150" r="3" fill="#22c55e" opacity="0.6" />
-        {/* Right free throw circle */}
-        <circle cx="410" cy="150" r="40" fill="none" stroke="#3d3d5c" strokeWidth="1" strokeDasharray="4 4" />
-        {/* Right 3-point arc */}
-        <path d="M 490 35 Q 330 35 330 150 Q 330 265 490 265" fill="none" stroke="#3d3d5c" strokeWidth="1.5" />
-
-        {/* Possession indicator — glowing ball on the side with possession */}
-        {possession === 'home' && (
-          <>
-            <circle cx="180" cy="150" r="8" fill="#ff6b00" opacity="0.9">
-              <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite" />
-            </circle>
-            <circle cx="180" cy="150" r="12" fill="none" stroke="#ff6b00" strokeWidth="1" opacity="0.4">
-              <animate attributeName="r" values="10;16;10" dur="1.5s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.4;0.1;0.4" dur="1.5s" repeatCount="indefinite" />
-            </circle>
-          </>
-        )}
-        {possession === 'away' && (
-          <>
-            <circle cx="320" cy="150" r="8" fill="#22c55e" opacity="0.9">
-              <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite" />
-            </circle>
-            <circle cx="320" cy="150" r="12" fill="none" stroke="#22c55e" strokeWidth="1" opacity="0.4">
-              <animate attributeName="r" values="10;16;10" dur="1.5s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.4;0.1;0.4" dur="1.5s" repeatCount="indefinite" />
-            </circle>
-          </>
-        )}
-
-        {/* Team labels */}
-        <text x="60" y="25" fill={homeColor} fontSize="12" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
-          {homeAbbr}
-        </text>
-        <text x="440" y="25" fill={awayColor} fontSize="12" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
-          {awayAbbr}
-        </text>
-
-        {/* Possession label */}
-        {possession && (
-          <text x="250" y="285" fill={possession === 'home' ? homeColor : awayColor} fontSize="9" textAnchor="middle" fontFamily="sans-serif" opacity="0.7">
-            Possession: {possession === 'home' ? homeAbbr : awayAbbr}
-          </text>
-        )}
-      </svg>
-    </div>
-  );
 }
 
 // ─── Event icon component ─────────────────────────────────────────────────────
@@ -411,13 +325,18 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
             </div>
           </div>
 
-          {/* Basketball Court Visualization */}
-          <BasketballCourt
+          {/* Dynamic Basketball Court Visualization */}
+          <DynamicBasketballCourt
             possession={possession}
             homeAbbr={homeAbbr}
             awayAbbr={awayAbbr}
             homeColor="#ff6b00"
             awayColor="#22c55e"
+            isLive={isLive}
+            lastEventType={events.length > 0 ? events[0].type : null}
+            clockDisplay={match.clockDisplay ?? null}
+            periodDisplay={match.periodDisplay ?? null}
+            events={events.map(e => ({ type: e.type, minute: e.minute, period: e.period, team: e.team, scoringPlay: e.scoringPlay }))}
           />
         </div>
       </div>

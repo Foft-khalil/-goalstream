@@ -1,84 +1,68 @@
 ---
-Task ID: 1
-Agent: main
-Task: Fix all bugs and implement features for GoalStream
-
-Work Log:
-- Fixed DateTab type from 3 options (today/tomorrow/dayAfter) to 7 options (day0-day6)
-- Updated football API route to accept up to 7 dates (was max 3)
-- Updated basketball API route to accept up to 7 dates
-- Updated live-matches.tsx with scrollable 7-day date selector
-- Updated basketball-matches.tsx with scrollable 7-day date selector
-- Updated page.tsx initial fetch to load today first, then remaining 6 days after 5s delay
-- Updated store.ts DateTab type and default values
-- Created MatchTracker component (match-tracker.tsx) with:
-  - Real-time event timeline (goals, cards, substitutions, VAR)
-  - Auto-refresh every 15s for live matches
-  - Score banner with live clock
-  - Event icons and French labels
-  - Full-screen overlay UI
-- Added "Suivre" (Track) button to MatchCard
-- Added sport parameter to match-stream API calls from MatchCard
-- Added scrollbar-hide CSS utility for date tabs
-- Fixed standings API: increased MAX_TEAMS_PER_GROUP from 12 to 36 for league phase
-- Fixed standings API: added fifa.rankings to NATIONALES array
-- Enhanced World Cup data with 30 qualified teams and schedule milestones
-- Enhanced FIFA rankings with country flags
-
-Stage Summary:
-- 7-day match schedule working (tested: 33 matches across 7 days)
-- Live Match Tracker created with real-time events display
-- Standings Coupes Clubs now shows 36 teams in league phase
-- Standings Éq. Nationales now shows FIFA rankings and World Cup info
-- All API endpoints tested and working
-
----
 Task ID: 2
-Agent: main
-Task: Fix two priority issues: (1) "Regarder en direct" button visibility, (2) Match results/history for finished matches
+Agent: full-stack-developer
+Task: Create DynamicFootballPitch component
 
 Work Log:
-- Fixed match-card.tsx: "Regarder" button now only shows for live matches or matches about to start (within 30 min of kickoff)
-- Fixed match-card.tsx: Finished matches now show actual final score instead of "VS" placeholder
-- Fixed match-card.tsx: Added "Terminé" badge in top row for finished matches
-- Fixed match-card.tsx: For finished matches, primary action button is "Voir le résumé" (opens MatchTracker)
-- Fixed match-card.tsx: For upcoming matches not yet close to kickoff, primary action is "Suivre le match" (sets reminder via tracker)
-- Fixed match-card.tsx: TV channel picker button only shows when canWatchLive is true
-- Fixed match-tracker.tsx: "Regarder en direct" button now only shows for live or about-to-start matches
-- Fixed match-tracker.tsx: Implemented working onClick handler that calls /api/match-stream, opens player, and closes tracker
-- Fixed match-tracker.tsx: Added "Résumé du match" info box for finished matches
-- Fixed match-events/route.ts: Fixed TypeScript error on line 171 (participants type using NonNullable utility type)
-- Fixed match-events/route.ts: Same fix applied to extractAssistPlayer and extractSubstitution functions
+- Examined existing FootballPitch component in match-tracker.tsx (lines 45-148)
+- Analyzed SVG structure: viewBox 0 0 500 320, grass stripes, pitch outline, penalty areas, goals, corner arcs
+- Created /home/z/my-project/src/components/dynamic-football-pitch.tsx with all required features:
+  - Ball Position Tracking: Ball moves based on event types (goal→goal area, cards→midfield, substitution→sideline, period_start/end→center, default→drifting midfield)
+  - Ball CSS transition: 1.5s cubic-bezier smooth movement
+  - Ball pulsing glow animation during live matches via CSS keyframes
+  - Player Formations: 4-3-3 for both teams (11 players each), home on left (red/warm), away on right (blue/cool)
+  - Player parallax effect: dots subtly shift toward ball position
+  - Player breathing animation: subtle idle animation with staggered delays
+  - Action Markers: Goal expanding ring + ⚽ emoji, yellow/red card flash, VAR purple pulse
+  - Action markers auto-remove after 5 seconds
+  - Possession Zone: gradient overlay on home/away half based on possession, with 2s ease transition
+  - Real-time Clock: Match minute displayed in center circle in green text
+- Updated match-tracker.tsx:
+  - Added import for DynamicFootballPitch
+  - Replaced static FootballPitch with DynamicFootballPitch, passing isLive, lastEventType, matchMinute, events props
+  - Removed unused static FootballPitch function (comment replaced)
+- Lint passed with zero errors
+- Dev server running without compilation errors
 
 Stage Summary:
-- "Regarder en direct" button only visible when match is live or within 30 min of kickoff
-- Finished matches display final score (e.g., "2 - 1") instead of "VS"
-- Finished matches show "Terminé" badge and "Voir le résumé" button
-- Match Tracker "Regarder" button now functional (calls match-stream API, opens video player)
-- TypeScript errors in match-events route fixed
+- DynamicFootballPitch component created with all 5 required dynamic features
+- Ball moves smoothly based on events with CSS transitions and drifts around midfield during live matches
+- Player dots in 4-3-3 formation shift toward ball position (parallax effect)
+- Action markers animate for goals (expanding rings + emoji), cards (colored flash), VAR (purple pulse)
+- Possession zone gradient overlays animate based on which team has the ball
+- Match minute displayed in center circle
+- All SVG pitch markings preserved identically from original component
+- Component is fully self-contained with no external dependencies beyond React
 
 ---
-Task ID: 3
+Task ID: 3-5
 Agent: main
-Task: Add Live Match Tracker for basketball + court/pitch visualizations for both sports
+Task: Create DynamicBasketballCourt and integrate both dynamic terrains
 
 Work Log:
-- Created /api/basketball-events/route.ts: Full basketball match events API using ESPN basketball summary endpoint
-- Basketball events API supports: field_goal, three_pointer, free_throw, rebound, assist, turnover, foul, technical_foul, flagrant_foul, ejection, timeout, substitution, jump_ball, review, period_start, period_end
-- Basketball events API includes possession detection from ESPN drives/commentary data
-- Basketball events API uses basketball cache (15s TTL for live, 5min otherwise)
-- Created basketball-match-tracker.tsx: Full-screen overlay with basketball court SVG visualization, score banner, event timeline, and watch live button
-- Basketball court SVG includes: full court markings (3-point arcs, paint, free throw circles, center circle), possession indicator (animated glowing ball), team abbreviations
-- Basketball tracker uses orange theme (matching live match color scheme)
-- Basketball tracker has French labels for all event types (Panier, 3 points, Lancé franc, Rebond, Passe décisive, Ball perdu, Faute, etc.)
-- Added FootballPitch SVG component to match-tracker.tsx with: green pitch with grass stripes, penalty areas, goal areas, center circle, corner arcs, goals, possession indicator (animated ball)
-- Football pitch uses possession state derived from latest event's team
-- Updated basketball-match-card.tsx: Added "Suivre" tracker button, "Voir le résumé" for finished matches, final score display, "Terminé" badge, conditional watch button (same as football match card)
-- Both court/pitch visualizations show possession with animated glowing ball and label
+- Created /home/z/my-project/src/components/dynamic-basketball-court.tsx with all dynamic features:
+  - Ball Position Tracking: Ball moves based on event types (field_goal→near basket, three_pointer→beyond arc, free_throw→FT line, foul→midcourt/key, rebound→under basket, timeout→sideline, turnover→midcourt)
+  - Orange basketball ball with cross-texture lines and CSS transitions (1.2s cubic-bezier)
+  - Ball pulsing glow animation during live matches
+  - Player Formations: 5-on-5 for both teams (PG, SG, SF, PF, C), home on left (orange), away on right (green)
+  - Player parallax effect: dots shift toward ball position
+  - Player breathing animation with staggered delays
+  - Action Markers: Field goal expanding ring + 🏀, 3-pointer green ring + 3️⃣, free throw FT marker, foul/technical/flagrant pulse indicators, timeout marker
+  - Action markers auto-remove after 5 seconds
+  - Possession Zone: gradient overlay on home/away half based on possession
+  - Real-time Clock: Clock display + period (Q1-Q4, OT) in center circle
+- Updated basketball-match-tracker.tsx:
+  - Added import for DynamicBasketballCourt
+  - Replaced static BasketballCourt with DynamicBasketballCourt, passing isLive, lastEventType, clockDisplay, periodDisplay, events props
+  - Removed the entire static BasketballCourt component function
+- Verified match-tracker.tsx already uses DynamicFootballPitch (done by subagent)
+- Lint passed with zero errors
+- Dev server running without compilation errors
 
 Stage Summary:
-- Basketball Live Match Tracker fully functional with court visualization
-- Football Match Tracker enhanced with pitch visualization and possession indicator
-- Basketball match card updated with same UX improvements as football (conditional buttons, finished score display, tracker integration)
-- Basketball events API working (tested with WNBA live match)
-- All lint checks pass, dev server running without errors
+- Both football and basketball match trackers now have fully dynamic, interactive pitch/court visualizations
+- Football: 4-3-3 formation with 11 player dots per team, ball tracking, goal/card/VAR markers, possession gradient
+- Basketball: 5-on-5 formation with 5 player dots per team, ball tracking, basket/3PT/foul markers, possession gradient
+- Ball positions are derived from match events and animate smoothly with CSS transitions
+- During live matches, ball drifts around midfield/midcourt when no recent events
+- All animations use CSS keyframes for smooth, performant rendering
