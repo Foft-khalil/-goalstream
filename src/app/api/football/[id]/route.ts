@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+// z-ai-web-dev-sdk is loaded dynamically to reduce initial compilation memory
 import { db } from '@/lib/db';
 import { getCached, getCachedStale, setCache, getCacheAge } from '@/lib/football/cache';
 import type { MatchDetail, MatchDetailResponse, MatchEvent, MatchStat } from '@/lib/football/types';
@@ -158,6 +158,7 @@ export async function GET(
 
     // Search for detailed match info using z-ai-web-dev-sdk
     console.log(`[Football Detail API] Fetching details for ${homeTeam} vs ${awayTeam}...`);
+    const ZAI = (await import('z-ai-web-dev-sdk')).default;
     const zai = await ZAI.create();
 
     const searchQuery = `${homeTeam} vs ${awayTeam} live score match details lineup events`;

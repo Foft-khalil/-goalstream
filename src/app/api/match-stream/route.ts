@@ -1,7 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchSportsChannels, fetchCountryChannelsBatch, checkStreamsBatch, isSportsChannel, isLocalAffiliate } from '@/lib/iptv';
+import { db } from '@/lib/db';
 import { getChannelHealth, setChannelHealthBatch } from '@/lib/channel-health';
-import ZAI from 'z-ai-web-dev-sdk';
+// z-ai-web-dev-sdk is loaded dynamically to reduce initial compilation memory
+
+// ─── Inline helpers (replaces @/lib/iptv imports to reduce memory) ──────────
+
+function isSportsChannel(ch: { name: string; group: string }): boolean {
+  const n = ch.name.toLowerCase();
+  const g = (ch.group || '').toLowerCase();
+  const kws = ['sport','espn','bein','dazn','canal+','c+ sport','c+ foot','fox sport','sky sport',
+    'golazo','arena','setanta','supersport','rmc sport',"l'equipe",'equipe','football','soccer',
+    'futbol','basket','nba','nfl','mlb','nhl','golf','tennis','fifa','liga','premier','champion',
+    'cup','olympic','cbs sports','cbs golazo','nbc sports'];
+  return kws.some(kw => n.includes(kw) || g.includes(kw));
+}
+
+function isLocalAffiliate(name: string): boolean {
+  const n = name.toLowerCase();
+  if (/\b(cbs|abc|nbc|fox|cw)\s+\d+/i.test(name)) return true;
+  if (/\b(cbs|abc|nbc|fox|cw)\s+news\b/i.test(name)) return true;
+  return false;
+}
+
+async function checkStreamsBatchLight(urls: string[], concurrency: number = 4, timeoutMs: number = 4000): Promise<Map<string, boolean>> {
+  const results = new Map<string, boolean>();
+  for (let i = 0; i < urls.length; i += concurrency) {
+    const batch = urls.slice(i, i + concurrency);
+    const batchResults = await Promise.allSettled(batch.map(async (url) => {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), timeoutMs);
+        const isHls = url.includes('.m3u8') || url.includes('m3u8');
+        const res = await fetch(url, {
+          method: isHls ? 'GET' : 'HEAD',
+          signal: ctrl.signal,
+          headers: isHls ? { 'Range': 'bytes=0-1' } : {},
+          redirect: 'follow',
+        });
+        clearTimeout(t);
+        return { url, healthy: res.ok || res.status === 206 || res.status === 302 };
+      } catch { return { url, healthy: false }; }
+    }));
+    for (const r of batchResults) {
+      if (r.status === 'fulfilled') results.set(r.value.url, r.value.healthy);
+      else results.set(batch[batchResults.indexOf(r)], false);
+    }
+  }
+  return results;
+}
 
 /**
  * POST /api/match-stream - Find the best IPTV channel for a given match.
@@ -314,6 +360,7 @@ async function findBroadcasterViaSearch(
   sport: string = 'football'
 ): Promise<string[]> {
   try {
+    const ZAI = (await import('z-ai-web-dev-sdk')).default;
     const sdk = await ZAI.create();
     const sportLabel = sport === 'basketball' ? 'basketball' : 'football';
 
@@ -476,42 +523,34 @@ export async function POST(request: NextRequest) {
     // ─── Step 1: Determine team countries ────────────────────────────────────
     const teamCountries = getCountryForTeams(homeTeam, awayTeam);
 
-    // ─── Step 2: Fetch channels from multiple sources in parallel ────────────
-    let baseChannels: Awaited<ReturnType<typeof fetchSportsChannels>> = [];
-    let countryChannels: Awaited<ReturnType<typeof fetchCountryChannelsBatch>> = [];
+    // ─── Step 2: Fetch channels from database ────────────────────────────────────
+    // Use Prisma to read channels from the database (much more memory-efficient than live IPTV fetching)
+    interface DbChannel {
+      name: string;
+      url: string;
+      logo: string;
+      group: string;
+      country: string;
+      source: string;
+    }
 
+    let allChannels: DbChannel[] = [];
     try {
-      [baseChannels, countryChannels] = await Promise.all([
-        fetchSportsChannels().catch((err) => {
-          console.warn('[Match Stream API] Failed to fetch base channels:', err);
-          return [] as Awaited<ReturnType<typeof fetchSportsChannels>>;
-        }),
-        fetchCountryChannelsBatch(teamCountries).catch((err) => {
-          console.warn('[Match Stream API] Failed to fetch country channels:', err);
-          return [] as Awaited<ReturnType<typeof fetchCountryChannelsBatch>>;
-        }),
-      ]);
+      const dbChannels = await db.channel.findMany({
+        where: { isActive: true },
+        select: { name: true, url: true, logo: true, group: true, country: true, source: true },
+        take: 2000, // Limit to reduce memory
+      });
+      allChannels = dbChannels.map(ch => ({
+        name: ch.name,
+        url: ch.url,
+        logo: ch.logo || '',
+        group: ch.group || '',
+        country: ch.country || '',
+        source: ch.source || '',
+      }));
     } catch (err) {
-      console.warn('[Match Stream API] Channel fetch error:', err);
-    }
-
-    // Merge base channels + country-specific channels, deduplicate
-    const seenUrls = new Set<string>();
-    const allChannels: typeof baseChannels = [];
-
-    // Country channels first (higher priority for this match)
-    for (const ch of countryChannels) {
-      if (!seenUrls.has(ch.url)) {
-        seenUrls.add(ch.url);
-        allChannels.push(ch);
-      }
-    }
-    // Then base channels
-    for (const ch of baseChannels) {
-      if (!seenUrls.has(ch.url)) {
-        seenUrls.add(ch.url);
-        allChannels.push(ch);
-      }
+      console.warn('[Match Stream API] Database channel fetch error:', err);
     }
 
     if (allChannels.length === 0) {
@@ -614,7 +653,9 @@ export async function POST(request: NextRequest) {
       if (nameLower.includes('canal') && !nameLower.includes('canal+') && !nameLower.includes('c+') && !nameLower.includes('canal plus') && !nameLower.includes('canal sport') && !nameLower.includes('canal foot') && !nameLower.includes('canal liga')) {
         // Don't match generic "canal" keyword for non-Canal+ channels
         // Also reject pattern "Canal <number>" (Canal 6, Canal 7, Canal 10, Canal 13, Canal 26, etc.)
-        if (/\bcanal\s+\d+/i.test(ch.name)) continue;
+        if (/\bcanal\s+\d+/i.test(ch.name)) {
+          return { name: ch.name, url: ch.url, logo: ch.logo, group: ch.group, country: ch.country, relevance: 0, health: getChannelHealth(ch.url) };
+        }
       }
 
       let score = 0;
@@ -745,7 +786,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Add country-specific sports channels as additional fallback
-    const countrySportsChannels = countryChannels
+    const countrySportsChannels = allChannels
+      .filter(ch => {
+        const channelSource = (ch.source || '').toLowerCase();
+        return teamCountries.some(tc => channelSource.includes(tc));
+      })
       .filter(ch => isSportsChannel(ch) && !isLocalAffiliate(ch.name))
       .filter(ch => !seenResultUrls.has(ch.url));
 
@@ -772,7 +817,7 @@ export async function POST(request: NextRequest) {
       try {
         // Race health checks against a 6s timeout
         const healthResults = await Promise.race([
-          checkStreamsBatch(urlsToCheck, 4, 4000),
+          checkStreamsBatchLight(urlsToCheck, 4, 4000),
           new Promise<Map<string, boolean>>(resolve => setTimeout(() => resolve(new Map()), 6000)),
         ]);
 

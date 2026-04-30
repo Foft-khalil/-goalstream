@@ -279,10 +279,15 @@ export default function Home() {
   const { isOnline } = usePWA();
 
   useEffect(() => {
-    fetchChannels();
+    // Only fetch data for the current view to reduce memory pressure
     fetchFootballMatches();
-    fetchBasketballMatches();
-  }, [fetchChannels, fetchFootballMatches, fetchBasketballMatches]);
+  }, [fetchFootballMatches]);
+
+  // Fetch secondary data when user navigates to those views
+  useEffect(() => {
+    if (currentView === 'channels') fetchChannels();
+    if (currentView === 'basketball') fetchBasketballMatches();
+  }, [currentView, fetchChannels, fetchBasketballMatches]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

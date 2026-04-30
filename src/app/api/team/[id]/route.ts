@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCached, getCachedStale, setCache, getCacheAge } from '@/lib/football/cache';
-import ZAI from 'z-ai-web-dev-sdk';
+// z-ai-web-dev-sdk is loaded dynamically to reduce initial compilation memory
 
 const CACHE_PREFIX = 'team-detail';
 
@@ -230,6 +230,7 @@ async function fetchTeamInfo(
     // Run this in parallel with roster fetching below
     const coachPromise = (async (): Promise<string | null> => {
       try {
+        const ZAI = (await import('z-ai-web-dev-sdk')).default;
         const sdk = await ZAI.create();
         const results = await sdk.functions.invoke('web_search', {
           query: `${info.name} current coach manager 2025-2026`,
@@ -565,6 +566,7 @@ async function fetchFIFATeamInfo(teamName: string, teamId?: string): Promise<Tea
 
     // Use web search for coach info (supplement ESPN data)
     try {
+      const ZAI = (await import('z-ai-web-dev-sdk')).default;
       const sdk = await ZAI.create();
       const results = await sdk.functions.invoke('web_search', {
         query: `${teamName} national football team coach manager stadium 2025`,

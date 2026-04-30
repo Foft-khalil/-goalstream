@@ -120,12 +120,36 @@ export default function StandingsView() {
   } | null>(null);
 
   // Fetch standings for a category on demand
+  // For memory efficiency, fetch one league at a time instead of the whole category
   const fetchStandings = useCallback(async (category: Category) => {
     setLoading((prev) => ({ ...prev, [category]: true }));
     try {
-      const res = await fetch(`/api/standings?category=${category}`);
-      if (!res.ok) throw new Error('Échec du chargement');
-      const json: StandingsData = await res.json();
+      const leagues = LEAGUE_TABS[category];
+      const allStandings: LeagueStanding[] = [];
+      const allErrors: string[] = [];
+      
+      // Fetch each league individually to avoid OOM
+      for (const league of leagues) {
+        try {
+          const res = await fetch(`/api/standings?league=${league.code}`);
+          if (!res.ok) throw new Error('Échec du chargement');
+          const json: StandingsData = await res.json();
+          if (json.standings.length > 0) {
+            allStandings.push(...json.standings);
+          }
+          if (json.errors) allErrors.push(...json.errors);
+        } catch {
+          // Continue with other leagues even if one fails
+        }
+      }
+      
+      const json: StandingsData = {
+        standings: allStandings,
+        category,
+        lastUpdated: new Date().toISOString(),
+        errors: allErrors.length > 0 ? allErrors : undefined,
+        errorCount: allErrors.length > 0 ? allErrors.length : undefined,
+      };
       setData((prev) => ({ ...prev, [category]: json }));
     } catch (err: any) {
       setData((prev) => ({
@@ -142,12 +166,17 @@ export default function StandingsView() {
     }
   }, []);
 
-  // Fetch all categories on mount (in parallel)
+  // Fetch only the current category on mount (sequential to avoid OOM)
   useEffect(() => {
     fetchStandings('championnats');
-    fetchStandings('coupes');
-    fetchStandings('nationales');
   }, [fetchStandings]);
+
+  // Fetch other categories on demand when tab is selected
+  useEffect(() => {
+    if (activeCategory !== 'championnats' && !data[activeCategory] && !loading[activeCategory]) {
+      fetchStandings(activeCategory);
+    }
+  }, [activeCategory, data, loading, fetchStandings]);
 
   // Handle category tab change
   const handleCategoryChange = (category: Category) => {

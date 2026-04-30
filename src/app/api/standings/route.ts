@@ -83,13 +83,15 @@ async function fetchStandingsForLeague(code: string) {
   const url = `https://site.web.api.espn.com/apis/v2/sports/soccer/${code}/standings`;
   const res = await fetch(url, {
     headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
 // ─── Parse standings data ────────────────────────────────────────────────────
+
+const MAX_TEAMS_PER_GROUP = 24; // Limit teams to reduce memory
 
 function parseStandings(data: any, leagueName: string, leagueFlag: string, code: string): ParsedStanding[] {
   try {
@@ -99,8 +101,6 @@ function parseStandings(data: any, leagueName: string, leagueFlag: string, code:
       return [];
     }
 
-    // Check if this is a group-stage format (like Champions League with groups A-H)
-    // In group-stage, each child is a group with its own standings
     const results: ParsedStanding[] = [];
 
     for (const child of children) {
@@ -109,7 +109,7 @@ function parseStandings(data: any, leagueName: string, leagueFlag: string, code:
       const entries: StandingEntry[] = child.standings.entries;
       const groupName = child.name || leagueName;
 
-      const teams: ParsedTeam[] = entries.map((entry) => {
+      const teams: ParsedTeam[] = entries.slice(0, MAX_TEAMS_PER_GROUP).map((entry) => {
         const statMap: Record<string, string | number> = {};
         for (const stat of entry.stats) {
           statMap[stat.name] = stat.value;
@@ -160,92 +160,9 @@ function parseStandings(data: any, leagueName: string, leagueFlag: string, code:
   }
 }
 
-// ─── FIFA Rankings (via web search) ──────────────────────────────────────────
+// ─── FIFA Rankings (fallback only — web search removed to save memory) ──────
 
-async function fetchFIFARankings(): Promise<ParsedStanding | null> {
-  try {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const sdk = await ZAI.create();
-
-    const results = await sdk.functions.invoke('web_search', {
-      query: 'FIFA world ranking 2025 top 50 teams ranking points',
-      num: 5,
-      recency_days: 30,
-    });
-
-    if (!results || results.length === 0) {
-      return getFIFARankingsFallback();
-    }
-
-    const snippets = results.map((r: any) => r.snippet).join('\n');
-
-    const chatResponse = await sdk.chat.completions.create({
-      messages: [
-        {
-          role: 'system',
-          content: `You are a sports data expert. From the search results, extract the FIFA World Ranking top 30 teams. Return ONLY a JSON array with objects having: rank (number), team (string), points (number). Example: [{"rank":1,"team":"Argentina","points":1865},{...}]. If you cannot extract at least 10 teams, return an empty array [].`,
-        },
-        {
-          role: 'user',
-          content: `Search results:\n${snippets}`,
-        },
-      ],
-    });
-
-    const content = chatResponse?.choices?.[0]?.message?.content?.trim();
-    if (!content) return getFIFARankingsFallback();
-
-    // Try to parse JSON from the response
-    let rankings: Array<{ rank: number; team: string; points: number }>;
-    try {
-      // Find JSON array in the response
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) return getFIFARankingsFallback();
-      rankings = JSON.parse(jsonMatch[0]);
-    } catch {
-      return getFIFARankingsFallback();
-    }
-
-    if (!rankings || rankings.length === 0) return getFIFARankingsFallback();
-
-    const teams: ParsedTeam[] = rankings.slice(0, 30).map((r) => ({
-      teamId: `fifa_${r.rank}`,
-      leagueCode: 'fifa.rankings',
-      rank: r.rank,
-      team: r.team,
-      shortName: r.team.slice(0, 3).toUpperCase(),
-      logo: null,
-      played: 0,
-      wins: 0,
-      draws: 0,
-      losses: 0,
-      goalsFor: 0,
-      goalsAgainst: 0,
-      goalDiff: 0,
-      points: r.points,
-      note: r.rank <= 10 ? 'Top 10' : null,
-      noteColor: r.rank <= 10 ? '81d6ac' : null,
-    }));
-
-    return {
-      league: 'Classement FIFA',
-      flag: '🌍',
-      season: 'Classement mondial FIFA',
-      leagueCode: 'fifa.rankings',
-      teams,
-      isGroup: false,
-    };
-  } catch (err) {
-    console.warn('[Standings API] FIFA rankings fetch failed:', err);
-    return getFIFARankingsFallback();
-  }
-}
-
-/**
- * Hardcoded fallback for FIFA World Rankings (updated December 2024).
- * Used when web search is unavailable.
- */
-function getFIFARankingsFallback(): ParsedStanding {
+function getFIFARankings(): ParsedStanding {
   const rankings = [
     { rank: 1, team: 'Argentina', points: 1865 },
     { rank: 2, team: 'France', points: 1850 },
@@ -332,7 +249,7 @@ export async function GET(request: Request) {
     let includeFIFARankings = false;
 
     if (league === 'fifa.rankings') {
-      // Special case: FIFA rankings is not an ESPN league, fetch via web search
+      // Special case: FIFA rankings is not an ESPN league
       includeFIFARankings = true;
       leaguesToFetch = [];
     } else if (league) {
@@ -362,38 +279,29 @@ export async function GET(request: Request) {
       }
     }
 
-    // Fetch all leagues in parallel
-    const results = await Promise.allSettled(
-      leaguesToFetch.map(async (l) => {
-        const data = await fetchStandingsForLeague(l.code);
-        return { league: l, parsed: parseStandings(data, l.name, l.flag, l.code) };
-      })
-    );
-
     const standings: ParsedStanding[] = [];
     const errors: string[] = [];
 
-    for (const result of results) {
-      if (result.status === 'fulfilled' && result.value.parsed.length > 0) {
-        standings.push(...result.value.parsed);
-      } else if (result.status === 'rejected') {
-        const leagueInfo = leaguesToFetch[results.indexOf(result)];
-        errors.push(`${leagueInfo?.name || 'Unknown'}: ${result.reason?.message || 'Failed'}`);
-      } else if (result.status === 'fulfilled' && result.value.parsed.length === 0) {
-        // League returned empty data (e.g., off-season)
-        const leagueInfo = result.value.league;
-        errors.push(`${leagueInfo.name}: Pas de données disponibles`);
+    // Fetch leagues SEQUENTIALLY to avoid OOM (instead of Promise.allSettled)
+    for (const l of leaguesToFetch) {
+      try {
+        const data = await fetchStandingsForLeague(l.code);
+        const parsed = parseStandings(data, l.name, l.flag, l.code);
+        if (parsed.length > 0) {
+          standings.push(...parsed);
+        } else {
+          errors.push(`${l.name}: Pas de données disponibles`);
+        }
+      } catch (err: any) {
+        errors.push(`${l.name}: ${err.message || 'Failed'}`);
       }
     }
 
-    // Fetch FIFA Rankings for national teams category
+    // Include FIFA Rankings for national teams category
     if (includeFIFARankings) {
-      const fifaData = await fetchFIFARankings();
-      if (fifaData) {
-        standings.unshift(fifaData); // Put FIFA rankings first
-      } else {
-        errors.push('Classement FIFA: Données non disponibles');
-      }
+      // Use fallback data directly (web search removed to save memory)
+      const fifaData = getFIFARankings();
+      standings.unshift(fifaData);
     }
 
     const response: Record<string, any> = {
