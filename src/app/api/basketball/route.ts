@@ -261,7 +261,7 @@ export async function GET(request: NextRequest) {
 
     let dates: string[];
     if (datesParam) {
-      dates = datesParam.split(',').filter(Boolean);
+      dates = datesParam.split(',').filter(Boolean).slice(0, 7); // Max 7 dates (full week)
     } else if (dateParam) {
       dates = [dateParam];
     } else {
@@ -272,7 +272,7 @@ export async function GET(request: NextRequest) {
     // Cache key based on dates
     const cacheKey = dates.length === 1
       ? `basketball-matches-${dates[0]}`
-      : `basketball-matches-3day`;
+      : `basketball-matches-${dates.length}day`;
 
     // Check cache first — use shorter TTL if there are live matches
     const cachedPrev = getCachedStale<BasketballMatchesResponse>(cacheKey);

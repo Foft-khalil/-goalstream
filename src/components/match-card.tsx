@@ -2,11 +2,12 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Play, Tv, Clock, Loader2, Radio, ChevronRight, Heart } from 'lucide-react';
+import { Play, Tv, Clock, Loader2, Radio, ChevronRight, Heart, Activity } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useState } from 'react';
 import LiveMatchClock from '@/components/live-match-clock';
+import MatchTracker from '@/components/match-tracker';
 
 interface MatchCardProps {
   match: {
@@ -50,6 +51,7 @@ export default function MatchCard({ match }: MatchCardProps) {
   const [showChannels, setShowChannels] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [broadcasterInfo, setBroadcasterInfo] = useState<string | null>(null);
+  const [showTracker, setShowTracker] = useState(false);
 
   const isLive = match.status === 'live';
   const matchDate = match.matchDate ? new Date(match.matchDate) : null;
@@ -87,6 +89,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           awayTeam: match.awayTeam,
           competition: match.competition,
           matchDate: match.matchDate,
+          sport: match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') || match.competition?.toLowerCase().includes('euroleague') ? 'basketball' : 'football',
         }),
         signal: controller.signal,
       });
@@ -151,6 +154,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           awayTeam: match.awayTeam,
           competition: match.competition,
           matchDate: match.matchDate,
+          sport: match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') || match.competition?.toLowerCase().includes('euroleague') ? 'basketball' : 'football',
         }),
         signal: controller.signal,
       });
@@ -291,7 +295,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           </div>
         </div>
 
-        {/* Watch buttons */}
+        {/* Watch buttons + Match Tracker */}
         <div className="mt-3 pt-2.5 border-t border-border/20 flex gap-2">
           <Button
             size="sm"
@@ -299,9 +303,9 @@ export default function MatchCard({ match }: MatchCardProps) {
             disabled={findingStream}
             className={`flex-1 h-8 gap-2 text-xs font-semibold rounded-lg transition-all ${
               isLive
-                ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-600/20'
-                : 'bg-green-600 hover:bg-green-700 text-white shadow-sm shadow-green-600/20'
-            }`}
+                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-600/20'
+                  : 'bg-green-600 hover:bg-green-700 text-white shadow-sm shadow-green-600/20'
+              }`}
           >
             {findingStream ? (
               <>
@@ -311,7 +315,7 @@ export default function MatchCard({ match }: MatchCardProps) {
             ) : isLive ? (
               <>
                 <Radio className="h-3.5 w-3.5 fill-current" />
-                Regarder en direct
+                Regarder
               </>
             ) : (
               <>
@@ -319,6 +323,16 @@ export default function MatchCard({ match }: MatchCardProps) {
                 Regarder
               </>
             )}
+          </Button>
+          {/* Match Tracker button */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowTracker(true)}
+            className="h-8 px-3 rounded-lg border-border/40 text-xs gap-1"
+          >
+            <Activity className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Suivre</span>
           </Button>
           <Button
             size="sm"
@@ -415,6 +429,13 @@ export default function MatchCard({ match }: MatchCardProps) {
           </div>
         </div>
       )}
+
+      {/* Match Tracker Overlay */}
+      <MatchTracker
+        isOpen={showTracker}
+        onClose={() => setShowTracker(false)}
+        match={match}
+      />
     </div>
   );
 }

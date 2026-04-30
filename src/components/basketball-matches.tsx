@@ -16,9 +16,9 @@ function formatDateYMD(date: Date): string {
 
 /** Get the YYYYMMDD for a given DateTab relative to today */
 function getDateForTab(tab: DateTab): string {
+  const offset = parseInt(tab.replace('day', ''), 10);
   const now = new Date();
-  const offsets: Record<DateTab, number> = { today: 0, tomorrow: 1, dayAfter: 2 };
-  const target = new Date(now.getTime() + offsets[tab] * 24 * 60 * 60 * 1000);
+  const target = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
   return formatDateYMD(target);
 }
 
@@ -32,6 +32,9 @@ function isMatchOnDate(matchDate: string | null, ymd: string): boolean {
     return false;
   }
 }
+
+/** All 7 date tabs */
+const ALL_DATE_TABS: DateTab[] = ['day0', 'day1', 'day2', 'day3', 'day4', 'day5', 'day6'];
 
 export default function BasketballMatches() {
   const {
@@ -47,6 +50,7 @@ export default function BasketballMatches() {
 
   const [countdown, setCountdown] = useState(60);
   const lastUpdatedRef = useRef<string | null>(null);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchBasketballMatches();
@@ -81,22 +85,30 @@ export default function BasketballMatches() {
     setCountdown(60);
   }, [fetchBasketballMatches]);
 
-  // Compute date keys for tabs
-  const todayKey = useMemo(() => getDateForTab('today'), []);
-  const tomorrowKey = useMemo(() => getDateForTab('tomorrow'), []);
-  const dayAfterKey = useMemo(() => getDateForTab('dayAfter'), []);
+  // Compute date keys for all 7 tabs
+  const dateKeys = useMemo(() => {
+    const keys: Record<DateTab, string> = {} as any;
+    for (const tab of ALL_DATE_TABS) {
+      keys[tab] = getDateForTab(tab);
+    }
+    return keys;
+  }, []);
 
   // Filter matches by selected date tab
-  const dateKey = selectedBasketballDate === 'today' ? todayKey : selectedBasketballDate === 'tomorrow' ? tomorrowKey : dayAfterKey;
+  const dateKey = dateKeys[selectedBasketballDate];
   const filteredMatches = useMemo(
     () => basketballMatches.filter((m) => isMatchOnDate(m.matchDate, dateKey)),
     [basketballMatches, dateKey]
   );
 
   // Count per tab
-  const todayCount = useMemo(() => basketballMatches.filter((m) => isMatchOnDate(m.matchDate, todayKey)).length, [basketballMatches, todayKey]);
-  const tomorrowCount = useMemo(() => basketballMatches.filter((m) => isMatchOnDate(m.matchDate, tomorrowKey)).length, [basketballMatches, tomorrowKey]);
-  const dayAfterCount = useMemo(() => basketballMatches.filter((m) => isMatchOnDate(m.matchDate, dayAfterKey)).length, [basketballMatches, dayAfterKey]);
+  const tabCounts = useMemo(() => {
+    const counts: Record<DateTab, number> = {} as any;
+    for (const tab of ALL_DATE_TABS) {
+      counts[tab] = basketballMatches.filter((m) => isMatchOnDate(m.matchDate, dateKeys[tab])).length;
+    }
+    return counts;
+  }, [basketballMatches, dateKeys]);
 
   const liveMatches = filteredMatches.filter((m) => m.status === 'live');
   const upcomingMatches = filteredMatches.filter((m) => m.status === 'upcoming');
@@ -121,22 +133,47 @@ export default function BasketballMatches() {
   const countdownStr = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`;
 
   // Tab labels with day info
-  const tomorrowDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
-  }, []);
-  const dayAfterDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 2);
-    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
-  }, []);
+  const dateTabs = useMemo(() => {
+    return ALL_DATE_TABS.map((tab, idx) => {
+      const d = new Date();
+      d.setDate(d.getDate() + idx);
+      const dayLabel = idx === 0
+        ? "Aujourd'hui"
+        : idx === 1
+          ? 'Demain'
+          : d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+      const sublabel = idx === 0
+        ? ''
+        : d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+      return {
+        key: tab,
+        label: dayLabel,
+        sublabel,
+        count: tabCounts[tab] || 0,
+        dateObj: d,
+      };
+    });
+  }, [tabCounts]);
 
-  const dateTabs: { key: DateTab; label: string; sublabel: string; count: number }[] = [
-    { key: 'today', label: "Aujourd'hui", sublabel: '', count: todayCount },
-    { key: 'tomorrow', label: 'Demain', sublabel: tomorrowDate, count: tomorrowCount },
-    { key: 'dayAfter', label: 'Après-demain', sublabel: dayAfterDate, count: dayAfterCount },
-  ];
+  // Auto-scroll to active tab
+  useEffect(() => {
+    if (tabScrollRef.current) {
+      const activeBtn = tabScrollRef.current.querySelector('[data-active="true"]');
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  }, [selectedBasketballDate]);
+
+  // Get the formatted date for the header
+  const headerDateStr = useMemo(() => {
+    const idx = parseInt(selectedBasketballDate.replace('day', ''), 10);
+    if (idx === 0) return "Aujourd'hui";
+    if (idx === 1) return `Demain`;
+    const d = new Date();
+    d.setDate(d.getDate() + idx);
+    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' });
+  }, [selectedBasketballDate]);
 
   // Loading state
   if (basketballLoading && basketballMatches.length === 0) {
@@ -149,7 +186,7 @@ export default function BasketballMatches() {
           <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-orange-500 animate-ping opacity-60" />
         </div>
         <p className="text-base font-semibold mb-1">Chargement des matchs de basketball</p>
-        <p className="text-sm text-muted-foreground/60">Recherche sur 3 jours...</p>
+        <p className="text-sm text-muted-foreground/60">Recherche sur 7 jours...</p>
         <div className="flex items-center gap-1.5 mt-4">
           <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: '0ms' }} />
           <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -178,41 +215,48 @@ export default function BasketballMatches() {
 
   return (
     <div className="space-y-5 pb-4">
-      {/* Date Tab Selector - Orange theme */}
-      <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1">
-        {dateTabs.map((tab) => {
-          const isActive = selectedBasketballDate === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setSelectedBasketballDate(tab.key)}
-              className={`flex-1 flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg text-sm font-medium transition-all relative ${
-                isActive
-                  ? 'bg-orange-500/15 text-orange-600 shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-              }`}
-            >
-              <span className="text-xs font-semibold">{tab.label}</span>
-              {tab.sublabel && (
-                <span className={`text-[10px] ${isActive ? 'text-orange-500/70' : 'text-muted-foreground/50'}`}>
-                  {tab.sublabel}
-                </span>
-              )}
-              {tab.count > 0 && (
-                <span className={`absolute top-1 right-1.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold ${
+      {/* Date Tab Selector - Orange theme, scrollable for 7 days */}
+      <div className="relative">
+        <div
+          ref={tabScrollRef}
+          className="flex items-center gap-1 overflow-x-auto scrollbar-hide bg-muted/40 rounded-xl p-1"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {dateTabs.map((tab) => {
+            const isActive = selectedBasketballDate === tab.key;
+            return (
+              <button
+                key={tab.key}
+                data-active={isActive}
+                onClick={() => setSelectedBasketballDate(tab.key)}
+                className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg text-sm font-medium transition-all relative min-w-[72px] ${
                   isActive
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-muted text-muted-foreground'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
-              {isActive && (
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-orange-500" />
-              )}
-            </button>
-          );
-        })}
+                    ? 'bg-orange-500/15 text-orange-600 shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                }`}
+              >
+                <span className="text-[11px] font-semibold whitespace-nowrap">{tab.label}</span>
+                {tab.key !== 'day0' && (
+                  <span className={`text-[9px] ${isActive ? 'text-orange-500/70' : 'text-muted-foreground/50'}`}>
+                    {tab.sublabel}
+                  </span>
+                )}
+                {tab.count > 0 && (
+                  <span className={`absolute top-0.5 right-1 flex items-center justify-center min-w-[14px] h-4 px-0.5 rounded-full text-[9px] font-bold ${
+                    isActive
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+                {isActive && (
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-orange-500" />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Header with date info */}
@@ -220,12 +264,7 @@ export default function BasketballMatches() {
         <div>
           <h2 className="text-xl font-bold capitalize flex items-center gap-2">
             <span>🏀</span>
-            {selectedBasketballDate === 'today'
-              ? "Aujourd'hui"
-              : selectedBasketballDate === 'tomorrow'
-                ? `Demain — ${tomorrowDate}`
-                : `Après-demain — ${dayAfterDate}`
-            }
+            {headerDateStr}
           </h2>
           <div className="flex items-center gap-2 mt-0.5">
             {liveMatches.length > 0 ? (
@@ -278,9 +317,7 @@ export default function BasketballMatches() {
           <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
             <span className="text-3xl">🏀</span>
           </div>
-          <h3 className="text-base font-semibold mb-1">
-            {selectedBasketballDate === 'today' ? "Aucun match aujourd'hui" : selectedBasketballDate === 'tomorrow' ? 'Aucun match demain' : 'Aucun match après-demain'}
-          </h3>
+          <h3 className="text-base font-semibold mb-1">Aucun match ce jour</h3>
           <p className="text-sm text-muted-foreground/60">
             Pas de match de basketball prévu pour cette date
           </p>

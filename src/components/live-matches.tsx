@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useAppStore, DateTab } from '@/lib/store';
 import MatchCard from '@/components/match-card';
-import { Loader2, Zap, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight } from 'lucide-react';
+import { Loader2, Zap, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /** Get YYYYMMDD string for a Date */
@@ -16,9 +16,9 @@ function formatDateYMD(date: Date): string {
 
 /** Get the YYYYMMDD for a given DateTab relative to today */
 function getDateForTab(tab: DateTab): string {
+  const offset = parseInt(tab.replace('day', ''), 10);
   const now = new Date();
-  const offsets: Record<DateTab, number> = { today: 0, tomorrow: 1, dayAfter: 2 };
-  const target = new Date(now.getTime() + offsets[tab] * 24 * 60 * 60 * 1000);
+  const target = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
   return formatDateYMD(target);
 }
 
@@ -32,6 +32,9 @@ function isMatchOnDate(matchDate: string | null, ymd: string): boolean {
     return false;
   }
 }
+
+/** All 7 date tabs */
+const ALL_DATE_TABS: DateTab[] = ['day0', 'day1', 'day2', 'day3', 'day4', 'day5', 'day6'];
 
 export default function LiveMatches() {
   const {
@@ -47,6 +50,7 @@ export default function LiveMatches() {
 
   const [countdown, setCountdown] = useState(60);
   const lastUpdatedRef = useRef<string | null>(null);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
 
   // Initial fetch is handled by parent (page.tsx) with a delay to avoid OOM
   // Only poll for updates here
@@ -61,7 +65,6 @@ export default function LiveMatches() {
     if (!hasFetchedOnce) return;
     const interval = setInterval(() => {
       // Only fetch today's matches during polling (memory-safe)
-      // Other days are fetched on-demand when user switches tabs
       const now = new Date();
       const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
       fetchFootballMatches([today]);
@@ -89,31 +92,39 @@ export default function LiveMatches() {
     setCountdown(60);
   }, [fetchFootballMatches]);
 
-  // Compute date keys for tabs
-  const todayKey = useMemo(() => getDateForTab('today'), []);
-  const tomorrowKey = useMemo(() => getDateForTab('tomorrow'), []);
-  const dayAfterKey = useMemo(() => getDateForTab('dayAfter'), []);
+  // Compute date keys for all 7 tabs
+  const dateKeys = useMemo(() => {
+    const keys: Record<DateTab, string> = {} as any;
+    for (const tab of ALL_DATE_TABS) {
+      keys[tab] = getDateForTab(tab);
+    }
+    return keys;
+  }, []);
 
   // On-demand fetch when user switches to a date tab that has no matches
   useEffect(() => {
-    const dateKey = selectedDate === 'today' ? todayKey : selectedDate === 'tomorrow' ? tomorrowKey : dayAfterKey;
+    const dateKey = dateKeys[selectedDate];
     const hasMatchesForDate = footballMatches.some((m) => isMatchOnDate(m.matchDate, dateKey));
     if (!hasMatchesForDate && !footballLoading) {
       fetchFootballMatches([dateKey]);
     }
-  }, [selectedDate, todayKey, tomorrowKey, dayAfterKey, footballMatches, footballLoading, fetchFootballMatches]);
+  }, [selectedDate, dateKeys, footballMatches, footballLoading, fetchFootballMatches]);
 
   // Filter matches by selected date tab
-  const dateKey = selectedDate === 'today' ? todayKey : selectedDate === 'tomorrow' ? tomorrowKey : dayAfterKey;
+  const dateKey = dateKeys[selectedDate];
   const filteredMatches = useMemo(
     () => footballMatches.filter((m) => isMatchOnDate(m.matchDate, dateKey)),
     [footballMatches, dateKey]
   );
 
   // Count per tab
-  const todayCount = useMemo(() => footballMatches.filter((m) => isMatchOnDate(m.matchDate, todayKey)).length, [footballMatches, todayKey]);
-  const tomorrowCount = useMemo(() => footballMatches.filter((m) => isMatchOnDate(m.matchDate, tomorrowKey)).length, [footballMatches, tomorrowKey]);
-  const dayAfterCount = useMemo(() => footballMatches.filter((m) => isMatchOnDate(m.matchDate, dayAfterKey)).length, [footballMatches, dayAfterKey]);
+  const tabCounts = useMemo(() => {
+    const counts: Record<DateTab, number> = {} as any;
+    for (const tab of ALL_DATE_TABS) {
+      counts[tab] = footballMatches.filter((m) => isMatchOnDate(m.matchDate, dateKeys[tab])).length;
+    }
+    return counts;
+  }, [footballMatches, dateKeys]);
 
   const liveMatches = filteredMatches.filter((m) => m.status === 'live');
   const upcomingMatches = filteredMatches.filter((m) => m.status === 'upcoming');
@@ -138,22 +149,52 @@ export default function LiveMatches() {
   const countdownStr = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`;
 
   // Tab labels with day info
-  const tomorrowDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
-  }, []);
-  const dayAfterDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 2);
-    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
-  }, []);
+  const dateTabs = useMemo(() => {
+    return ALL_DATE_TABS.map((tab, idx) => {
+      const d = new Date();
+      d.setDate(d.getDate() + idx);
+      const dayLabel = idx === 0
+        ? "Aujourd'hui"
+        : idx === 1
+          ? 'Demain'
+          : d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+      const sublabel = idx === 0
+        ? ''
+        : d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+      return {
+        key: tab,
+        label: dayLabel,
+        sublabel,
+        count: tabCounts[tab] || 0,
+        dateObj: d,
+      };
+    });
+  }, [tabCounts]);
 
-  const dateTabs: { key: DateTab; label: string; sublabel: string; count: number }[] = [
-    { key: 'today', label: "Aujourd'hui", sublabel: '', count: todayCount },
-    { key: 'tomorrow', label: 'Demain', sublabel: tomorrowDate, count: tomorrowCount },
-    { key: 'dayAfter', label: 'Après-demain', sublabel: dayAfterDate, count: dayAfterCount },
-  ];
+  // Auto-scroll to active tab
+  useEffect(() => {
+    if (tabScrollRef.current) {
+      const activeBtn = tabScrollRef.current.querySelector('[data-active="true"]');
+      if (activeBtn) {
+        activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  }, [selectedDate]);
+
+  // Get the formatted date for the header
+  const selectedDateObj = useMemo(() => {
+    const offset = parseInt(selectedDate.replace('day', ''), 10);
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return d;
+  }, [selectedDate]);
+
+  const headerDateStr = useMemo(() => {
+    const idx = parseInt(selectedDate.replace('day', ''), 10);
+    if (idx === 0) return new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    if (idx === 1) return `Demain — ${selectedDateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })}`;
+    return selectedDateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  }, [selectedDate, selectedDateObj]);
 
   // Loading state
   if (footballLoading && footballMatches.length === 0) {
@@ -166,7 +207,7 @@ export default function LiveMatches() {
           <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 animate-ping opacity-60" />
         </div>
         <p className="text-base font-semibold mb-1">Chargement des matchs</p>
-        <p className="text-sm text-muted-foreground/60">Recherche sur 3 jours...</p>
+        <p className="text-sm text-muted-foreground/60">Recherche sur 7 jours...</p>
         <div className="flex items-center gap-1.5 mt-4">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '0ms' }} />
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -195,53 +236,55 @@ export default function LiveMatches() {
 
   return (
     <div className="space-y-5 pb-4">
-      {/* Date Tab Selector */}
-      <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1">
-        {dateTabs.map((tab) => {
-          const isActive = selectedDate === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setSelectedDate(tab.key)}
-              className={`flex-1 flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg text-sm font-medium transition-all relative ${
-                isActive
-                  ? 'bg-green-500/15 text-green-600 shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-              }`}
-            >
-              <span className="text-xs font-semibold">{tab.label}</span>
-              {tab.sublabel && (
-                <span className={`text-[10px] ${isActive ? 'text-green-500/70' : 'text-muted-foreground/50'}`}>
-                  {tab.sublabel}
-                </span>
-              )}
-              {tab.count > 0 && (
-                <span className={`absolute top-1 right-1.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold ${
+      {/* Date Tab Selector - Scrollable for 7 days */}
+      <div className="relative">
+        <div
+          ref={tabScrollRef}
+          className="flex items-center gap-1 overflow-x-auto scrollbar-hide bg-muted/40 rounded-xl p-1"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {dateTabs.map((tab) => {
+            const isActive = selectedDate === tab.key;
+            return (
+              <button
+                key={tab.key}
+                data-active={isActive}
+                onClick={() => setSelectedDate(tab.key)}
+                className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg text-sm font-medium transition-all relative min-w-[72px] ${
                   isActive
-                    ? 'bg-green-500 text-white'
-                    : 'bg-muted text-muted-foreground'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
-              {isActive && (
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-green-500" />
-              )}
-            </button>
-          );
-        })}
+                    ? 'bg-green-500/15 text-green-600 shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                }`}
+              >
+                <span className="text-[11px] font-semibold whitespace-nowrap">{tab.label}</span>
+                {tab.key !== 'day0' && (
+                  <span className={`text-[9px] ${isActive ? 'text-green-500/70' : 'text-muted-foreground/50'}`}>
+                    {tab.sublabel}
+                  </span>
+                )}
+                {tab.count > 0 && (
+                  <span className={`absolute top-0.5 right-1 flex items-center justify-center min-w-[14px] h-4 px-0.5 rounded-full text-[9px] font-bold ${
+                    isActive
+                      ? 'bg-green-500 text-white'
+                      : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+                {isActive && (
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-green-500" />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Header with date info */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold capitalize flex items-center gap-2">
-            {selectedDate === 'today'
-              ? new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-              : selectedDate === 'tomorrow'
-                ? `Demain — ${tomorrowDate}`
-                : `Après-demain — ${dayAfterDate}`
-            }
+            {headerDateStr}
           </h2>
           <div className="flex items-center gap-2 mt-0.5">
             {liveMatches.length > 0 ? (
@@ -294,9 +337,7 @@ export default function LiveMatches() {
           <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
             <Calendar className="h-8 w-8 text-muted-foreground/40" />
           </div>
-          <h3 className="text-base font-semibold mb-1">
-            {selectedDate === 'today' ? "Aucun match aujourd'hui" : selectedDate === 'tomorrow' ? 'Aucun match demain' : 'Aucun match après-demain'}
-          </h3>
+          <h3 className="text-base font-semibold mb-1">Aucun match ce jour</h3>
           <p className="text-sm text-muted-foreground/60">
             Pas de match prévu pour cette date
           </p>
@@ -370,7 +411,7 @@ export default function LiveMatches() {
 
       {/* Footer info */}
       <div className="text-center text-[10px] text-muted-foreground/30 pt-1">
-        Programme sur 3 jours — mise à jour auto toutes les {hasLive ? '15s' : '2 min'}{hasLive ? ' (en direct)' : ''}
+        Programme sur 7 jours — mise à jour auto toutes les {hasLive ? '15s' : '2 min'}{hasLive ? ' (en direct)' : ''}
       </div>
     </div>
   );

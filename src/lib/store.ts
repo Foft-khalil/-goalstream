@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { BasketballMatch } from '@/lib/basketball/types';
 
 export type ViewType = 'live' | 'channels' | 'standings' | 'favorites' | 'basketball';
-export type DateTab = 'today' | 'tomorrow' | 'dayAfter';
+export type DateTab = 'day0' | 'day1' | 'day2' | 'day3' | 'day4' | 'day5' | 'day6';
 
 interface Channel {
   tvgId: string;
@@ -252,7 +252,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   footballError: null,
   footballLastUpdated: null,
   footballDates: [],
-  selectedDate: 'today',
+  selectedDate: 'day0',
   setSelectedDate: (date) => set({ selectedDate: date }),
   fetchFootballMatches: async (dates?: string[]) => {
     // Don't show loading spinner if we already have data (for background refreshes)
@@ -268,7 +268,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       try {
         const params = new URLSearchParams();
-        // Default to 3-day schedule if no dates provided
+        // Default to 7-day schedule if no dates provided
         if (dates && dates.length > 0) {
           params.set('dates', dates.join(','));
         } else {
@@ -277,7 +277,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             const dt = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
             return `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
           };
-          params.set('dates', [d(0), d(1), d(2)].join(','));
+          params.set('dates', [d(0), d(1), d(2), d(3), d(4), d(5), d(6)].join(','));
         }
         const url = `/api/football?${params.toString()}`;
         const res = await fetch(url, { signal: controller.signal });
@@ -335,7 +335,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   basketballError: null,
   basketballLastUpdated: null,
   basketballDates: [],
-  selectedBasketballDate: 'today',
+  selectedBasketballDate: 'day0',
   setSelectedBasketballDate: (date) => set({ selectedBasketballDate: date }),
   fetchBasketballMatches: async (dates?: string[]) => {
     const currentMatches = get().basketballMatches;

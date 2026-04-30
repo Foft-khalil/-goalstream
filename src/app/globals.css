@@ -141,6 +141,15 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Hide scrollbar utility */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Live pulse animation */
 @keyframes live-pulse {
   0%, 100% { opacity: 1; }

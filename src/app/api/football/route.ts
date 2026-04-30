@@ -273,7 +273,7 @@ export async function GET(request: NextRequest) {
 
     let dates: string[];
     if (datesParam) {
-      dates = datesParam.split(',').filter(Boolean).slice(0, 3); // Max 3 dates
+      dates = datesParam.split(',').filter(Boolean).slice(0, 7); // Max 7 dates (full week)
     } else if (dateParam) {
       dates = [dateParam];
     } else {
@@ -283,7 +283,7 @@ export async function GET(request: NextRequest) {
 
     const cacheKey = dates.length === 1
       ? `football-matches-${dates[0]}`
-      : `football-matches-3day`;
+      : `football-matches-${dates.length}day`;
 
     // Check cache first
     const cachedPrev = getCachedStale<FootballMatchesResponse>(cacheKey);
@@ -327,7 +327,8 @@ export async function GET(request: NextRequest) {
     console.error('[Football API] Error fetching match data:', error);
 
     // Try stale cache
-    const stale = getCachedStale<FootballMatchesResponse>('football-matches-3day')
+    const stale = getCachedStale<FootballMatchesResponse>('football-matches-7day')
+      || getCachedStale<FootballMatchesResponse>('football-matches-3day')
       || getCachedStale<FootballMatchesResponse>('football-matches');
     if (stale) {
       console.log('[Football API] Returning stale cache due to error');

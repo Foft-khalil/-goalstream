@@ -279,12 +279,20 @@ export default function Home() {
   const { isOnline } = usePWA();
 
   useEffect(() => {
-    // Initial fetch: only today's matches to be fast and memory-safe
-    // The polling in LiveMatches will fetch the full 3-day schedule later
+    // Initial fetch: today's matches first (fast), then rest of week in background
     const timer = setTimeout(() => {
       const now = new Date();
       const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
       fetchFootballMatches([today]);
+      // Fetch the rest of the week after a delay to avoid OOM
+      setTimeout(() => {
+        const dates: string[] = [];
+        for (let i = 1; i <= 6; i++) {
+          const d = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+          dates.push(`${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`);
+        }
+        fetchFootballMatches(dates);
+      }, 5000);
     }, 2000);
     return () => clearTimeout(timer);
   }, [fetchFootballMatches]);

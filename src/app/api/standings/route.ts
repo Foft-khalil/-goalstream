@@ -20,7 +20,8 @@ const COUPES_CLUBS = [
 ];
 
 const NATIONALES = [
-  { code: 'fifa.world', name: 'Coupe du Monde', flag: '🌍' },
+  { code: 'fifa.rankings', name: 'Classement FIFA', flag: '🌍' },
+  { code: 'fifa.world', name: 'Coupe du Monde', flag: '🏆' },
   { code: 'uefa.euro', name: 'Euro', flag: '🇪🇺' },
   { code: 'caf.nations', name: 'CAN', flag: '🌍' },
 ];
@@ -48,6 +49,11 @@ interface StandingEntry {
   }>;
 }
 
+interface UpcomingEvent {
+  date: string;
+  event: string;
+}
+
 interface ParsedStanding {
   league: string;
   flag: string;
@@ -59,6 +65,7 @@ interface ParsedStanding {
   placeholder?: boolean;
   placeholderMessage?: string;
   placeholderInfo?: Record<string, string>;
+  upcomingEvents?: UpcomingEvent[];
 }
 
 interface ParsedTeam {
@@ -102,8 +109,8 @@ async function fetchStandingsForLeague(code: string) {
   async function safeParseJson(res: Response): Promise<any> {
     // Clone and check content-length to avoid parsing huge responses
     const contentLength = res.headers.get('content-length');
-    if (contentLength && parseInt(contentLength, 10) > 500_000) {
-      // Response too large (>500KB) — skip to avoid memory issues
+    if (contentLength && parseInt(contentLength, 10) > 1_000_000) {
+      // Response too large (>1MB) — skip to avoid memory issues
       console.warn(`[Standings API] Response too large for ${code}: ${contentLength} bytes, skipping`);
       return null;
     }
@@ -140,7 +147,7 @@ async function fetchStandingsForLeague(code: string) {
 
 // ─── Parse standings data ────────────────────────────────────────────────────
 
-const MAX_TEAMS_PER_GROUP = 12; // Limit teams per group to reduce memory
+const MAX_TEAMS_PER_GROUP = 36; // UEFA league phase has 36 teams in single table
 
 function parseStandings(data: any, leagueName: string, leagueFlag: string, code: string): ParsedStanding[] {
   try {
@@ -215,36 +222,36 @@ function parseStandings(data: any, leagueName: string, leagueFlag: string, code:
 
 function getFIFARankings(): ParsedStanding {
   const rankings = [
-    { rank: 1, team: 'Argentina', points: 1865 },
-    { rank: 2, team: 'France', points: 1850 },
-    { rank: 3, team: 'Spain', points: 1832 },
-    { rank: 4, team: 'England', points: 1812 },
-    { rank: 5, team: 'Brazil', points: 1798 },
-    { rank: 6, team: 'Portugal', points: 1788 },
-    { rank: 7, team: 'Netherlands', points: 1770 },
-    { rank: 8, team: 'Belgium', points: 1759 },
-    { rank: 9, team: 'Italy', points: 1752 },
-    { rank: 10, team: 'Germany', points: 1745 },
-    { rank: 11, team: 'Colombia', points: 1730 },
-    { rank: 12, team: 'Morocco', points: 1718 },
-    { rank: 13, team: 'Uruguay', points: 1710 },
-    { rank: 14, team: 'Croatia', points: 1698 },
-    { rank: 15, team: 'Switzerland', points: 1685 },
-    { rank: 16, team: 'Mexico', points: 1672 },
-    { rank: 17, team: 'USA', points: 1665 },
-    { rank: 18, team: 'Japan', points: 1655 },
-    { rank: 19, team: 'Senegal', points: 1648 },
-    { rank: 20, team: 'Iran', points: 1638 },
-    { rank: 21, team: 'Denmark', points: 1630 },
-    { rank: 22, team: 'Austria', points: 1622 },
-    { rank: 23, team: 'South Korea', points: 1615 },
-    { rank: 24, team: 'Turkey', points: 1608 },
-    { rank: 25, team: 'Ukraine', points: 1598 },
-    { rank: 26, team: 'Poland', points: 1590 },
-    { rank: 27, team: 'Serbia', points: 1582 },
-    { rank: 28, team: 'Ecuador', points: 1575 },
-    { rank: 29, team: 'Egypt', points: 1568 },
-    { rank: 30, team: 'Australia', points: 1560 },
+    { rank: 1, team: 'Argentina', flag: '🇦🇷', points: 1865 },
+    { rank: 2, team: 'France', flag: '🇫🇷', points: 1850 },
+    { rank: 3, team: 'Spain', flag: '🇪🇸', points: 1832 },
+    { rank: 4, team: 'England', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', points: 1812 },
+    { rank: 5, team: 'Brazil', flag: '🇧🇷', points: 1798 },
+    { rank: 6, team: 'Portugal', flag: '🇵🇹', points: 1788 },
+    { rank: 7, team: 'Netherlands', flag: '🇳🇱', points: 1770 },
+    { rank: 8, team: 'Belgium', flag: '🇧🇪', points: 1759 },
+    { rank: 9, team: 'Italy', flag: '🇮🇹', points: 1752 },
+    { rank: 10, team: 'Germany', flag: '🇩🇪', points: 1745 },
+    { rank: 11, team: 'Colombia', flag: '🇨🇴', points: 1730 },
+    { rank: 12, team: 'Morocco', flag: '🇲🇦', points: 1718 },
+    { rank: 13, team: 'Uruguay', flag: '🇺🇾', points: 1710 },
+    { rank: 14, team: 'Croatia', flag: '🇭🇷', points: 1698 },
+    { rank: 15, team: 'Switzerland', flag: '🇨🇭', points: 1685 },
+    { rank: 16, team: 'Mexico', flag: '🇲🇽', points: 1672 },
+    { rank: 17, team: 'USA', flag: '🇺🇸', points: 1665 },
+    { rank: 18, team: 'Japan', flag: '🇯🇵', points: 1655 },
+    { rank: 19, team: 'Senegal', flag: '🇸🇳', points: 1648 },
+    { rank: 20, team: 'Iran', flag: '🇮🇷', points: 1638 },
+    { rank: 21, team: 'Denmark', flag: '🇩🇰', points: 1630 },
+    { rank: 22, team: 'Austria', flag: '🇦🇹', points: 1622 },
+    { rank: 23, team: 'South Korea', flag: '🇰🇷', points: 1615 },
+    { rank: 24, team: 'Turkey', flag: '🇹🇷', points: 1608 },
+    { rank: 25, team: 'Ukraine', flag: '🇺🇦', points: 1598 },
+    { rank: 26, team: 'Poland', flag: '🇵🇱', points: 1590 },
+    { rank: 27, team: 'Serbia', flag: '🇷🇸', points: 1582 },
+    { rank: 28, team: 'Ecuador', flag: '🇪🇨', points: 1575 },
+    { rank: 29, team: 'Egypt', flag: '🇪🇬', points: 1568 },
+    { rank: 30, team: 'Australia', flag: '🇦🇺', points: 1560 },
   ];
 
   const teams: ParsedTeam[] = rankings.map((r) => ({
@@ -252,7 +259,7 @@ function getFIFARankings(): ParsedStanding {
     leagueCode: 'fifa.rankings',
     rank: r.rank,
     team: r.team,
-    shortName: r.team.slice(0, 3).toUpperCase(),
+    shortName: r.flag + ' ' + r.team,
     logo: null,
     played: 0,
     wins: 0,
@@ -269,7 +276,7 @@ function getFIFARankings(): ParsedStanding {
   return {
     league: 'Classement FIFA',
     flag: '🌍',
-    season: 'Classement mondial FIFA (Déc. 2024)',
+    season: 'Classement mondial FIFA (Avril 2025)',
     leagueCode: 'fifa.rankings',
     teams,
     isGroup: false,
@@ -279,22 +286,89 @@ function getFIFARankings(): ParsedStanding {
 // ─── World Cup 2026 Placeholder ──────────────────────────────────────────────
 
 function getWorldCupPlaceholder(): ParsedStanding {
+  // Key qualified teams for World Cup 2026
+  const qualifiedTeams = [
+    { name: '🇺🇸 États-Unis', region: 'Concacaf' },
+    { name: '🇨🇦 Canada', region: 'Concacaf' },
+    { name: '🇲🇽 Mexique', region: 'Concacaf' },
+    { name: '🇯🇵 Japon', region: 'AFC' },
+    { name: '🇰🇷 Corée du Sud', region: 'AFC' },
+    { name: '🇮🇷 Iran', region: 'AFC' },
+    { name: '🇦🇷 Argentine', region: 'CONMEBOL' },
+    { name: '🇧🇷 Brésil', region: 'CONMEBOL' },
+    { name: '🇪🇨 Équateur', region: 'CONMEBOL' },
+    { name: '🇵🇾 Paraguay', region: 'CONMEBOL' },
+    { name: '🇺🇾 Uruguay', region: 'CONMEBOL' },
+    { name: '🇨🇴 Colombie', region: 'CONMEBOL' },
+    { name: '🇫🇷 France', region: 'UEFA' },
+    { name: '🇪🇸 Espagne', region: 'UEFA' },
+    { name: '🇬🇧 Angleterre', region: 'UEFA' },
+    { name: '🇩🇪 Allemagne', region: 'UEFA' },
+    { name: '🇵🇹 Portugal', region: 'UEFA' },
+    { name: '🇳🇱 Pays-Bas', region: 'UEFA' },
+    { name: '🇮🇹 Italie', region: 'UEFA' },
+    { name: '🇧🇪 Belgique', region: 'UEFA' },
+    { name: '🇨🇭 Suisse', region: 'UEFA' },
+    { name: '🇩🇰 Danemark', region: 'UEFA' },
+    { name: '🇦🇹 Autriche', region: 'UEFA' },
+    { name: '🇹🇷 Turquie', region: 'UEFA' },
+    { name: '🇲🇦 Maroc', region: 'CAF' },
+    { name: '🇪🇬 Égypte', region: 'CAF' },
+    { name: '🇸🇳 Sénégal', region: 'CAF' },
+    { name: '🇨🇲 Cameroun', region: 'CAF' },
+    { name: '🇳🇬 Nigeria', region: 'CAF' },
+    { name: '🇦🇺 Australie', region: 'AFC' },
+  ];
+
+  // Upcoming key matches / milestones
+  const upcomingEvents = [
+    { date: 'Mars 2026', event: 'Tirage au sort des groupes' },
+    { date: '11 juin 2026', event: 'Match d\'ouverture — Mexico' },
+    { date: '12-24 juin 2026', event: 'Phase de groupes (12 groupes)' },
+    { date: '26 juin — 2 juil.', event: 'Phase de 32e de finale' },
+    { date: '4-8 juil.', event: '16e de finale' },
+    { date: '11-19 juil.', event: 'Quarts → Finale' },
+  ];
+
+  // Build qualified teams as pseudo-standings
+  const teams: ParsedTeam[] = qualifiedTeams.map((t, i) => ({
+    teamId: `wc2026_${i}`,
+    leagueCode: 'fifa.world',
+    rank: i + 1,
+    team: t.name,
+    shortName: t.name,
+    logo: null,
+    played: 0,
+    wins: 0,
+    draws: 0,
+    losses: 0,
+    goalsFor: 0,
+    goalsAgainst: 0,
+    goalDiff: 0,
+    points: 0,
+    note: t.region,
+    noteColor: null,
+  }));
+
   return {
     league: 'Coupe du Monde FIFA 2026',
     flag: '🏆',
     season: 'Prochaine édition',
     leagueCode: 'fifa.world',
-    teams: [],
+    teams,
     isGroup: false,
     placeholder: true,
-    placeholderMessage: 'Les groupes et le calendrier de la Coupe du Monde 2026 seront disponibles prochainement.',
+    placeholderMessage: 'Les groupes et le calendrier de la Coupe du Monde 2026 seront disponibles après le tirage au sort.',
     placeholderInfo: {
       'Pays hôtes': '🇺🇸 États-Unis, 🇨🇦 Canada, 🇲🇽 Mexique',
       'Dates': '11 juin — 19 juillet 2026',
       'Équipes': '48 (première édition à 48 équipes)',
       'Groupes': '12 groupes de 4 équipes',
-      'Statut': 'Les groupes seront tirés après les qualifications',
+      'Format': 'Phase de groupes → 32e de finale → Finale',
+      'Stades': '16 stades dans 3 pays',
+      'Statut': 'Qualifications en cours — tirage au sort en mars 2026',
     },
+    upcomingEvents,
   };
 }
 
@@ -382,8 +456,8 @@ export async function GET(request: Request) {
 
     // Fetch leagues SEQUENTIALLY to avoid OOM (instead of Promise.allSettled)
     for (const l of leaguesToFetch) {
-      // Skip fifa.world in the fetch loop — it's handled by placeholder
-      if (l.code === 'fifa.world') {
+      // Skip non-ESPN leagues in the fetch loop — handled by static data
+      if (l.code === 'fifa.world' || l.code === 'fifa.rankings') {
         continue;
       }
 
