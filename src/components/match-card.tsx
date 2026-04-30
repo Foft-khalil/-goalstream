@@ -54,6 +54,7 @@ export default function MatchCard({ match }: MatchCardProps) {
   const [showTracker, setShowTracker] = useState(false);
 
   const isLive = match.status === 'live';
+  const isFinished = match.status === 'finished';
   const matchDate = match.matchDate ? new Date(match.matchDate) : null;
   const timeStr = matchDate ? matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
   const dateStr = matchDate ? matchDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '';
@@ -61,6 +62,19 @@ export default function MatchCard({ match }: MatchCardProps) {
   const isTomorrow = matchDate ? new Date(Date.now() + 86400000).toDateString() === matchDate.toDateString() : false;
   const homeFav = isTeamFavorite(match.homeTeam);
   const awayFav = isTeamFavorite(match.awayTeam);
+
+  // Determine if match is about to start (within 30 min of kickoff)
+  const isAboutToStart = (() => {
+    if (!matchDate || isLive || isFinished) return false;
+    const now = Date.now();
+    const matchTime = matchDate.getTime();
+    const diffMs = matchTime - now;
+    // Show "Regarder" button if match starts within 30 minutes
+    return diffMs <= 30 * 60 * 1000 && diffMs > -5 * 60 * 1000;
+  })();
+
+  // Show "Regarder" button only for live matches or matches about to start
+  const canWatchLive = isLive || isAboutToStart;
 
   const handleWatch = async () => {
     if (match.streamUrl) {
@@ -219,6 +233,11 @@ export default function MatchCard({ match }: MatchCardProps) {
               lastUpdated={match.lastUpdated ?? null}
               minute={match.minute ?? null}
             />
+          ) : isFinished ? (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/50 border border-border/30">
+              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+              <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">Terminé</span>
+            </div>
           ) : (
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3 text-muted-foreground/40" />
@@ -263,6 +282,12 @@ export default function MatchCard({ match }: MatchCardProps) {
                 <span className="text-xs text-muted-foreground/40 font-medium">-</span>
                 <span className="text-lg font-black tabular-nums text-red-400">{match.awayScore ?? 0}</span>
               </div>
+            ) : isFinished ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-lg font-black tabular-nums text-muted-foreground">{match.homeScore ?? 0}</span>
+                <span className="text-xs text-muted-foreground/40 font-medium">-</span>
+                <span className="text-lg font-black tabular-nums text-muted-foreground">{match.awayScore ?? 0}</span>
+              </div>
             ) : (
               <div className="px-3 py-1 rounded-md bg-muted/40 border border-border/20">
                 <span className="text-xs font-bold text-muted-foreground/60 tracking-wider">VS</span>
@@ -295,35 +320,55 @@ export default function MatchCard({ match }: MatchCardProps) {
           </div>
         </div>
 
-        {/* Watch buttons + Match Tracker */}
+        {/* Action buttons + Match Tracker */}
         <div className="mt-3 pt-2.5 border-t border-border/20 flex gap-2">
-          <Button
-            size="sm"
-            onClick={handleQuickPlay}
-            disabled={findingStream}
-            className={`flex-1 h-8 gap-2 text-xs font-semibold rounded-lg transition-all ${
-              isLive
-                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-600/20'
-                  : 'bg-green-600 hover:bg-green-700 text-white shadow-sm shadow-green-600/20'
-              }`}
-          >
-            {findingStream ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Recherche...
-              </>
-            ) : isLive ? (
-              <>
-                <Radio className="h-3.5 w-3.5 fill-current" />
-                Regarder
-              </>
-            ) : (
-              <>
-                <Play className="h-3.5 w-3.5 fill-current" />
-                Regarder
-              </>
-            )}
-          </Button>
+          {canWatchLive ? (
+            <Button
+              size="sm"
+              onClick={handleQuickPlay}
+              disabled={findingStream}
+              className={`flex-1 h-8 gap-2 text-xs font-semibold rounded-lg transition-all ${
+                isLive
+                    ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-600/20'
+                    : 'bg-green-600 hover:bg-green-700 text-white shadow-sm shadow-green-600/20'
+                }`}
+            >
+              {findingStream ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Recherche...
+                </>
+              ) : isLive ? (
+                <>
+                  <Radio className="h-3.5 w-3.5 fill-current" />
+                  Regarder en direct
+                </>
+              ) : (
+                <>
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                  Regarder
+                </>
+              )}
+            </Button>
+          ) : isFinished ? (
+            <Button
+              size="sm"
+              onClick={() => setShowTracker(true)}
+              className="flex-1 h-8 gap-2 text-xs font-semibold rounded-lg bg-muted/60 hover:bg-muted/80 text-foreground border border-border/30"
+            >
+              <Activity className="h-3.5 w-3.5" />
+              Voir le résumé
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => setShowTracker(true)}
+              className="flex-1 h-8 gap-2 text-xs font-semibold rounded-lg bg-muted/40 hover:bg-muted/60 text-muted-foreground border border-border/20"
+            >
+              <Activity className="h-3.5 w-3.5" />
+              Suivre le match
+            </Button>
+          )}
           {/* Match Tracker button */}
           <Button
             size="sm"
@@ -334,21 +379,23 @@ export default function MatchCard({ match }: MatchCardProps) {
             <Activity className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Suivre</span>
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (foundChannels.length > 0 && showChannels) {
-                setShowChannels(false);
-              } else {
-                handleWatch();
-              }
-            }}
-            disabled={findingStream}
-            className="h-8 px-3 rounded-lg border-border/40 text-xs"
-          >
-            <Tv className="h-3.5 w-3.5" />
-          </Button>
+          {canWatchLive && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (foundChannels.length > 0 && showChannels) {
+                  setShowChannels(false);
+                } else {
+                  handleWatch();
+                }
+              }}
+              disabled={findingStream}
+              className="h-8 px-3 rounded-lg border-border/40 text-xs"
+            >
+              <Tv className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
 
         {/* Error message */}

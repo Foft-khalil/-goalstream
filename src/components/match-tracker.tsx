@@ -169,8 +169,21 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
   if (!isOpen) return null;
 
   const isLive = match.status === 'live';
+  const isFinished = match.status === 'finished';
   const homeScore = match.homeScore ?? 0;
   const awayScore = match.awayScore ?? 0;
+
+  // Determine if match is about to start (within 30 min of kickoff)
+  const isAboutToStart = (() => {
+    if (!match.matchDate || isLive || isFinished) return false;
+    const matchDate = new Date(match.matchDate);
+    const now = Date.now();
+    const diffMs = matchDate.getTime() - now;
+    return diffMs <= 30 * 60 * 1000 && diffMs > -5 * 60 * 1000;
+  })();
+
+  // Only show watch button for live or about-to-start matches
+  const canWatchLive = isLive || isAboutToStart;
 
   // Find latest score from events
   const latestEvent = events.length > 0 ? events[events.length - 1] : null;
@@ -434,8 +447,8 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
             </div>
           )}
 
-          {/* Watch live button for live/upcoming matches */}
-          {(isLive || match.status === 'upcoming') && (
+          {/* Watch live button — only for live or about-to-start matches */}
+          {canWatchLive && (
             <div className="mt-6">
               <Button
                 className={`w-full gap-2 h-10 font-semibold ${
@@ -443,14 +456,61 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                     ? 'bg-red-600 hover:bg-red-700 text-white'
                     : 'bg-green-600 hover:bg-green-700 text-white'
                 }`}
-                onClick={() => {
-                  // Trigger the match-stream search from MatchCard's handleQuickPlay
-                  // For now, just show the channel search will be handled by MatchCard
+                onClick={async () => {
+                  try {
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 45000);
+
+                    const res = await fetch('/api/match-stream', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        homeTeam: match.homeTeam,
+                        awayTeam: match.awayTeam,
+                        competition: match.competition,
+                        matchDate: match.matchDate,
+                        sport: 'football',
+                      }),
+                      signal: controller.signal,
+                    });
+
+                    clearTimeout(timeout);
+
+                    if (res.ok) {
+                      const data = await res.json();
+                      const channels = data.channels || [];
+                      if (channels.length > 0) {
+                        const first = channels[0];
+                        const alternatives = channels.slice(1);
+                        openPlayer(
+                          first.url,
+                          first.name,
+                          first.logo || undefined,
+                          alternatives
+                        );
+                        onClose();
+                      }
+                    }
+                  } catch (err) {
+                    console.error('Error finding stream from tracker:', err);
+                  }
                 }}
               >
                 <Tv className="h-4 w-4" />
                 {isLive ? 'Regarder en direct' : 'Regarder le match'}
               </Button>
+            </div>
+          )}
+
+          {/* Finished match info */}
+          {isFinished && (
+            <div className="mt-6 p-4 rounded-xl bg-muted/30 border border-border/20">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Résumé du match</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Ce match est terminé. Consultez la chronologie ci-dessus pour les événements du match.
+              </p>
             </div>
           )}
         </div>

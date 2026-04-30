@@ -168,20 +168,22 @@ function mapEventType(item: ESPNCommentaryItem): MatchEvent['type'] | null {
 }
 
 // ─── Extract player name from participants ────────────────────────────────────
-function extractPlayerName(participants: ESPNCommentaryItem['play']['participants'], type?: string): string {
+type ESPNPlayParticipants = NonNullable<ESPNCommentaryItem['play']>['participants'];
+
+function extractPlayerName(participants: ESPNPlayParticipants, type?: string): string {
   if (!participants || participants.length === 0) return '';
   const first = participants[0];
   return first.athlete?.displayName || first.athlete?.name || '';
 }
 
-function extractAssistPlayer(participants: ESPNCommentaryItem['play']['participants']): string | undefined {
+function extractAssistPlayer(participants: ESPNPlayParticipants): string | undefined {
   if (!participants || participants.length < 2) return undefined;
   const second = participants[1];
   const name = second.athlete?.displayName || second.athlete?.name || '';
   return name || undefined;
 }
 
-function extractSubstitution(subParticipants: ESPNCommentaryItem['play']['participants']): { playerOut: string; playerIn: string } {
+function extractSubstitution(subParticipants: ESPNPlayParticipants): { playerOut: string; playerIn: string } {
   let playerOut = '';
   let playerIn = '';
   if (subParticipants) {
