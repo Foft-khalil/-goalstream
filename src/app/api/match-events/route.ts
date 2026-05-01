@@ -16,10 +16,49 @@ export interface MatchEvent {
   awayScore: number;
 }
 
+// ─── Match Summary types ──────────────────────────────────────────────────────
+export interface FootballTeamStat {
+  label: string;
+  homeValue: string;
+  awayValue: string;
+  homePercent?: number;
+  awayPercent?: number;
+}
+
+export interface FootballTopPerformer {
+  name: string;
+  teamAbbr: string;
+  position?: string;
+  value: string;
+  category: string;
+}
+
+export interface FootballMatchSummary {
+  homeScore: number;
+  awayScore: number;
+  homeTeam: string;
+  awayTeam: string;
+  homeAbbr: string;
+  awayAbbr: string;
+  homeLogo: string | null;
+  awayLogo: string | null;
+  homeForm: string | null;
+  awayForm: string | null;
+  teamStats: FootballTeamStat[];
+  topPerformers: FootballTopPerformer[];
+  venue: string | null;
+  attendance: string | null;
+  officials: string[];
+  matchDate: string | null;
+  halfTimeHome: number | null;
+  halfTimeAway: number | null;
+}
+
 export interface MatchEventsResponse {
   events: MatchEvent[];
   matchId: string;
   lastUpdated: string;
+  summary?: FootballMatchSummary | null;
   error?: string;
 }
 
@@ -76,47 +115,112 @@ interface ESPNCommentary {
   items?: ESPNCommentaryItem[];
 }
 
+interface ESPNLineScore {
+  value?: number;
+  displayValue?: string;
+  period?: { number?: number; displayValue?: string; abbreviation?: string };
+}
+
 interface ESPNHeaderCompetitor {
   team: {
+    id?: string;
     name: string;
     abbreviation?: string;
     logo?: string;
     displayName?: string;
+    logos?: Array<{ href?: string }>;
   };
   score?: string;
   homeAway: 'home' | 'away';
+  winner?: boolean;
+  records?: Array<{ summary?: string; type?: string }>;
+  linescores?: ESPNLineScore[];
+  statistics?: Array<{ name?: string; label?: string; displayValue?: string; value?: number }>;
+}
+
+interface ESPNBoxscoreTeamStat {
+  name?: string;
+  label?: string;
+  displayValue?: string;
+  value?: number;
+}
+
+interface ESPNBoxscoreTeam {
+  team?: {
+    id?: string;
+    displayName?: string;
+    abbreviation?: string;
+    logo?: string;
+    logos?: Array<{ href?: string }>;
+  };
+  statistics?: ESPNBoxscoreTeamStat[];
+}
+
+interface ESPNFormEntry {
+  team?: {
+    id?: string;
+    displayName?: string;
+  };
+  form?: string;
+}
+
+interface ESPNLeaderAthlete {
+  displayValue?: string;
+  value?: number;
+  athlete?: {
+    id?: string;
+    displayName?: string;
+    shortName?: string;
+    position?: { abbreviation?: string };
+    jersey?: string;
+  };
+}
+
+interface ESPNLeaderCategory {
+  name?: string;
+  displayName?: string;
+  leaders?: ESPNLeaderAthlete[];
+}
+
+interface ESPNTeamLeaders {
+  team?: {
+    id?: string;
+    displayName?: string;
+    abbreviation?: string;
+    logo?: string;
+  };
+  leaders?: ESPNLeaderCategory[];
 }
 
 interface ESPNSummary {
-  commentary?: ESPNCommentary;
+  commentary?: ESPNCommentary | ESPNCommentaryItem[];
   header?: {
-    competitors?: ESPNHeaderCompetitor[];
     id?: string;
+    competitors?: ESPNHeaderCompetitor[];
+    competitions?: Array<{
+      date?: string;
+      competitors?: ESPNHeaderCompetitor[];
+    }>;
+  };
+  boxscore?: {
+    teams?: ESPNBoxscoreTeam[];
+    form?: ESPNFormEntry[];
+    [key: string]: unknown;
+  };
+  leaders?: ESPNTeamLeaders[];
+  gameInfo?: {
+    venue?: {
+      fullName?: string;
+      shortName?: string;
+      address?: { city?: string; country?: string };
+    };
+    attendance?: number | string;
+    officials?: Array<{ fullName?: string; displayName?: string }>;
   };
 }
 
 // ─── Cache TTL for live match events (10 seconds) ────────────────────────────
-const MATCH_EVENTS_TTL = 10 * 1000; // 10 seconds — events change frequently during live matches
-
-/**
- * Custom cache getter that uses the shorter match-events TTL.
- * The default getCached uses 5min/15s TTLs, but we need 10s for live events.
- */
-function getCachedEvents<T>(key: string): T | null {
-  const entry = getCachedStale<T>(key);
-  if (!entry) return null;
-  // Use our custom TTL — we need to check timestamp manually
-  // Since getCached already checks its own TTL, we'll use the raw cache approach
-  // by checking getCachedStale and validating age ourselves
-  return null; // We'll bypass and always check freshness manually
-}
-
-/**
- * Get cached match events with 10s TTL.
- */
 function getMatchEventsCache<T>(key: string): T | null {
-  // Use getCached with hasLive=true to get 15s TTL (closest to 10s we can get with existing cache API)
-  // This is acceptable since 15s is still fresh enough for live match events
   return getCached<T>(key, true);
 }
 
@@ -135,28 +239,21 @@ function mapEventType(item: ESPNCommentaryItem): MatchEvent['type'] | null {
   const typeId = item.play?.type?.id || item.type?.id;
   const typeName = (item.play?.type?.text || item.play?.type?.name || item.type?.text || item.type?.name || '').toLowerCase();
 
-  // ESPN type IDs:
-  // Goal-related
   if (typeId === '39' || typeName.includes('goal') || typeName.includes('but') || item.scoringPlay) {
     return 'goal';
   }
-  // Yellow card
   if (typeId === '43' || typeName.includes('yellow card') || typeName.includes('carton jaune')) {
     return 'yellow_card';
   }
-  // Red card
   if (typeId === '44' || typeName.includes('red card') || typeName.includes('carton rouge')) {
     return 'red_card';
   }
-  // Substitution
   if (typeId === '45' || typeName.includes('substitution') || typeName.includes('remplacement')) {
     return 'substitution';
   }
-  // VAR review
   if (typeName.includes('var') || typeName.includes('video review') || typeName.includes('révision vidéo')) {
     return 'var_review';
   }
-  // Period start/end
   if (typeName.includes('start') || typeName.includes('début') || typeName.includes('kick off') || typeName.includes('coup d\'envoi')) {
     return 'period_start';
   }
@@ -209,8 +306,8 @@ function parseCommentaryItems(
 
   const homeTeamName = homeTeam?.team?.displayName || homeTeam?.team?.name || '';
   const awayTeamName = awayTeam?.team?.displayName || awayTeam?.team?.name || '';
-  const homeTeamLogo = homeTeam?.team?.logo || null;
-  const awayTeamLogo = awayTeam?.team?.logo || null;
+  const homeTeamLogo = homeTeam?.team?.logos?.[0]?.href || homeTeam?.team?.logo || null;
+  const awayTeamLogo = awayTeam?.team?.logos?.[0]?.href || awayTeam?.team?.logo || null;
 
   for (const item of items) {
     try {
@@ -219,25 +316,21 @@ function parseCommentaryItems(
 
       const minute = parseMinute(item.time?.displayValue) || parseMinute(item.time?.minute) || 0;
 
-      // Determine team
       let team = '';
       let teamLogo: string | null = null;
 
-      // Check participants first
       const participants = item.play?.participants;
       if (participants && participants.length > 0) {
         const firstTeam = participants[0].team;
-        team = firstTeam?.displayName || firstTeam?.name || '';
+        team = firstTeam?.name || '';
         teamLogo = firstTeam?.logo || null;
       }
 
-      // Fall back to item.team
       if (!team && item.team) {
         team = item.team.name || '';
         teamLogo = item.team.logo || null;
       }
 
-      // Match team name to home/away for consistency
       if (team && homeTeamName && awayTeamName) {
         const teamLower = team.toLowerCase();
         const homeLower = homeTeamName.toLowerCase();
@@ -251,11 +344,9 @@ function parseCommentaryItems(
         }
       }
 
-      // Get scores at time of event
       const homeScore = parseInt(item.play?.score?.home || '0', 10) || 0;
       const awayScore = parseInt(item.play?.score?.away || '0', 10) || 0;
 
-      // Get player name
       const player = extractPlayerName(participants);
 
       const event: MatchEvent = {
@@ -269,12 +360,9 @@ function parseCommentaryItems(
         awayScore,
       };
 
-      // Add type-specific fields
       if (eventType === 'goal') {
         const assist = extractAssistPlayer(participants);
         if (assist) event.assistPlayer = assist;
-
-        // Check for own goal or penalty
         const detail: string[] = [];
         if (item.ownGoal) detail.push('CSC');
         if (item.penalty) detail.push('Penalty');
@@ -289,13 +377,8 @@ function parseCommentaryItems(
         if (subPlayerIn) event.playerIn = subPlayerIn;
       }
 
-      if (eventType === 'yellow_card' || eventType === 'red_card') {
+      if (eventType === 'yellow_card' || eventType === 'red_card' || eventType === 'var_review') {
         const text = item.text || item.play?.type?.text || '';
-        if (text) event.detail = text;
-      }
-
-      if (eventType === 'var_review') {
-        const text = item.text || '';
         if (text) event.detail = text;
       }
 
@@ -310,10 +393,165 @@ function parseCommentaryItems(
     }
   }
 
-  // Sort by minute ascending
   events.sort((a, b) => a.minute - b.minute);
-
   return events;
+}
+
+// ─── Parse match summary from ESPN data ───────────────────────────────────────
+function parseMatchSummary(data: ESPNSummary): FootballMatchSummary | null {
+  try {
+    // Get competitors from header
+    const competitors = data.header?.competitions?.[0]?.competitors || data.header?.competitors || [];
+    const homeComp = competitors.find(c => c.homeAway === 'home');
+    const awayComp = competitors.find(c => c.homeAway === 'away');
+
+    if (!homeComp || !awayComp) return null;
+
+    const homeScore = parseInt(homeComp.score || '0', 10) || 0;
+    const awayScore = parseInt(awayComp.score || '0', 10) || 0;
+    const homeTeam = homeComp.team?.displayName || homeComp.team?.name || '';
+    const awayTeam = awayComp.team?.displayName || awayComp.team?.name || '';
+    const homeAbbr = homeComp.team?.abbreviation || '';
+    const awayAbbr = awayComp.team?.abbreviation || '';
+    const homeLogo = homeComp.team?.logos?.[0]?.href || homeComp.team?.logo || null;
+    const awayLogo = awayComp.team?.logos?.[0]?.href || awayComp.team?.logo || null;
+
+    // Half-time scores from linescores
+    let halfTimeHome: number | null = null;
+    let halfTimeAway: number | null = null;
+    const homeLinescores = homeComp.linescores || [];
+    const awayLinescores = awayComp.linescores || [];
+    if (homeLinescores.length >= 1) {
+      halfTimeHome = homeLinescores[0].value ?? null;
+    }
+    if (awayLinescores.length >= 1) {
+      halfTimeAway = awayLinescores[0].value ?? null;
+    }
+
+    // Team form
+    let homeForm: string | null = null;
+    let awayForm: string | null = null;
+    const formData = data.boxscore?.form || [];
+    if (Array.isArray(formData)) {
+      for (const entry of formData) {
+        const teamId = String(entry.team?.id || '');
+        if (teamId === String(homeComp.team?.id)) homeForm = entry.form || null;
+        if (teamId === String(awayComp.team?.id)) awayForm = entry.form || null;
+      }
+    }
+
+    // Team stats from boxscore.teams
+    const teamStats: FootballTeamStat[] = [];
+    const boxscoreTeams = data.boxscore?.teams || [];
+    const homeBoxTeam = boxscoreTeams.find(t => {
+      const teamId = t.team?.id;
+      return teamId && String(teamId) === String(homeComp.team?.id);
+    });
+    const awayBoxTeam = boxscoreTeams.find(t => {
+      const teamId = t.team?.id;
+      return teamId && String(teamId) === String(awayComp.team?.id);
+    });
+
+    if (homeBoxTeam?.statistics && awayBoxTeam?.statistics) {
+      // Key stats with French labels
+      const statTranslations: Record<string, string> = {
+        'possession': 'Possession',
+        'shots': 'Tirs',
+        'shotsOnTarget': 'Tirs cadrés',
+        'shotsOnGoal': 'Tirs cadrés',
+        'onGoal': 'Tirs cadrés',
+        'cornerKicks': 'Corners',
+        'fouls': 'Fautes',
+        'yellowCards': 'Cartons jaunes',
+        'redCards': 'Cartons rouges',
+        'offsides': 'Hors-jeu',
+        'saves': 'Arrêts',
+        'passes': 'Passes',
+        'accuratePasses': 'Passes réussies',
+        'passAccuracy': 'Précision passes',
+        'totalShots': 'Tirs total',
+      };
+
+      const homeStats = homeBoxTeam.statistics;
+      const awayStats = awayBoxTeam.statistics;
+      const statCount = Math.min(homeStats.length, awayStats.length);
+
+      for (let i = 0; i < statCount; i++) {
+        const homeStat = homeStats[i];
+        const awayStat = awayStats[i];
+        const statName = (homeStat.name || homeStat.label || '').toLowerCase();
+        const label = statTranslations[statName] || homeStat.label || homeStat.name || '';
+
+        teamStats.push({
+          label,
+          homeValue: homeStat.displayValue || '',
+          awayValue: awayStat.displayValue || '',
+          homePercent: homeStat.value ?? undefined,
+          awayPercent: awayStat.value ?? undefined,
+        });
+      }
+    }
+
+    // Top performers from leaders
+    const topPerformers: FootballTopPerformer[] = [];
+    const leadersData = data.leaders || [];
+
+    for (const teamLeader of leadersData) {
+      const teamAbbr = teamLeader.team?.abbreviation || '';
+      const categories = teamLeader.leaders || [];
+
+      for (const category of categories) {
+        const catName = category.name || '';
+        const catDisplay = catName === 'totalShots' ? 'Tirs' :
+                          catName === 'accuratePasses' ? 'Passes réussies' :
+                          catName === 'saves' ? 'Arrêts' :
+                          category.displayName || catName;
+
+        for (const leader of category.leaders || []) {
+          const athlete = leader.athlete;
+          if (athlete?.displayName && leader.displayValue) {
+            topPerformers.push({
+              name: athlete.displayName,
+              teamAbbr,
+              position: athlete.position?.abbreviation,
+              value: leader.displayValue,
+              category: catName,
+            });
+          }
+        }
+      }
+    }
+
+    // Game info
+    const venue = data.gameInfo?.venue?.fullName || null;
+    const attendance = data.gameInfo?.attendance ? String(data.gameInfo.attendance) : null;
+    const officials = (data.gameInfo?.officials || []).map(o => o.fullName || o.displayName || '').filter(Boolean);
+    const matchDate = data.header?.competitions?.[0]?.date || null;
+
+    return {
+      homeScore,
+      awayScore,
+      homeTeam,
+      awayTeam,
+      homeAbbr,
+      awayAbbr,
+      homeLogo,
+      awayLogo,
+      homeForm,
+      awayForm,
+      teamStats,
+      topPerformers,
+      venue,
+      attendance,
+      officials,
+      matchDate,
+      halfTimeHome,
+      halfTimeAway,
+    };
+  } catch (err) {
+    console.error('[Match Events API] Error parsing match summary:', err);
+    return null;
+  }
 }
 
 // ─── Fetch match events from ESPN API ─────────────────────────────────────────
@@ -324,7 +562,7 @@ async function fetchMatchEvents(eventId: string, league: string): Promise<MatchE
 
   const res = await fetch(url, {
     headers: { 'Accept': 'application/json' },
-    signal: AbortSignal.timeout(10000), // 10 second timeout
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!res.ok) {
@@ -334,20 +572,31 @@ async function fetchMatchEvents(eventId: string, league: string): Promise<MatchE
   const data: ESPNSummary = await res.json();
 
   // Extract team info from header
-  const competitors = data.header?.competitors || [];
+  const competitors = data.header?.competitions?.[0]?.competitors || data.header?.competitors || [];
   const homeTeam = competitors.find(c => c.homeAway === 'home') || null;
   const awayTeam = competitors.find(c => c.homeAway === 'away') || null;
 
-  // Extract commentary items
-  const commentaryItems = data.commentary?.items || [];
+  // Extract commentary items — handle both array and object format
+  let commentaryItems: ESPNCommentaryItem[] = [];
+  if (Array.isArray(data.commentary)) {
+    commentaryItems = data.commentary;
+  } else if (data.commentary?.items) {
+    commentaryItems = data.commentary.items;
+  }
 
   // Parse into our event format
   const events = parseCommentaryItems(commentaryItems, homeTeam, awayTeam);
+
+  // Parse match summary
+  const summary = parseMatchSummary(data);
+
+  console.log(`[Match Events API] Parsed ${events.length} events, summary: ${summary ? 'yes' : 'no'}`);
 
   return {
     events,
     matchId: `espn_${eventId}`,
     lastUpdated: new Date().toISOString(),
+    summary,
   };
 }
 
@@ -363,6 +612,7 @@ export async function GET(request: NextRequest) {
           events: [],
           matchId: '',
           lastUpdated: new Date().toISOString(),
+          summary: null,
           error: 'Paramètre matchId manquant',
         },
         { status: 400 }
@@ -376,7 +626,7 @@ export async function GET(request: NextRequest) {
 
     const cacheKey = `match-events-${eventId}`;
 
-    // Check cache first (use hasLive=true for 15s TTL, close to our desired 10s)
+    // Check cache first
     const cached = getMatchEventsCache<MatchEventsResponse>(cacheKey);
     if (cached) {
       const age = getCacheAge(cacheKey);
@@ -420,6 +670,7 @@ export async function GET(request: NextRequest) {
       events: [],
       matchId,
       lastUpdated: new Date().toISOString(),
+      summary: null,
       error: 'Impossible de charger les événements du match',
     };
 
