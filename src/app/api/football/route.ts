@@ -3,28 +3,28 @@ import { getCached, getCachedStale, setCache, getCacheAge } from '@/lib/football
 import type { FootballMatch, FootballMatchesResponse } from '@/lib/football/types';
 
 // ─── ESPN API league codes ───────────────────────────────────────────────────
-// Primary leagues: fetched by default (top 5 most popular for French users)
+// Primary leagues: always fetched
 const ESPN_LEAGUES_PRIMARY = [
   { code: 'fra.1', name: 'Ligue 1' },
   { code: 'eng.1', name: 'Premier League' },
   { code: 'esp.1', name: 'La Liga' },
-  { code: 'uefa.champions', name: 'Champions League' },
-  { code: 'uefa.europa', name: 'Europa League' },
-];
-
-// Extended leagues: fetched on demand (leagues=extended)
-const ESPN_LEAGUES_EXTENDED = [
   { code: 'ita.1', name: 'Serie A' },
   { code: 'ger.1', name: 'Bundesliga' },
+  { code: 'uefa.champions', name: 'Champions League' },
+  { code: 'uefa.europa', name: 'Europa League' },
   { code: 'uefa.europa.conf', name: 'Conference League' },
+  { code: 'usa.1', name: 'MLS' },
+  { code: 'saudi.1', name: 'Saudi Pro League' },
+];
+
+// Extended leagues: fetched on demand (leagues=extended or leagues=all)
+const ESPN_LEAGUES_EXTENDED = [
   { code: 'por.1', name: 'Liga Portugal' },
   { code: 'ned.1', name: 'Eredivisie' },
   { code: 'tur.1', name: 'Süper Lig' },
   { code: 'bra.1', name: 'Brasileirão' },
   { code: 'arg.1', name: 'Liga Profesional' },
   { code: 'mex.1', name: 'Liga MX' },
-  { code: 'usa.1', name: 'MLS' },
-  { code: 'saudi.1', name: 'Saudi Pro League' },
   { code: 'afc.champions', name: 'AFC Champions League' },
   { code: 'caf.champions', name: 'CAF Champions League' },
 ];
@@ -196,8 +196,8 @@ async function fetchESPNMatchesForDate(date: string, includeAllLeagues: boolean)
     ? [...ESPN_LEAGUES_PRIMARY, ...ESPN_LEAGUES_EXTENDED]
     : ESPN_LEAGUES_PRIMARY;
 
-  // Fetch leagues sequentially (batch size 1) to minimize memory
-  const batchSize = 1;
+  // Fetch leagues in batches of 3 for speed while staying memory-safe
+  const batchSize = 3;
   for (let i = 0; i < leagues.length; i += batchSize) {
     const batch = leagues.slice(i, i + batchSize);
     const results = await Promise.allSettled(
