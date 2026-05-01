@@ -3,6 +3,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import type { NotificationSettings } from '@/hooks/use-notifications';
 
 interface NotificationSettingsDialogProps {
@@ -18,16 +20,18 @@ export function NotificationSettingsDialog({
   settings,
   onSettingsChange,
 }: NotificationSettingsDialogProps) {
+  const { language } = useAppStore();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[380px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="text-lg">🔔</span>
-            Paramètres de notification
+            {t(language, 'notifications.settingsTitle')}
           </DialogTitle>
           <DialogDescription>
-            Choisissez les types de notifications que vous souhaitez recevoir.
+            {t(language, 'notifications.settingsDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -36,10 +40,10 @@ export function NotificationSettingsDialog({
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 space-y-0.5">
               <Label htmlFor="notify-match-start" className="text-sm font-medium cursor-pointer">
-                🏟️ Début de match
+                🏟️ {t(language, 'notifications.matchStart')}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Recevoir une notification quand un match commence
+                {t(language, 'notifications.matchStartDesc')}
               </p>
             </div>
             <Switch
@@ -55,10 +59,10 @@ export function NotificationSettingsDialog({
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 space-y-0.5">
               <Label htmlFor="notify-goals" className="text-sm font-medium cursor-pointer">
-                ⚽ Buts & Points
+                ⚽ {t(language, 'notifications.goalsPoints')}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Recevoir une notification quand un but ou des points sont marqués
+                {t(language, 'notifications.goalsPointsDesc')}
               </p>
             </div>
             <Switch
@@ -74,10 +78,10 @@ export function NotificationSettingsDialog({
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 space-y-0.5">
               <Label htmlFor="notify-favorites" className="text-sm font-medium cursor-pointer">
-                ❤️ Équipes favorites
+                ❤️ {t(language, 'notifications.favoriteTeams')}
               </Label>
               <p className="text-xs text-muted-foreground">
-                Rappel quand les matchs de vos équipes favorites approchent
+                {t(language, 'notifications.favoriteTeamsDesc')}
               </p>
             </div>
             <Switch

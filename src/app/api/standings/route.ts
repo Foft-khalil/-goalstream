@@ -85,12 +85,18 @@ interface ParsedTeam {
   points: number;
   note: string | null;
   noteColor: string | null;
+  // NBA-specific fields
+  winPct?: number;       // NBA win percentage (e.g., 0.750)
+  gamesBehind?: number;  // NBA games behind conference leader (e.g., 3.5)
+  conference?: string;   // 'Eastern' or 'Western' for NBA
 }
 
 // ─── Fetch from ESPN API ─────────────────────────────────────────────────────
 
 const ESPN_PRIMARY_BASE = 'https://site.web.api.espn.com/apis/v2/sports/soccer';
 const ESPN_FALLBACK_BASE = 'https://site.api.espn.com/apis/v2/sports/soccer';
+const ESPN_NBA_PRIMARY = 'https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings';
+const ESPN_NBA_FALLBACK = 'https://site.api.espn.com/apis/v2/sports/basketball/nba/standings';
 
 async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
   const res = await fetch(url, {
@@ -372,6 +378,113 @@ function getWorldCupPlaceholder(): ParsedStanding {
   };
 }
 
+// ─── NBA Standings ────────────────────────────────────────────────────────────
+
+async function fetchNBAStandings(): Promise<ParsedStanding[]> {
+  const timeout = 12000;
+
+  async function safeParseJson(res: Response): Promise<any> {
+    const contentLength = res.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > 1_000_000) {
+      console.warn('[Standings API] Response too large for NBA: ${contentLength} bytes, skipping');
+      return null;
+    }
+    return await res.json();
+  }
+
+  let data: any = null;
+
+  // Try primary URL first
+  try {
+    const res = await fetchWithTimeout(ESPN_NBA_PRIMARY, timeout);
+    if (res.ok) {
+      data = await safeParseJson(res);
+    }
+  } catch (err: any) {
+    console.warn(`[Standings API] NBA primary URL failed: ${err.message}, trying fallback...`);
+  }
+
+  // Try fallback URL if primary failed
+  if (!data) {
+    try {
+      const res = await fetchWithTimeout(ESPN_NBA_FALLBACK, timeout);
+      if (res.ok) {
+        data = await safeParseJson(res);
+      }
+    } catch (err: any) {
+      console.warn(`[Standings API] NBA fallback URL failed: ${err.message}`);
+    }
+  }
+
+  if (!data) {
+    throw new Error('Impossible de charger les classements NBA');
+  }
+
+  const children = data.children || [];
+  if (children.length === 0) {
+    return [];
+  }
+
+  const results: ParsedStanding[] = [];
+
+  for (const child of children) {
+    if (!child.standings?.entries) continue;
+
+    const conferenceName = child.name || 'Conference';
+    const entries: StandingEntry[] = child.standings.entries;
+
+    const teams: ParsedTeam[] = entries.slice(0, 16).map((entry) => {
+      const statMap: Record<string, string | number> = {};
+      for (const stat of entry.stats) {
+        statMap[stat.name] = stat.value;
+        statMap[stat.shortDisplayName] = stat.displayValue;
+      }
+
+      const winPct = Number(statMap['winPercent'] || 0);
+      const gamesBehind = Number(statMap['gamesBehind'] || 0);
+
+      return {
+        teamId: entry.team.id,
+        leagueCode: 'nba',
+        rank: entry.note?.rank ?? 0,
+        team: entry.team.displayName,
+        shortName: entry.team.shortDisplayName || entry.team.abbreviation,
+        logo: entry.team.logos?.[0]?.href || null,
+        played: Number(statMap['gamesPlayed'] || 0),
+        wins: Number(statMap['wins'] || 0),
+        draws: 0, // NBA doesn't have draws
+        losses: Number(statMap['losses'] || 0),
+        goalsFor: Number(statMap['pointsFor'] || 0),
+        goalsAgainst: Number(statMap['pointsAgainst'] || 0),
+        goalDiff: Number(statMap['pointDifferential'] || 0),
+        points: Math.round(winPct * 1000), // Use points field to sort by winPct
+        note: entry.note?.description || null,
+        noteColor: entry.note?.color || null,
+        winPct,
+        gamesBehind,
+        conference: conferenceName.includes('Eastern') ? 'Eastern' : 'Western',
+      };
+    });
+
+    // Sort by winPct desc (points field = winPct * 1000)
+    teams.sort((a, b) => b.points - a.points);
+    // Re-rank within conference
+    teams.forEach((t, i) => { t.rank = i + 1; });
+
+    results.push({
+      league: `NBA — ${conferenceName}`,
+      flag: '🏀',
+      season: conferenceName,
+      leagueCode: 'nba',
+      teams,
+      isGroup: true,
+      groupName: conferenceName,
+    });
+  }
+
+  return results;
+}
+
 // ─── Friendly error messages for specific competitions ───────────────────────
 
 function getFriendlyErrorMessage(code: string, leagueName: string, originalError: string): string {
@@ -423,6 +536,9 @@ export async function GET(request: Request) {
       // Special case: World Cup placeholder (groups not formed yet)
       includeWorldCupPlaceholder = true;
       leaguesToFetch = [];
+    } else if (league === 'nba') {
+      // Special case: NBA standings from basketball ESPN API
+      leaguesToFetch = []; // Handled separately below
     } else if (league) {
       // Specific league requested
       const allLeagues = [...CHAMPIONNATS, ...COUPES_CLUBS, ...NATIONALES];
@@ -436,6 +552,9 @@ export async function GET(request: Request) {
     } else {
       // Category-based
       switch (category) {
+        case 'basketball':
+          leaguesToFetch = []; // NBA handled separately
+          break;
         case 'coupes':
           leaguesToFetch = COUPES_CLUBS;
           break;
@@ -453,6 +572,20 @@ export async function GET(request: Request) {
 
     const standings: ParsedStanding[] = [];
     const errors: string[] = [];
+
+    // Handle NBA standings separately
+    if (league === 'nba' || category === 'basketball') {
+      try {
+        const nbaData = await fetchNBAStandings();
+        if (nbaData.length > 0) {
+          standings.push(...nbaData);
+        } else {
+          errors.push('NBA: Classements non disponibles');
+        }
+      } catch (err: any) {
+        errors.push(`NBA: ${err.message || 'Échec du chargement'}`);
+      }
+    }
 
     // Fetch leagues SEQUENTIALLY to avoid OOM (instead of Promise.allSettled)
     for (const l of leaguesToFetch) {
@@ -510,7 +643,9 @@ export async function GET(request: Request) {
 
     const stale = getCachedStale<any>('standings-championnats')
       || getCachedStale<any>('standings-coupes')
-      || getCachedStale<any>('standings-nationales');
+      || getCachedStale<any>('standings-nationales')
+      || getCachedStale<any>('standings-basketball')
+      || getCachedStale<any>('standings-nba');
     if (stale) {
       return NextResponse.json({ ...stale, error: 'Données potentiellement anciennes' });
     }

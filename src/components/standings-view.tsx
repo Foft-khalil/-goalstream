@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Loader2, Trophy, RefreshCw, AlertCircle, Globe, Shield, Users, Calendar, Info, MapPin, Flag, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Loader2, Trophy, RefreshCw, AlertCircle, Globe, Shield, Users, Calendar, Info, MapPin, Flag, ChevronDown, ChevronUp, Clock, Dribbble } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TeamDetailDialog from '@/components/team-detail-dialog';
 
@@ -24,6 +24,10 @@ interface StandingTeam {
   points: number;
   note: string | null;
   noteColor: string | null;
+  // NBA-specific fields
+  winPct?: number;
+  gamesBehind?: number;
+  conference?: string;
 }
 
 interface UpcomingEvent {
@@ -56,10 +60,11 @@ interface StandingsData {
 
 // ─── Category definitions ────────────────────────────────────────────────────
 
-type Category = 'championnats' | 'coupes' | 'nationales';
+type Category = 'championnats' | 'basketball' | 'coupes' | 'nationales';
 
 const CATEGORIES: { key: Category; label: string; icon: React.ReactNode }[] = [
   { key: 'championnats', label: 'Championnats', icon: <Trophy className="h-3.5 w-3.5" /> },
+  { key: 'basketball', label: 'Basketball', icon: <Dribbble className="h-3.5 w-3.5" /> },
   { key: 'coupes', label: 'Coupes Clubs', icon: <Shield className="h-3.5 w-3.5" /> },
   { key: 'nationales', label: 'Éq. Nationales', icon: <Globe className="h-3.5 w-3.5" /> },
 ];
@@ -74,6 +79,9 @@ const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: st
     { code: 'ger.1', name: 'Bundesliga', flag: '🇩🇪' },
     { code: 'por.1', name: 'Liga Portugal', flag: '🇵🇹' },
     { code: 'ned.1', name: 'Eredivisie', flag: '🇳🇱' },
+  ],
+  basketball: [
+    { code: 'nba', name: 'NBA', flag: '🏀' },
   ],
   coupes: [
     { code: 'uefa.champions', name: 'Ligue des Champions', flag: '🏆' },
@@ -227,12 +235,14 @@ function StandingsTable({
   league,
   isFIFARankings,
   isCoupesCategory,
+  isNBA,
   activeCategory,
   onTeamClick,
 }: {
   league: LeagueStanding;
   isFIFARankings: boolean;
   isCoupesCategory: boolean;
+  isNBA: boolean;
   activeCategory: Category;
   onTeamClick: (team: StandingTeam) => void;
 }) {
@@ -242,6 +252,26 @@ function StandingsTable({
   const displayedTeams = showAll ? league.teams : league.teams.slice(0, INITIAL_SHOW);
 
   const isFIFARank = isFIFARankings && league.leagueCode === 'fifa.rankings';
+  const isNBATable = isNBA && league.leagueCode === 'nba';
+
+  // Grid columns for different table types
+  const getGridCols = () => {
+    if (isFIFARank) return 'grid-cols-[28px_1fr_60px]';
+    if (isNBATable) return 'grid-cols-[28px_1fr_32px_32px_48px_40px]';
+    return 'grid-cols-[28px_1fr_32px_32px_32px_32px_40px]';
+  };
+
+  // Format NBA win percentage (e.g., 0.806 → .806)
+  const formatWinPct = (pct: number | undefined) => {
+    if (pct === undefined || pct === 0) return '.000';
+    return pct < 1 ? `.${String(pct.toFixed(3)).split('.')[1]}` : '1.000';
+  };
+
+  // Format games behind (0 → "-")
+  const formatGamesBehind = (gb: number | undefined) => {
+    if (gb === undefined || gb === 0) return '-';
+    return gb % 1 === 0 ? String(gb) : gb.toFixed(1);
+  };
 
   return (
     <section className="space-y-0">
@@ -262,15 +292,18 @@ function StandingsTable({
       {/* Table */}
       <div className="rounded-xl border border-border/30 overflow-hidden bg-card/50">
         {/* Header */}
-        <div className={`grid gap-0 px-2.5 py-2 bg-muted/30 border-b border-border/20 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider ${
-          isFIFARank
-            ? 'grid-cols-[28px_1fr_60px]'
-            : 'grid-cols-[28px_1fr_32px_32px_32px_32px_40px]'
-        }`}>
+        <div className={`grid gap-0 px-2.5 py-2 bg-muted/30 border-b border-border/20 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider ${getGridCols()}`}>
           <span className="text-center">#</span>
           <span>Équipe</span>
           {isFIFARank ? (
             <span className="text-center">Points</span>
+          ) : isNBATable ? (
+            <>
+              <span className="text-center">W</span>
+              <span className="text-center">L</span>
+              <span className="text-center">PCT</span>
+              <span className="text-center">GB</span>
+            </>
           ) : (
             <>
               <span className="text-center">J</span>
@@ -288,15 +321,13 @@ function StandingsTable({
             <div
               key={team.team}
               onClick={() => onTeamClick(team)}
-              className={`grid gap-0 px-2.5 py-2 items-center text-xs hover:bg-green-500/5 transition-colors cursor-pointer ${
-                isFIFARank
-                  ? 'grid-cols-[28px_1fr_60px]'
-                  : 'grid-cols-[28px_1fr_32px_32px_32px_32px_40px]'
-              } ${
-                team.note && (team.note.toLowerCase().includes('qualif') || team.note.toLowerCase().includes('champions') || team.note.toLowerCase().includes('top 10') || team.note.toLowerCase().includes('advance') || team.note.toLowerCase().includes('round of'))
+              className={`grid gap-0 px-2.5 py-2 items-center text-xs hover:bg-green-500/5 transition-colors cursor-pointer ${getGridCols()} ${
+                team.note && (team.note.toLowerCase().includes('qualif') || team.note.toLowerCase().includes('champions') || team.note.toLowerCase().includes('top 10') || team.note.toLowerCase().includes('advance') || team.note.toLowerCase().includes('round of') || team.note.toLowerCase().includes('clinched playoff') || team.note.toLowerCase().includes('clinched'))
                   ? 'bg-green-500/[0.03]'
-                  : team.note && (team.note.toLowerCase().includes('relegation'))
+                  : team.note && (team.note.toLowerCase().includes('relegation') || team.note.toLowerCase().includes('eliminated'))
                   ? 'bg-red-500/[0.03]'
+                  : team.note && (team.note.toLowerCase().includes('play-in') || team.note.toLowerCase().includes('playoff'))
+                  ? 'bg-blue-500/[0.03]'
                   : ''
               }`}
             >
@@ -331,6 +362,13 @@ function StandingsTable({
               {/* Stats */}
               {isFIFARank ? (
                 <span className="text-center font-black text-foreground tabular-nums">{team.points}</span>
+              ) : isNBATable ? (
+                <>
+                  <span className="text-center text-green-400/80 tabular-nums">{team.wins}</span>
+                  <span className="text-center text-red-400/60 tabular-nums">{team.losses}</span>
+                  <span className="text-center font-bold text-foreground tabular-nums">{formatWinPct(team.winPct)}</span>
+                  <span className="text-center text-muted-foreground tabular-nums">{formatGamesBehind(team.gamesBehind)}</span>
+                </>
               ) : (
                 <>
                   <span className="text-center text-muted-foreground tabular-nums">{team.played}</span>
@@ -378,6 +416,22 @@ function StandingsTable({
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-red-500/40" />
               <span className="text-[9px] text-muted-foreground/50">Relégation</span>
+            </div>
+          </div>
+        )}
+        {isNBATable && (
+          <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-green-500/40" />
+              <span className="text-[9px] text-muted-foreground/50">Playoffs</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500/40" />
+              <span className="text-[9px] text-muted-foreground/50">Play-In</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-500/40" />
+              <span className="text-[9px] text-muted-foreground/50">Éliminé</span>
             </div>
           </div>
         )}
@@ -482,11 +536,13 @@ export default function StandingsView() {
   const [activeCategory, setActiveCategory] = useState<Category>('championnats');
   const [data, setData] = useState<Record<Category, StandingsData | null>>({
     championnats: null,
+    basketball: null,
     coupes: null,
     nationales: null,
   });
   const [loading, setLoading] = useState<Record<Category, boolean>>({
     championnats: false,
+    basketball: false,
     coupes: false,
     nationales: false,
   });
@@ -630,6 +686,7 @@ export default function StandingsView() {
   const standings = currentData?.standings || [];
   const isFIFARankings = activeCategory === 'nationales';
   const isCoupesCategory = activeCategory === 'coupes';
+  const isNBA = activeCategory === 'basketball';
 
   // Get standings for the currently selected league
   const selectedStandings = standings.filter((s) => s.leagueCode === selectedLeague);
@@ -802,6 +859,7 @@ export default function StandingsView() {
               league={league}
               isFIFARankings={isFIFARankings}
               isCoupesCategory={isCoupesCategory}
+              isNBA={isNBA}
               activeCategory={activeCategory}
               onTeamClick={handleTeamClick}
             />

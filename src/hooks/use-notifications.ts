@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { useFavorites } from '@/hooks/use-favorites';
+import { useNotificationStore } from '@/lib/notification-store';
 import type { BasketballMatch } from '@/lib/basketball/types';
 import type { FootballMatch } from '@/lib/football/types';
 
@@ -544,6 +545,15 @@ export function useNotifications() {
                 window.focus();
                 notification.close();
               };
+
+              // Log to notification store
+              useNotificationStore.getState().addNotification({
+                type: 'upcoming',
+                sport: match.sport,
+                title: `GoalStream ${icon}`,
+                body,
+                matchId: match.id,
+              });
             } catch {
               // Notification might fail in some environments
             }
@@ -584,6 +594,14 @@ export function useNotifications() {
                 window.focus();
                 notification.close();
               };
+
+              // Log to notification store
+              useNotificationStore.getState().addNotification({
+                type: 'match_start',
+                sport: start.sport,
+                title,
+                body,
+              });
             } catch {
               // Notification might fail
             }
@@ -625,6 +643,15 @@ export function useNotifications() {
               window.focus();
               notification.close();
             };
+
+            // Log to notification store
+            useNotificationStore.getState().addNotification({
+              type: 'goal',
+              sport: goal.sport,
+              title,
+              body,
+              matchId: goal.matchId,
+            });
           } catch {
             // Notification might fail
           }

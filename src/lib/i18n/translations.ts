@@ -73,6 +73,7 @@ export interface Translations {
     championships: string;
     clubCups: string;
     nationalTeams: string;
+    basketball: string;
     fifaRanking: string;
     worldCup: string;
     team: string;
@@ -88,8 +89,14 @@ export interface Translations {
     relegation: string;
     qualified: string;
     playoffs: string;
+    playIn: string;
+    eliminated: string;
     top10: string;
     top20: string;
+    wins: string;
+    losses: string;
+    winPct: string;
+    gamesBehind: string;
   };
   favorites: {
     title: string;
@@ -132,6 +139,24 @@ export interface Translations {
     settings: string;
     startsIn: string;
     goal: string;
+    title: string;
+    noNotifications: string;
+    noNotificationsDesc: string;
+    markAllRead: string;
+    clearAll: string;
+    enableNotifs: string;
+    openSettings: string;
+    justNow: string;
+    minutesAgo: string;
+    hoursAgo: string;
+    settingsTitle: string;
+    settingsDesc: string;
+    matchStart: string;
+    matchStartDesc: string;
+    goalsPoints: string;
+    goalsPointsDesc: string;
+    favoriteTeams: string;
+    favoriteTeamsDesc: string;
   };
   offline: {
     message: string;
@@ -232,6 +257,7 @@ export const translations: Record<Language, Translations> = {
       championships: 'Championnats',
       clubCups: 'Coupes Clubs',
       nationalTeams: 'Éq. Nationales',
+      basketball: 'Basketball',
       fifaRanking: 'Classement FIFA',
       worldCup: 'Coupe du Monde',
       team: 'Équipe',
@@ -246,9 +272,15 @@ export const translations: Record<Language, Translations> = {
       europaConf: 'Europa / Conf.',
       relegation: 'Relégation',
       qualified: 'Qualifié tour suivant',
-      playoffs: 'Barrages',
+      playoffs: 'Playoffs',
+      playIn: 'Play-In',
+      eliminated: 'Éliminé',
       top10: 'Top 10',
       top20: 'Top 20',
+      wins: 'V',
+      losses: 'D',
+      winPct: 'PCT',
+      gamesBehind: 'GB',
     },
     favorites: {
       title: 'Favoris',
@@ -291,6 +323,24 @@ export const translations: Record<Language, Translations> = {
       settings: 'Paramètres de notification',
       startsIn: 'commence dans {0} min',
       goal: 'BUT !',
+      title: 'Notifications',
+      noNotifications: 'Aucune notification',
+      noNotificationsDesc: "Les alertes de match apparaîtront ici",
+      markAllRead: 'Tout marquer comme lu',
+      clearAll: 'Tout effacer',
+      enableNotifs: 'Activer les notifications',
+      openSettings: 'Paramètres',
+      justNow: "À l'instant",
+      minutesAgo: 'il y a {0} min',
+      hoursAgo: 'il y a {0}h',
+      settingsTitle: 'Paramètres de notification',
+      settingsDesc: 'Choisissez les types de notifications que vous souhaitez recevoir.',
+      matchStart: 'Début de match',
+      matchStartDesc: 'Recevoir une notification quand un match commence',
+      goalsPoints: 'Buts & Points',
+      goalsPointsDesc: 'Recevoir une notification quand un but ou des points sont marqués',
+      favoriteTeams: 'Équipes favorites',
+      favoriteTeamsDesc: "Rappel quand les matchs de vos équipes favorites approchent",
     },
     offline: {
       message: 'Vous êtes hors ligne — certaines données peuvent être anciennes',
@@ -389,6 +439,7 @@ export const translations: Record<Language, Translations> = {
       championships: 'Championships',
       clubCups: 'Club Cups',
       nationalTeams: 'National Teams',
+      basketball: 'Basketball',
       fifaRanking: 'FIFA Ranking',
       worldCup: 'World Cup',
       team: 'Team',
@@ -404,8 +455,14 @@ export const translations: Record<Language, Translations> = {
       relegation: 'Relegation',
       qualified: 'Qualified next round',
       playoffs: 'Playoffs',
+      playIn: 'Play-In',
+      eliminated: 'Eliminated',
       top10: 'Top 10',
       top20: 'Top 20',
+      wins: 'W',
+      losses: 'L',
+      winPct: 'PCT',
+      gamesBehind: 'GB',
     },
     favorites: {
       title: 'Favorites',
@@ -448,6 +505,24 @@ export const translations: Record<Language, Translations> = {
       settings: 'Notification settings',
       startsIn: 'starts in {0} min',
       goal: 'GOAL!',
+      title: 'Notifications',
+      noNotifications: 'No notifications',
+      noNotificationsDesc: 'Match alerts will appear here',
+      markAllRead: 'Mark all as read',
+      clearAll: 'Clear all',
+      enableNotifs: 'Enable notifications',
+      openSettings: 'Settings',
+      justNow: 'Just now',
+      minutesAgo: '{0} min ago',
+      hoursAgo: '{0}h ago',
+      settingsTitle: 'Notification settings',
+      settingsDesc: 'Choose which types of notifications you want to receive.',
+      matchStart: 'Match start',
+      matchStartDesc: 'Get notified when a match starts',
+      goalsPoints: 'Goals & Points',
+      goalsPointsDesc: 'Get notified when a goal or points are scored',
+      favoriteTeams: 'Favorite teams',
+      favoriteTeamsDesc: 'Reminder when your favorite teams\' matches are coming up',
     },
     offline: {
       message: 'You are offline — some data may be outdated',
@@ -546,6 +621,7 @@ export const translations: Record<Language, Translations> = {
       championships: 'البطولات',
       clubCups: 'كأس الأندية',
       nationalTeams: 'الفرق الوطنية',
+      basketball: 'كرة السلة',
       fifaRanking: 'تصنيف FIFA',
       worldCup: 'كأس العالم',
       team: 'الفريق',
@@ -560,9 +636,15 @@ export const translations: Record<Language, Translations> = {
       europaConf: 'يوروبا / كونف',
       relegation: 'هبوط',
       qualified: 'تأهل للجولة القادمة',
-      playoffs: 'ملحق',
+      playoffs: 'بلاي أوف',
+      playIn: 'بلاي إن',
+      eliminated: 'خارج',
       top10: 'أفضل 10',
       top20: 'أفضل 20',
+      wins: 'ف',
+      losses: 'خ',
+      winPct: 'نسبة',
+      gamesBehind: 'خلف',
     },
     favorites: {
       title: 'المفضلة',
@@ -605,6 +687,24 @@ export const translations: Record<Language, Translations> = {
       settings: 'إعدادات الإشعارات',
       startsIn: 'تبدأ خلال {0} د',
       goal: 'هدف!',
+      title: 'الإشعارات',
+      noNotifications: 'لا توجد إشعارات',
+      noNotificationsDesc: 'ستظهر تنبيهات المباريات هنا',
+      markAllRead: 'تحديد الكل كمقروء',
+      clearAll: 'مسح الكل',
+      enableNotifs: 'تفعيل الإشعارات',
+      openSettings: 'الإعدادات',
+      justNow: 'الآن',
+      minutesAgo: 'منذ {0} د',
+      hoursAgo: 'منذ {0} س',
+      settingsTitle: 'إعدادات الإشعارات',
+      settingsDesc: 'اختر أنواع الإشعارات التي تريد تلقيها.',
+      matchStart: 'بداية المباراة',
+      matchStartDesc: 'تلقي إشعار عند بداية المباراة',
+      goalsPoints: 'أهداف ونقاط',
+      goalsPointsDesc: 'تلقي إشعار عند تسجيل هدف أو نقاط',
+      favoriteTeams: 'الفرق المفضلة',
+      favoriteTeamsDesc: 'تذكير عند اقتراب مباريات فرقك المفضلة',
     },
     offline: {
       message: 'أنت غير متصل — قد تكون بعض البيانات قديمة',
@@ -703,6 +803,7 @@ export const translations: Record<Language, Translations> = {
       championships: 'Campeonatos',
       clubCups: 'Copas de Clubes',
       nationalTeams: 'Selecciones',
+      basketball: 'Baloncesto',
       fifaRanking: 'Ranking FIFA',
       worldCup: 'Copa del Mundo',
       team: 'Equipo',
@@ -718,8 +819,14 @@ export const translations: Record<Language, Translations> = {
       relegation: 'Descenso',
       qualified: 'Clasificado siguiente ronda',
       playoffs: 'Playoffs',
+      playIn: 'Play-In',
+      eliminated: 'Eliminado',
       top10: 'Top 10',
       top20: 'Top 20',
+      wins: 'G',
+      losses: 'P',
+      winPct: 'PCT',
+      gamesBehind: 'GB',
     },
     favorites: {
       title: 'Favoritos',
@@ -762,6 +869,24 @@ export const translations: Record<Language, Translations> = {
       settings: 'Configuración de notificaciones',
       startsIn: 'empieza en {0} min',
       goal: '¡GOL!',
+      title: 'Notificaciones',
+      noNotifications: 'Sin notificaciones',
+      noNotificationsDesc: 'Las alertas de partidos aparecerán aquí',
+      markAllRead: 'Marcar todo como leído',
+      clearAll: 'Borrar todo',
+      enableNotifs: 'Activar notificaciones',
+      openSettings: 'Configuración',
+      justNow: 'Ahora mismo',
+      minutesAgo: 'hace {0} min',
+      hoursAgo: 'hace {0}h',
+      settingsTitle: 'Configuración de notificaciones',
+      settingsDesc: 'Elija los tipos de notificaciones que desea recibir.',
+      matchStart: 'Inicio de partido',
+      matchStartDesc: 'Recibir notificación cuando comience un partido',
+      goalsPoints: 'Goles y Puntos',
+      goalsPointsDesc: 'Recibir notificación cuando se marque un gol o puntos',
+      favoriteTeams: 'Equipos favoritos',
+      favoriteTeamsDesc: 'Recordatorio cuando se acercan los partidos de sus equipos favoritos',
     },
     offline: {
       message: 'Estás sin conexión — algunos datos pueden estar desactualizados',
@@ -860,6 +985,7 @@ export const translations: Record<Language, Translations> = {
       championships: 'Campeonatos',
       clubCups: 'Copas de Clubes',
       nationalTeams: 'Seleções',
+      basketball: 'Basquetebol',
       fifaRanking: 'Ranking FIFA',
       worldCup: 'Copa do Mundo',
       team: 'Time',
@@ -875,8 +1001,14 @@ export const translations: Record<Language, Translations> = {
       relegation: 'Rebaixamento',
       qualified: 'Classificado próxima rodada',
       playoffs: 'Playoffs',
+      playIn: 'Play-In',
+      eliminated: 'Eliminado',
       top10: 'Top 10',
       top20: 'Top 20',
+      wins: 'V',
+      losses: 'D',
+      winPct: 'PCT',
+      gamesBehind: 'GB',
     },
     favorites: {
       title: 'Favoritos',
@@ -919,6 +1051,24 @@ export const translations: Record<Language, Translations> = {
       settings: 'Configurações de notificação',
       startsIn: 'começa em {0} min',
       goal: 'GOL!',
+      title: 'Notificações',
+      noNotifications: 'Sem notificações',
+      noNotificationsDesc: 'Os alertas de jogos aparecerão aqui',
+      markAllRead: 'Marcar tudo como lido',
+      clearAll: 'Limpar tudo',
+      enableNotifs: 'Ativar notificações',
+      openSettings: 'Configurações',
+      justNow: 'Agora mesmo',
+      minutesAgo: 'há {0} min',
+      hoursAgo: 'há {0}h',
+      settingsTitle: 'Configurações de notificação',
+      settingsDesc: 'Escolha os tipos de notificações que deseja receber.',
+      matchStart: 'Início do jogo',
+      matchStartDesc: 'Receber notificação quando um jogo começar',
+      goalsPoints: 'Gols e Pontos',
+      goalsPointsDesc: 'Receber notificação quando um gol ou pontos forem marcados',
+      favoriteTeams: 'Times favoritos',
+      favoriteTeamsDesc: 'Lembrete quando os jogos dos seus times favoritos estiverem se aproximando',
     },
     offline: {
       message: 'Você está offline — alguns dados podem estar desatualizados',

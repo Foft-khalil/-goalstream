@@ -289,3 +289,75 @@ Stage Summary:
 - Channels route: already handles DB write failures gracefully (try/catch around upsert loop) — no change needed
 - Football detail route: DB read failure now caught locally, allowing cache fallback to work instead of jumping to outer error handler
 - Both routes will return valid responses on Vercel where SQLite is ephemeral
+
+---
+Task ID: 1
+Agent: main
+Task: Implement Notification Center dropdown with notification history
+
+Work Log:
+- Created `/src/lib/notification-store.ts` — Zustand store with NotificationItem interface, localStorage persistence (key: `goalstream_notification_history`), max 20 items, auto-cleanup after 24h
+- Added 17 new translation keys to `/src/lib/i18n/translations.ts` for notification center UI in all 5 languages (fr, en, ar, es, pt): title, noNotifications, noNotificationsDesc, markAllRead, clearAll, enableNotifs, openSettings, justNow, minutesAgo, hoursAgo, settingsTitle, settingsDesc, matchStart, matchStartDesc, goalsPoints, goalsPointsDesc, favoriteTeams, favoriteTeamsDesc
+- Created `/src/components/notification-center.tsx` — Popover-based dropdown with: header (title + unread badge + enable/disable switch), notification list with icons/body/timestamp, ScrollArea, empty state, mark-all-read/clear-all buttons, settings link
+- Updated `/src/hooks/use-notifications.ts` — Added `useNotificationStore.getState().addNotification()` calls in 3 places: upcoming favorite matches, match start notifications, goal/score notifications
+- i18n'd `/src/components/notification-settings.tsx` — Replaced all hardcoded French strings with `t(language, ...)` calls using `useAppStore().language`
+- Updated `/src/app/page.tsx` — Replaced bell button with Popover+NotificationCenter on both desktop and mobile; bell always shows Bell icon (not BellOff); red badge shows unread count (9+ cap); removed separate Settings2 gear button; settings now accessible inside dropdown
+- Lint passed with zero errors, dev server running cleanly
+
+Stage Summary:
+- Bell icon now opens a Notification Center dropdown instead of toggling browser notification permission
+- Notification history persists in localStorage with auto-cleanup (24h expiry, max 20 items)
+- All browser notifications are also logged to the in-app notification store
+- Unread count shown as red badge on bell icon
+- Notification settings dialog accessible from dropdown footer
+- Settings dialog fully i18n'd across all 5 languages
+- Removed separate gear icon — settings consolidated inside dropdown
+---
+Task ID: 2
+Agent: full-stack-developer
+Task: Add NBA standings with all 30 teams, logos, stats, and rankings
+
+Work Log:
+- Updated `/src/app/api/standings/route.ts`:
+  - Added NBA-specific constants: `ESPN_NBA_PRIMARY` and `ESPN_NBA_FALLBACK` URLs pointing to basketball ESPN API
+  - Added `fetchNBAStandings()` async function that:
+    - Fetches from ESPN NBA standings endpoint with primary/fallback URL pattern
+    - Parses `children` array containing Eastern and Western conferences
+    - Maps NBA-specific stats: `wins`, `losses`, `winPercent` (→winPct), `gamesBehind`
+    - Uses team logos from `entry.team.logos[0].href`
+    - Sorts by win percentage descending and re-ranks within each conference
+    - Returns 2 ParsedStanding objects (one per conference) with `leagueCode: 'nba'`
+  - Added NBA-specific optional fields to `ParsedTeam`: `winPct`, `gamesBehind`, `conference`
+  - Updated GET handler to handle `league=nba` parameter and `category=basketball`
+  - Added stale cache fallback keys for basketball and NBA
+- Updated `/src/components/standings-view.tsx`:
+  - Added `Dribbble` icon import from lucide-react
+  - Added NBA-specific optional fields to `StandingTeam` interface: `winPct`, `gamesBehind`, `conference`
+  - Added `'basketball'` to `Category` type
+  - Added Basketball category to `CATEGORIES` array with Dribbble icon
+  - Added NBA league tab to `LEAGUE_TABS` under basketball: `{ code: 'nba', name: 'NBA', flag: '🏀' }`
+  - Added `basketball` to data/loading state objects
+  - Added `isNBA` computed flag
+  - Updated `StandingsTable` component with:
+    - New `isNBA` prop
+    - NBA-specific grid columns: `grid-cols-[28px_1fr_32px_32px_48px_40px]` for #, Team, W, L, PCT, GB
+    - `formatWinPct()` helper (0.806 → ".806", 0 → ".000")
+    - `formatGamesBehind()` helper (0 → "-", 3.5 → "3.5")
+    - NBA-specific column headers: W, L, PCT, GB
+    - NBA-specific row styling with green (clinched), blue (play-in), red (eliminated) backgrounds
+    - NBA legend: Playoffs / Play-In / Éliminé
+  - Passed `isNBA` prop to StandingsTable in render
+- Updated `/src/lib/i18n/translations.ts`:
+  - Added `basketball`, `playIn`, `eliminated`, `wins`, `losses`, `winPct`, `gamesBehind` keys to standings section
+  - All 5 languages updated: fr, en, ar, es, pt
+- Lint passed with zero errors
+- Tested API: `GET /api/standings?league=nba` returns 30 teams (15 Eastern + 15 Western), all with logos, winPct, and gamesBehind
+
+Stage Summary:
+- NBA standings fully functional with all 30 teams, ESPN logos, and conference separation
+- Basketball category tab added to standings view with Dribbble icon
+- NBA-specific table columns: #, Team, W, L, PCT, GB (no draws column)
+- Win percentage formatted as .xxx, games behind shows "-" for conference leaders
+- NBA legend shows Playoffs/Play-In/Eliminated color coding
+- All 5 i18n languages include basketball/NBA translation keys
+- Existing football standings fully preserved

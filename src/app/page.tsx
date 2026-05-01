@@ -10,12 +10,15 @@ import StandingsView from '@/components/standings-view';
 import FavoritesView from '@/components/favorites-view';
 import VideoPlayer from '@/components/video-player';
 import LanguageSelector from '@/components/language-selector';
-import { Zap, Tv, BarChart3, Menu, Download, WifiOff, Heart, Dribbble, Bell, BellOff, Settings2 } from 'lucide-react';
+import { Zap, Tv, BarChart3, Menu, Download, WifiOff, Heart, Dribbble, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
 import { usePWA } from '@/hooks/use-pwa';
 import { NotificationSettingsDialog } from '@/components/notification-settings';
+import NotificationCenter from '@/components/notification-center';
+import { useNotificationStore } from '@/lib/notification-store';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useNotifications } from '@/hooks/use-notifications';
 
@@ -24,7 +27,8 @@ function AppHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { installPrompt, installApp, isOnline } = usePWA();
   const { totalFavorites } = useFavorites();
-  const { notificationsEnabled, toggleNotifications, upcomingFavoriteCount, settings, updateSettings } = useNotifications();
+  const { settings, updateSettings } = useNotifications();
+  const { unreadCount } = useNotificationStore();
   const [notifSettingsOpen, setNotifSettingsOpen] = useState(false);
 
   const footballLiveCount = footballMatches.filter((m) => m.status === 'live').length;
@@ -58,33 +62,28 @@ function AppHeader() {
           {/* Language + Notification + Install button + Desktop Nav */}
           <div className="hidden sm:flex items-center gap-1">
             <LanguageSelector />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleNotifications}
-              className={`h-8 w-8 relative rounded-lg ${
-                notificationsEnabled
-                  ? 'text-green-500 hover:text-green-600 hover:bg-green-500/10'
-                  : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50'
-              }`}
-              title={notificationsEnabled ? t(language, 'notifications.enabled') : t(language, 'notifications.enable')}
-            >
-              {notificationsEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-              {notificationsEnabled && upcomingFavoriteCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              )}
-            </Button>
-            {notificationsEnabled && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setNotifSettingsOpen(true)}
-                className="h-8 w-8 rounded-lg text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50"
-                title={t(language, 'notifications.settings')}
-              >
-                <Settings2 className="h-3.5 w-3.5" />
-              </Button>
-            )}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 relative rounded-lg"
+                  title={t(language, 'notifications.title')}
+                >
+                  <Bell className="h-4 w-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-[8px] font-bold text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-0">
+                <NotificationCenter
+                  onOpenSettings={() => setNotifSettingsOpen(true)}
+                />
+              </PopoverContent>
+            </Popover>
             {installPrompt && (
               <Button
                 size="sm"
@@ -142,33 +141,28 @@ function AppHeader() {
           {/* Mobile language + notification + menu */}
           <div className="flex sm:hidden items-center gap-0.5">
             <LanguageSelector />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleNotifications}
-              className={`h-9 w-9 relative ${
-                notificationsEnabled
-                  ? 'text-green-500 hover:text-green-600 hover:bg-green-500/10'
-                  : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50'
-              }`}
-              title={notificationsEnabled ? t(language, 'notifications.enabled') : t(language, 'notifications.enable')}
-            >
-              {notificationsEnabled ? <Bell className="h-4.5 w-4.5" /> : <BellOff className="h-4.5 w-4.5" />}
-              {notificationsEnabled && upcomingFavoriteCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              )}
-            </Button>
-            {notificationsEnabled && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setNotifSettingsOpen(true)}
-                className="h-9 w-9 text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50"
-                title={t(language, 'notifications.settings')}
-              >
-                <Settings2 className="h-4 w-4" />
-              </Button>
-            )}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 relative"
+                  title={t(language, 'notifications.title')}
+                >
+                  <Bell className="h-4.5 w-4.5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-[8px] font-bold text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-0">
+                <NotificationCenter
+                  onOpenSettings={() => setNotifSettingsOpen(true)}
+                />
+              </PopoverContent>
+            </Popover>
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-9 w-9">
