@@ -1,11 +1,12 @@
 {
-  "name": "nextjs_tailwind_shadcn_ts",
-  "version": "0.2.0",
+  "name": "goalstream",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "bash scripts/dev-supervisor.sh",
-    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
+    "build": "prisma generate && next build",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
+    "postinstall": "prisma generate",
     "lint": "eslint .",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",

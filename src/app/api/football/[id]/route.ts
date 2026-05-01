@@ -115,8 +115,15 @@ export async function GET(
     let awayTeam = '';
     let baseMatch: MatchDetail | null = null;
 
-    // Try to find in database first
-    const dbMatch = await db.match.findUnique({ where: { id } });
+    // Try to find in database first (wrapped in try/catch because
+    // the SQLite DB is ephemeral on Vercel and reads can fail)
+    let dbMatch = null;
+    try {
+      dbMatch = await db.match.findUnique({ where: { id } });
+    } catch (dbError) {
+      console.warn('[Football Detail API] DB read failed, falling back to cache:', dbError);
+    }
+
     if (dbMatch) {
       homeTeam = dbMatch.homeTeam;
       awayTeam = dbMatch.awayTeam;

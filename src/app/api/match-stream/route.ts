@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getChannelHealth, setChannelHealthBatch } from '@/lib/channel-health';
+import { fetchSportsChannels } from '@/lib/iptv';
 // z-ai-web-dev-sdk is loaded dynamically to reduce initial compilation memory
 
 // ─── Inline helpers (replaces @/lib/iptv imports to reduce memory) ──────────
@@ -554,7 +555,25 @@ export async function POST(request: NextRequest) {
     }
 
     if (allChannels.length === 0) {
-      return NextResponse.json({ channels: [], message: 'No channels available' });
+      // Database is empty (e.g. Vercel ephemeral filesystem) — fallback to live IPTV fetch
+      console.log('[Match Stream API] DB empty, falling back to fetchSportsChannels()');
+      try {
+        const iptvChannels = await fetchSportsChannels();
+        allChannels = iptvChannels.map(ch => ({
+          name: ch.name,
+          url: ch.url,
+          logo: ch.logo || '',
+          group: ch.group || '',
+          country: ch.country || '',
+          source: ch.source || '',
+        }));
+      } catch (fallbackErr) {
+        console.warn('[Match Stream API] IPTV fallback also failed:', fallbackErr);
+      }
+
+      if (allChannels.length === 0) {
+        return NextResponse.json({ channels: [], message: 'No channels available' });
+      }
     }
 
     const compLower = (competition || '').toLowerCase();

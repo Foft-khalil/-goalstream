@@ -252,3 +252,40 @@ Stage Summary:
 - Settings dialog with toggles for each notification type
 - Gear icon (⚙️) appears next to bell when notifications are enabled
 - All settings persisted in localStorage
+
+---
+Task ID: 1-a
+Agent: general-purpose
+Task: Add IPTV fallback to match-stream route for Vercel deployment
+
+Work Log:
+- Read worklog.md and existing match-stream route.ts and iptv.ts files
+- Identified the issue: on Vercel, SQLite DB is empty (ephemeral filesystem), causing match-stream to return "No channels available" immediately
+- Added `import { fetchSportsChannels } from '@/lib/iptv'` at top of route.ts
+- Modified the `allChannels.length === 0` block (lines 557-577) to fall back to `fetchSportsChannels()` before giving up
+- Fallback logic: when DB returns empty → call fetchSportsChannels() → map ParsedChannel[] to DbChannel[] → if still empty, THEN return the empty response
+- Wrapped fallback in try/catch so if IPTV fetch also fails, route still returns gracefully
+- TypeScript compilation passes (no new errors in match-stream/route.ts)
+
+Stage Summary:
+- match-stream route now has a two-tier channel source: DB (primary) → live IPTV fetch (fallback)
+- On Vercel where DB is empty, the route will fetch channels directly from iptv-org playlists
+- If both sources fail, the route still returns the empty channels response gracefully
+
+---
+Task ID: 1-b
+Agent: general-purpose
+Task: Ensure channels and football detail routes handle DB failures gracefully
+
+Work Log:
+- Read worklog.md and both route files
+- Verified `/api/channels/route.ts`: DB upsert loop is already properly wrapped in try/catch (lines 38-72), error is logged and request continues — no fix needed
+- Fixed `/api/football/[id]/route.ts`: `db.match.findUnique()` on line 119 was NOT in its own try/catch — if DB read threw (ephemeral SQLite on Vercel), the entire route would jump to the outer error handler, skipping the cache fallback logic
+- Wrapped `db.match.findUnique()` in its own try/catch so DB read failure falls through to the `getCachedStale()` cache fallback (lines 141-149)
+- Added descriptive console.warn log: "[Football Detail API] DB read failed, falling back to cache:"
+- ESLint passed with zero errors on both files
+
+Stage Summary:
+- Channels route: already handles DB write failures gracefully (try/catch around upsert loop) — no change needed
+- Football detail route: DB read failure now caught locally, allowing cache fallback to work instead of jumping to outer error handler
+- Both routes will return valid responses on Vercel where SQLite is ephemeral
