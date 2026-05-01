@@ -1,39 +1,30 @@
 ---
-Task ID: 4
+Task ID: 5
 Agent: main
-Task: Fix hydration error and enhance dynamic pitch/court visualizations
+Task: Fix basketball live matches not showing — data flow issues
 
 Work Log:
-- Diagnosed hydration error: `toLocaleDateString('fr-FR', ...)` produces different results on server vs client due to timezone differences (server renders `ven. 1`, client renders `sam. 2` around midnight)
-- Created `/home/z/my-project/src/lib/date-utils.ts` with deterministic French date formatters (`formatFrShort`, `formatFrLong`) that use manual lookup arrays instead of `toLocaleDateString`
-- Updated `live-matches.tsx`: replaced `mounted` state + `toLocaleDateString` with deterministic `formatFrShort`/`formatFrLong` imports
-- Updated `basketball-matches.tsx`: same replacement for its date tab labels and header date string
-- Completely rewrote `dynamic-football-pitch.tsx` with major enhancements:
-  - Replaced subtle 2s interval drift (±4px) with `requestAnimationFrame`-based 60fps smooth animation
-  - Added ball trajectory system: generates waypoint paths every ~8s based on possession, with smoothstep interpolation
-  - Added attacking/defending formation positions (HOME_ATTACKING, AWAY_ATTACKING, HOME_DEFENDING, AWAY_DEFENDING) that shift based on possession
-  - Players now have idle movement (sin/cos patterns) + shift toward ball position + formation-based positioning
-  - Added attack direction animated arrow (dashed line with flow animation)
-  - Added possession indicator bar at bottom of pitch
-  - Added player number labels on dots
-  - Enhanced action markers: longer duration (8s), bigger effects, goal flash fill
-  - Match minute displayed in styled pill badge in center circle
-  - Possession zone gradient now pulses during live matches
-- Completely rewrote `dynamic-basketball-court.tsx` with same enhancements:
-  - requestAnimationFrame-based 60fps smooth animation
-  - Ball trajectory paths with smoothstep interpolation
-  - Attacking/defending 5-on-5 formations based on possession
-  - Position labels (PG, SG, SF, PF, C) on player dots
-  - Attack direction animated arrow
-  - Possession indicator bar
-  - Enhanced action markers with longer duration
-  - Clock displayed in styled pill badge in center circle
-  - Possession zone gradient pulses during live
+- Diagnosed root cause: basketball data flow had multiple issues preventing live matches from appearing
+- Bug 1 (CRITICAL): API defaulted to only 3 days but UI showed 7 date tabs — tabs day3-day6 always empty
+  - Fixed: Changed `getDefaultDates()` in `/api/basketball/route.ts` to return 7 days (today through day 6)
+- Bug 2 (CRITICAL): `fetchBasketballMatches()` in store replaced all matches instead of merging
+  - Fixed: Added merge logic — when fetching specific dates, keep existing matches for other dates, replace only the requested dates
+  - Added deduplication by match ID and re-sorting (live → upcoming → finished)
+  - Also merged `basketballDates` array instead of replacing
+- Bug 3: Basketball data only loaded when user navigated to basketball tab (lazy), so live badge never showed
+  - Fixed: Added pre-fetch in `page.tsx` — fetches today's basketball matches after 8s delay
+  - Updated `basketball-matches.tsx` initial fetch to skip if data already exists from pre-fetch
+- Bug 4: No on-demand date tab fetching (football has it, basketball didn't)
+  - Fixed: Added `useEffect` in `basketball-matches.tsx` that fetches data when user clicks a date tab with no matches
+- Bug 5: Cache key collision — `basketball-matches-3day` could match different date sets
+  - Fixed: Changed cache key to use actual dates: `basketball-matches-${dates.join('-')}`
 - Lint passed with zero errors
 - Dev server running without compilation errors
 
 Stage Summary:
-- Hydration error fixed: replaced locale-dependent date formatting with deterministic French formatters
-- Football pitch now has truly dynamic, continuous animation: ball follows smooth trajectories, players shift between attacking/defending formations, attack direction arrows, possession bar
-- Basketball court has the same dynamic features adapted for basketball
-- Both terrains are now significantly more interactive and visually dynamic during live matches
+- Basketball API now returns 7 days by default matching the 7-tab UI
+- Basketball data merges properly when fetching additional dates
+- Basketball data is pre-fetched on page load so live badge appears immediately in nav
+- On-demand fetch when clicking empty date tabs
+- Cache keys are now unique per date set
+- All live basketball matches should now be visible

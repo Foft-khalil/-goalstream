@@ -60,11 +60,9 @@ function formatDateYMD(date: Date): string {
 
 function getDefaultDates(): string[] {
   const now = new Date();
-  return [
-    formatDateYMD(now),
-    formatDateYMD(new Date(now.getTime() + 24 * 60 * 60 * 1000)),
-    formatDateYMD(new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000)),
-  ];
+  return Array.from({ length: 7 }, (_, i) =>
+    formatDateYMD(new Date(now.getTime() + i * 24 * 60 * 60 * 1000))
+  );
 }
 
 // ─── Period display helper ─────────────────────────────────────────────────────
@@ -265,14 +263,12 @@ export async function GET(request: NextRequest) {
     } else if (dateParam) {
       dates = [dateParam];
     } else {
-      // Default: 3 days (today + tomorrow + day after)
+      // Default: 7 days (today through day 6)
       dates = getDefaultDates();
     }
 
-    // Cache key based on dates
-    const cacheKey = dates.length === 1
-      ? `basketball-matches-${dates[0]}`
-      : `basketball-matches-${dates.length}day`;
+    // Cache key based on actual dates to avoid collision
+    const cacheKey = `basketball-matches-${dates.join('-')}`;
 
     // Check cache first — use shorter TTL if there are live matches
     const cachedPrev = getCachedStale<BasketballMatchesResponse>(cacheKey);

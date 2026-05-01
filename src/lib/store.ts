@@ -352,11 +352,50 @@ export const useAppStore = create<AppState>((set, get) => ({
       const res = await fetch(url);
       if (!res.ok) throw new Error('Échec du chargement des matchs de basketball');
       const data = await res.json();
+      const newMatches = data.matches || [];
+
+      // Merge with existing matches: replace matches for requested dates, keep others
+      const newDates = data.dates || [];
+      let mergedMatches: typeof currentMatches;
+      if (dates && dates.length > 0 && currentMatches.length > 0) {
+        // Remove existing matches that fall on any of the newly fetched dates
+        const existingKept = currentMatches.filter(m => {
+          if (!m.matchDate) return true;
+          const d = new Date(m.matchDate);
+          const y = d.getFullYear();
+          const mo = String(d.getMonth() + 1).padStart(2, '0');
+          const dy = String(d.getDate()).padStart(2, '0');
+          const ymd = `${y}${mo}${dy}`;
+          return !newDates.includes(ymd);
+        });
+        mergedMatches = [...existingKept, ...newMatches];
+        // Deduplicate by id
+        const seen = new Set<string>();
+        mergedMatches = mergedMatches.filter(m => {
+          if (seen.has(m.id)) return false;
+          seen.add(m.id);
+          return true;
+        });
+        // Sort: live first, then upcoming, then finished
+        const statusOrder = { live: 0, upcoming: 1, finished: 2 };
+        mergedMatches.sort((a, b) => {
+          const sd = (statusOrder[a.status] ?? 1) - (statusOrder[b.status] ?? 1);
+          if (sd !== 0) return sd;
+          return (a.matchDate ? new Date(a.matchDate).getTime() : Infinity) -
+                 (b.matchDate ? new Date(b.matchDate).getTime() : Infinity);
+        });
+      } else {
+        mergedMatches = newMatches;
+      }
+
+      // Merge dates
+      const mergedDates = Array.from(new Set([...(get().basketballDates || []), ...newDates])).sort();
+
       set({
-        basketballMatches: data.matches || [],
+        basketballMatches: mergedMatches,
         basketballLoading: false,
         basketballLastUpdated: data.lastUpdated || new Date().toISOString(),
-        basketballDates: data.dates || [],
+        basketballDates: mergedDates,
         basketballError: data.error || null,
       });
     } catch (error: any) {

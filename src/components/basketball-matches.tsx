@@ -53,9 +53,13 @@ export default function BasketballMatches() {
   const lastUpdatedRef = useRef<string | null>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
 
+  // Initial fetch on mount (only if no data yet — page.tsx pre-fetches today)
+  const hasFetchedInitial = basketballMatches.length > 0 || basketballError !== null;
   useEffect(() => {
-    fetchBasketballMatches();
-  }, [fetchBasketballMatches]);
+    if (!hasFetchedInitial) {
+      fetchBasketballMatches();
+    }
+  }, [fetchBasketballMatches, hasFetchedInitial]);
 
   // Adaptive polling: 15s when live matches exist, 2 min otherwise
   const hasLive = basketballMatches.some(m => m.status === 'live');
@@ -94,6 +98,17 @@ export default function BasketballMatches() {
     }
     return keys;
   }, []);
+
+  // On-demand fetch when user switches to a date tab that has no matches
+  const hasFetchedOnce = basketballMatches.length > 0 || basketballError !== null;
+  useEffect(() => {
+    if (!hasFetchedOnce) return;
+    const dateKeyForTab = dateKeys[selectedBasketballDate];
+    const hasMatchesForDate = basketballMatches.some((m) => isMatchOnDate(m.matchDate, dateKeyForTab));
+    if (!hasMatchesForDate && !basketballLoading) {
+      fetchBasketballMatches([dateKeyForTab]);
+    }
+  }, [selectedBasketballDate, dateKeys, basketballMatches, basketballLoading, fetchBasketballMatches, hasFetchedOnce]);
 
   // Filter matches by selected date tab
   const dateKey = dateKeys[selectedBasketballDate];

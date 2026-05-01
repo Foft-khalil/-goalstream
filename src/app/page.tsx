@@ -298,7 +298,7 @@ export default function Home() {
   }, [fetchFootballMatches]);
 
   // Fetch secondary data when user navigates to those views
-  // Add delays to prevent concurrent route compilations
+  // Basketball also pre-fetches after a delay so live badge shows immediately
   useEffect(() => {
     const timer = setTimeout(() => {
       if (currentView === 'channels') fetchChannels();
@@ -306,6 +306,16 @@ export default function Home() {
     }, 1000);
     return () => clearTimeout(timer);
   }, [currentView, fetchChannels, fetchBasketballMatches]);
+
+  // Pre-fetch basketball data after initial load so live badge shows in nav
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const now = new Date();
+      const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      fetchBasketballMatches([today]);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [fetchBasketballMatches]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
