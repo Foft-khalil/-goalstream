@@ -8,7 +8,7 @@ import ChannelsList from '@/components/channels-list';
 import StandingsView from '@/components/standings-view';
 import FavoritesView from '@/components/favorites-view';
 import VideoPlayer from '@/components/video-player';
-import { Zap, Tv, BarChart3, Trophy, Menu, Download, WifiOff, Heart, Dribbble, Bell, BellOff } from 'lucide-react';
+import { Zap, Tv, BarChart3, Menu, Download, WifiOff, Heart, Dribbble, Bell, BellOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useState } from 'react';
@@ -40,9 +40,11 @@ function AppHeader() {
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-sm shadow-green-500/20">
-              <Trophy className="h-4.5 w-4.5 text-white" />
-            </div>
+            <img
+              src="/icon-192.png?v=2"
+              alt="GoalStream"
+              className="w-9 h-9 rounded-xl shadow-sm shadow-green-500/20"
+            />
             <div>
               <h1 className="text-base font-extrabold leading-tight tracking-tight">GoalStream</h1>
               <p className="text-[9px] text-muted-foreground/60 leading-tight font-medium uppercase tracking-wider">Sport en direct</p>
@@ -148,9 +150,11 @@ function AppHeader() {
             <SheetContent side="right" className="w-64">
               <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
               <div className="flex items-center gap-2.5 mb-8 mt-4">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                  <Trophy className="h-4.5 w-4.5 text-white" />
-                </div>
+                <img
+                  src="/icon-192.png?v=2"
+                  alt="GoalStream"
+                  className="w-9 h-9 rounded-xl"
+                />
                 <span className="font-extrabold tracking-tight">GoalStream</span>
               </div>
               {/* Install button in mobile menu */}
