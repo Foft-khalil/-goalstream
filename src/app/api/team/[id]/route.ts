@@ -19,7 +19,19 @@ const LEAGUE_NAMES: Record<string, string> = {
   'uefa.euro': 'Euro',
   'caf.nations': 'CAN',
   'fifa.rankings': 'Classement FIFA',
+  'nba': 'NBA',
 };
+
+/**
+ * Determine the ESPN sport prefix based on league code.
+ * Basketball leagues use 'basketball', everything else uses 'soccer'.
+ */
+function getSportPrefix(leagueCode: string): string {
+  if (leagueCode === 'nba' || leagueCode.startsWith('basketball')) {
+    return 'basketball';
+  }
+  return 'soccer';
+}
 
 interface TeamInfo {
   id: string;
@@ -115,9 +127,10 @@ async function getCurrentSeasonYear(leagueCode: string): Promise<number> {
   }
 
   // Try to fetch the latest season from ESPN API
+  const sport = getSportPrefix(leagueCode);
   try {
     const data = await fetchJSON(
-      `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${leagueCode}/seasons`,
+      `https://sports.core.api.espn.com/v2/sports/${sport}/leagues/${leagueCode}/seasons`,
       5000
     );
     const items = data.items || [];
@@ -136,6 +149,7 @@ async function getCurrentSeasonYear(leagueCode: string): Promise<number> {
   }
 
   // Default: use the standard calculation for European club leagues
+  // For NBA, the season year is the year the season starts (e.g., 2024 for 2024-25)
   const year = getDefaultSeasonYear();
   seasonCache.set(leagueCode, { year, timestamp: Date.now() });
   return year;
@@ -197,11 +211,12 @@ async function fetchTeamInfo(
   leagueCode: string
 ): Promise<{ info: TeamInfo; roster: Player[] } | null> {
   try {
+    const sport = getSportPrefix(leagueCode);
     const seasonYear = await getCurrentSeasonYear(leagueCode);
 
     // Use ESPN Core API for team basic info
     const data = await fetchJSON(
-      `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${leagueCode}/teams/${teamId}`
+      `https://sports.core.api.espn.com/v2/sports/${sport}/leagues/${leagueCode}/teams/${teamId}`
     );
 
     const info: TeamInfo = {
@@ -228,12 +243,14 @@ async function fetchTeamInfo(
 
     // Fetch coach using web search (ESPN Core API coach data is unreliable/outdated)
     // Run this in parallel with roster fetching below
+    const isBasketball = sport === 'basketball';
     const coachPromise = (async (): Promise<string | null> => {
       try {
         const ZAI = (await import('z-ai-web-dev-sdk')).default;
         const sdk = await ZAI.create();
+        const sportTerm = isBasketball ? 'head coach' : 'current coach manager';
         const results = await sdk.functions.invoke('web_search', {
-          query: `${info.name} current coach manager 2025-2026`,
+          query: `${info.name} ${sportTerm} 2025-2026`,
           num: 3,
           recency_days: 90,
         });
@@ -244,7 +261,9 @@ async function fetchTeamInfo(
             messages: [
               {
                 role: 'system',
-                content: 'You are a football data extractor. Extract ONLY the current head coach/manager name from the search results. Return ONLY the full name, nothing else. If you cannot determine the coach, return "Unknown".',
+                content: isBasketball
+                  ? 'You are a basketball data extractor. Extract ONLY the current head coach name from the search results. Return ONLY the full name, nothing else. If you cannot determine the coach, return "Unknown".'
+                  : 'You are a football data extractor. Extract ONLY the current head coach/manager name from the search results. Return ONLY the full name, nothing else. If you cannot determine the coach, return "Unknown".',
               },
               {
                 role: 'user',
@@ -275,14 +294,14 @@ async function fetchTeamInfo(
     } else if (leagueCode === 'caf.nations') {
       seasonsToTry.push(2025, 2023);
     } else {
-      // For club leagues, try adjacent years
+      // For club leagues and NBA, try adjacent years
       seasonsToTry.push(seasonYear - 1, seasonYear + 1);
     }
 
     for (const trySeason of seasonsToTry) {
       if (roster.length > 0) break; // Already have data
       try {
-        const athletesUrl = `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${leagueCode}/seasons/${trySeason}/teams/${teamId}/athletes`;
+        const athletesUrl = `https://sports.core.api.espn.com/v2/sports/${sport}/leagues/${leagueCode}/seasons/${trySeason}/teams/${teamId}/athletes`;
         const athletesData = await fetchJSON(athletesUrl);
         const athleteItems = athletesData.items || [];
 
@@ -338,7 +357,8 @@ async function fetchTeamInfo(
 
 async function fetchTeamSchedule(teamId: string, leagueCode: string): Promise<TeamMatch[]> {
   try {
-    const url = `https://site.api.espn.com/apis/site/v2/sports/soccer/${leagueCode}/teams/${teamId}/schedule`;
+    const sport = getSportPrefix(leagueCode);
+    const url = `https://site.api.espn.com/apis/site/v2/sports/${sport}/${leagueCode}/teams/${teamId}/schedule`;
     const data = await fetchJSON(url);
 
     const events = data.events || [];
@@ -630,7 +650,7 @@ async function fetchFIFATeamInfo(teamName: string, teamId?: string): Promise<Tea
   }
 }
 
-function computeFormAndStats(schedule: TeamMatch[]): { form: string[]; stats: TeamStats[] } {
+function computeFormAndStats(schedule: TeamMatch[], leagueCode?: string): { form: string[]; stats: TeamStats[] } {
   const finished = schedule.filter((m) => m.status === 'finished');
   // Take last 5 finished matches for form
   const last5 = finished.slice(-5);
@@ -676,7 +696,21 @@ function computeFormAndStats(schedule: TeamMatch[]): { form: string[]; stats: Te
     return sum + ((isHome ? m.awayScore : m.homeScore) || 0);
   }, 0);
 
-  const stats: TeamStats[] = [
+  const isBasketball = leagueCode === 'nba';
+
+  const stats: TeamStats[] = isBasketball ? [
+    { label: 'Matchs joués', value: finished.length },
+    { label: 'Victoires', value: wins },
+    { label: 'Défaites', value: losses },
+    { label: '% Victoires', value: finished.length > 0 ? ((wins / finished.length) * 100).toFixed(1) + '%' : '0%' },
+    { label: 'Points marqués', value: goalsFor },
+    { label: 'Points encaissés', value: goalsAgainst },
+    { label: 'Diff. de points', value: goalsFor - goalsAgainst },
+    {
+      label: 'Moy. points/match',
+      value: finished.length > 0 ? (goalsFor / finished.length).toFixed(1) : '0',
+    },
+  ] : [
     { label: 'Matchs joués', value: finished.length },
     { label: 'Victoires', value: wins },
     { label: 'Nuls', value: draws },
@@ -712,7 +746,7 @@ export async function GET(
         const basicInfo = await fetchFIFATeamInfo(teamName, id);
         if (basicInfo) {
           // Compute form and stats from any schedule we found
-          const { form, stats } = computeFormAndStats(basicInfo.schedule);
+          const { form, stats } = computeFormAndStats(basicInfo.schedule, leagueCode);
           basicInfo.form = form;
           basicInfo.stats = stats;
           return NextResponse.json(basicInfo);
@@ -776,7 +810,7 @@ export async function GET(
     }
 
     // Compute form and stats from schedule
-    const { form, stats } = computeFormAndStats(schedule);
+    const { form, stats } = computeFormAndStats(schedule, leagueCode);
 
     const response: TeamDetailResponse = {
       team: teamData.info,

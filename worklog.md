@@ -361,3 +361,28 @@ Stage Summary:
 - NBA legend shows Playoffs/Play-In/Eliminated color coding
 - All 5 i18n languages include basketball/NBA translation keys
 - Existing football standings fully preserved
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix 'Équipe introuvable' error when clicking teams in Standings section
+
+Work Log:
+- Identified root cause: /api/team/[id]/route.ts hardcoded 'sports/soccer' in all ESPN API URLs
+- NBA teams need 'sports/basketball' prefix instead of 'sports/soccer'
+- Added getSportPrefix() helper function that returns 'basketball' for NBA league code, 'soccer' for all others
+- Updated getCurrentSeasonYear() to use dynamic sport prefix
+- Updated fetchTeamInfo() to use dynamic sport prefix for team info, roster, and athletes URLs
+- Updated fetchTeamSchedule() to use dynamic sport prefix for schedule URL
+- Updated fetchTeamInfo() coach search to use basketball-specific prompt for NBA teams
+- Updated computeFormAndStats() to generate basketball-specific stats (Points marqués, Points encaissés, Diff. de points, Moy. points/match) for NBA teams
+- Added NBA to LEAGUE_NAMES mapping
+- Updated team-detail-dialog.tsx with NBA position labels (PG: Meneur, SG: Arrière, SF: Ailier, PF: Ailier fort, C: Pivot)
+- Updated team-detail-dialog.tsx to show 'Arena' instead of 'Stade' and 'Coach' instead of 'Entraineur' for NBA teams
+- Tested all team types: NBA (Detroit Pistons ✓), Soccer (Manchester City ✓, PSG ✓), FIFA Rankings (Argentina ✓), Champions League (Bayern Munich ✓)
+
+Stage Summary:
+- The 'Équipe introuvable' error is fixed for ALL team types
+- NBA teams now correctly use ESPN basketball API endpoints
+- Soccer, FIFA, and international competition teams continue to work properly
+- Basketball-specific stats and position labels are now displayed for NBA teams
+

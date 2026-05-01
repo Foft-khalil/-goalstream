@@ -55,6 +55,7 @@ interface TeamStats {
 type TabType = 'info' | 'roster' | 'schedule';
 
 const POSITION_ORDER: Record<string, number> = {
+  // Football positions
   GK: 0, G: 0,
   CB: 1, D: 1, DF: 1, DC: 1, DL: 1, DR: 1,
   LB: 1, RB: 1, LWB: 1, RWB: 1,
@@ -62,9 +63,12 @@ const POSITION_ORDER: Record<string, number> = {
   CDM: 2, CAM: 2, LM: 2, RM: 2,
   LW: 3, RW: 3, FW: 3, F: 3, ST: 3, CF: 3,
   SS: 3, WL: 3, WR: 3,
+  // Basketball positions
+  PG: 0, SG: 1, SF: 2, PF: 3, C: 4,
 };
 
 const POSITION_LABELS: Record<string, string> = {
+  // Football positions
   GK: 'Gardien', G: 'Gardien',
   CB: 'Défenseur', D: 'Défenseur', DF: 'Défenseur',
   LB: 'Arrière gauche', RB: 'Arrière droit',
@@ -73,6 +77,8 @@ const POSITION_LABELS: Record<string, string> = {
   LM: 'Milieu gauche', RM: 'Milieu droit',
   LW: 'Ailier gauche', RW: 'Ailier droit',
   FW: 'Attaquant', F: 'Attaquant', ST: 'Buteur', CF: 'Avant-centre',
+  // Basketball positions
+  PG: 'Meneur', SG: 'Arrière', SF: 'Ailier', PF: 'Ailier fort', C: 'Pivot',
 };
 
 function FormBadge({ result }: { result: string }) {
@@ -275,7 +281,7 @@ export default function TeamDetailDialog({
                       <div className="flex items-start gap-2 p-3 rounded-xl bg-muted/20 border border-border/20">
                         <MapPin className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
                         <div>
-                          <p className="text-[10px] text-muted-foreground/50 uppercase font-semibold tracking-wider">Stade</p>
+                          <p className="text-[10px] text-muted-foreground/50 uppercase font-semibold tracking-wider">{leagueCode === 'nba' ? 'Arena' : 'Stade'}</p>
                           <p className="text-xs font-medium mt-0.5">{team.venue}</p>
                         </div>
                       </div>
@@ -284,7 +290,7 @@ export default function TeamDetailDialog({
                       <div className="flex items-start gap-2 p-3 rounded-xl bg-muted/20 border border-border/20">
                         <User className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
                         <div>
-                          <p className="text-[10px] text-muted-foreground/50 uppercase font-semibold tracking-wider">Entraineur</p>
+                          <p className="text-[10px] text-muted-foreground/50 uppercase font-semibold tracking-wider">{leagueCode === 'nba' ? 'Coach' : 'Entraineur'}</p>
                           <p className="text-xs font-medium mt-0.5">{team.coach}</p>
                         </div>
                       </div>
