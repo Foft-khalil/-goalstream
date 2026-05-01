@@ -46,18 +46,22 @@ function AppHeader() {
     <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-xl border-b border-border/30">
       <div className="max-w-5xl mx-auto px-4">
         <div className="flex items-center justify-between h-14">
-          {/* Logo */}
-          <div className="flex items-center gap-2.5">
+          {/* Logo — click to go back to matches */}
+          <button
+            onClick={() => setCurrentView('live')}
+            className="flex items-center gap-2.5 hover:opacity-80 active:scale-95 transition-all"
+            title="Retour aux matchs"
+          >
             <img
               src="/icon-192.png?v=2"
               alt="GoalStream"
               className="w-9 h-9 rounded-xl shadow-sm shadow-green-500/20"
             />
-            <div>
+            <div className="text-left">
               <h1 className="text-base font-extrabold leading-tight tracking-tight">GoalStream</h1>
               <p className="text-[9px] text-muted-foreground/60 leading-tight font-medium uppercase tracking-wider">{t(language, 'common.liveSport')}</p>
             </div>
-          </div>
+          </button>
 
           {/* Language + Notification + Install button + Desktop Nav */}
           <div className="hidden sm:flex items-center gap-1">
@@ -171,14 +175,18 @@ function AppHeader() {
               </SheetTrigger>
             <SheetContent side="right" className="w-64">
               <SheetTitle className="sr-only">{t(language, 'nav.matches')}</SheetTitle>
-              <div className="flex items-center gap-2.5 mb-8 mt-4">
+              <button
+                onClick={() => { setCurrentView('live'); setMobileMenuOpen(false); }}
+                className="flex items-center gap-2.5 mb-8 mt-4 hover:opacity-80 active:scale-95 transition-all"
+                title="Retour aux matchs"
+              >
                 <img
                   src="/icon-192.png?v=2"
                   alt="GoalStream"
                   className="w-9 h-9 rounded-xl"
                 />
                 <span className="font-extrabold tracking-tight">GoalStream</span>
-              </div>
+              </button>
               {/* Install button in mobile menu */}
               {installPrompt && (
                 <Button
