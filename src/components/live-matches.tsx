@@ -111,18 +111,18 @@ export default function LiveMatches() {
     }
   }, [selectedDate, dateKeys, footballMatches, footballLoading, fetchFootballMatches]);
 
-  // Filter matches by selected date tab
+  // Filter matches by selected date tab — live matches always show regardless of date
   const dateKey = dateKeys[selectedDate];
   const filteredMatches = useMemo(
-    () => footballMatches.filter((m) => isMatchOnDate(m.matchDate, dateKey)),
+    () => footballMatches.filter((m) => m.status === 'live' || isMatchOnDate(m.matchDate, dateKey)),
     [footballMatches, dateKey]
   );
 
-  // Count per tab
+  // Count per tab — don't count live matches from other days to avoid confusion
   const tabCounts = useMemo(() => {
     const counts: Record<DateTab, number> = {} as any;
     for (const tab of ALL_DATE_TABS) {
-      counts[tab] = footballMatches.filter((m) => isMatchOnDate(m.matchDate, dateKeys[tab])).length;
+      counts[tab] = footballMatches.filter((m) => m.status !== 'live' && isMatchOnDate(m.matchDate, dateKeys[tab])).length;
     }
     return counts;
   }, [footballMatches, dateKeys]);

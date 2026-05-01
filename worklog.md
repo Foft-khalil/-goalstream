@@ -1,4 +1,24 @@
 ---
+Task ID: 1
+Agent: general-purpose
+Task: Fix NBA/basketball live matches not showing currently playing games
+
+Work Log:
+- Diagnosed root cause: NBA games start late at night EU time (23:00+ GMT) and can still be live after midnight, but API routes only fetched from "today" onward, missing yesterday's live games
+- Fixed `/api/basketball/route.ts` `getDefaultDates()`: added yesterday as first element so late-night NBA games still live after midnight are always fetched
+- Fixed `/api/football/route.ts` `getDefaultDates()`: added yesterday as first element; also changed default handler to use `getDefaultDates()` instead of only fetching today
+- Fixed `/components/basketball-matches.tsx`: live matches now always show regardless of which date tab is selected (`m.status === 'live' ||` condition added to filter); tab counts exclude live matches from other days to avoid confusion
+- Fixed `/lib/store.ts` `fetchFootballMatches()`: added `d(-1)` (yesterday) to default date array
+- Fixed `/components/live-matches.tsx`: same live-match-always-visible fix as basketball; tab counts also exclude live matches from other days
+- Lint passed with zero errors
+
+Stage Summary:
+- Both API routes now include yesterday's date by default, catching late-night games that cross midnight
+- Both match list components now show live matches on every date tab, not just the date the match started on
+- Tab counts exclude live matches from other days so numbers aren't inflated on wrong tabs
+- All live NBA and football matches will now appear in the app regardless of when they started
+
+---
 Task ID: 5
 Agent: main
 Task: Fix basketball live matches not showing — data flow issues

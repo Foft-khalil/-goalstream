@@ -277,7 +277,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             const dt = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
             return `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
           };
-          params.set('dates', [d(0), d(1), d(2), d(3), d(4), d(5), d(6)].join(','));
+          params.set('dates', [d(-1), d(0), d(1), d(2), d(3), d(4), d(5), d(6)].join(','));
         }
         const url = `/api/football?${params.toString()}`;
         const res = await fetch(url, { signal: controller.signal });

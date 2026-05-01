@@ -60,9 +60,12 @@ function formatDateYMD(date: Date): string {
 
 function getDefaultDates(): string[] {
   const now = new Date();
-  return Array.from({ length: 7 }, (_, i) =>
+  // Include yesterday to catch late-night NBA games that are still live
+  const yesterday = formatDateYMD(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+  const next7 = Array.from({ length: 7 }, (_, i) =>
     formatDateYMD(new Date(now.getTime() + i * 24 * 60 * 60 * 1000))
   );
+  return [yesterday, ...next7];
 }
 
 // ─── Period display helper ─────────────────────────────────────────────────────

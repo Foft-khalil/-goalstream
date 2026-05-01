@@ -76,10 +76,12 @@ function formatDateYMD(date: Date): string {
 
 function getDefaultDates(): string[] {
   const now = new Date();
+  // Include yesterday to catch late-night matches that are still live
   return [
-    formatDateYMD(now),
-    formatDateYMD(new Date(now.getTime() + 24 * 60 * 60 * 1000)),
-    formatDateYMD(new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000)),
+    formatDateYMD(new Date(now.getTime() - 24 * 60 * 60 * 1000)), // yesterday
+    formatDateYMD(now), // today
+    formatDateYMD(new Date(now.getTime() + 24 * 60 * 60 * 1000)), // tomorrow
+    formatDateYMD(new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000)), // day+2
   ];
 }
 
@@ -277,8 +279,8 @@ export async function GET(request: NextRequest) {
     } else if (dateParam) {
       dates = [dateParam];
     } else {
-      // Default: only today to reduce memory. Client can request more dates.
-      dates = [formatDateYMD(new Date())];
+      // Default: yesterday + today + tomorrow + day+2 (catches late-night live matches)
+      dates = getDefaultDates();
     }
 
     const cacheKey = dates.length === 1

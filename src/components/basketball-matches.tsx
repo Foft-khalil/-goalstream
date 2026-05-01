@@ -110,18 +110,18 @@ export default function BasketballMatches() {
     }
   }, [selectedBasketballDate, dateKeys, basketballMatches, basketballLoading, fetchBasketballMatches, hasFetchedOnce]);
 
-  // Filter matches by selected date tab
+  // Filter matches by selected date tab — live matches always show regardless of date
   const dateKey = dateKeys[selectedBasketballDate];
   const filteredMatches = useMemo(
-    () => basketballMatches.filter((m) => isMatchOnDate(m.matchDate, dateKey)),
+    () => basketballMatches.filter((m) => m.status === 'live' || isMatchOnDate(m.matchDate, dateKey)),
     [basketballMatches, dateKey]
   );
 
-  // Count per tab
+  // Count per tab — don't count live matches from other days to avoid confusion
   const tabCounts = useMemo(() => {
     const counts: Record<DateTab, number> = {} as any;
     for (const tab of ALL_DATE_TABS) {
-      counts[tab] = basketballMatches.filter((m) => isMatchOnDate(m.matchDate, dateKeys[tab])).length;
+      counts[tab] = basketballMatches.filter((m) => m.status !== 'live' && isMatchOnDate(m.matchDate, dateKeys[tab])).length;
     }
     return counts;
   }, [basketballMatches, dateKeys]);
