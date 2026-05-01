@@ -2,7 +2,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Play, Tv, Clock, Loader2, Radio, ChevronRight, Heart, Activity } from 'lucide-react';
+import { Play, Tv, Clock, Loader2, Radio, ChevronRight, Heart, Activity, ExternalLink, Globe } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useState } from 'react';
@@ -43,11 +43,20 @@ export interface FoundChannel {
   health?: 'online' | 'offline' | 'unknown';
 }
 
+export interface KoraStream {
+  name: string;
+  url: string;
+  lang: string;
+  langFlag: string;
+  source: string;
+}
+
 export default function MatchCard({ match }: MatchCardProps) {
   const { openPlayer } = useAppStore();
   const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
   const [findingStream, setFindingStream] = useState(false);
   const [foundChannels, setFoundChannels] = useState<FoundChannel[]>([]);
+  const [koraStreams, setKoraStreams] = useState<KoraStream[]>([]);
   const [showChannels, setShowChannels] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [broadcasterInfo, setBroadcasterInfo] = useState<string | null>(null);
@@ -82,18 +91,52 @@ export default function MatchCard({ match }: MatchCardProps) {
       openPlayer(match.streamUrl, match.channelName || `${match.homeTeam} vs ${match.awayTeam}`, match.channelLogo || undefined);
       return;
     }
-    // Find channels for this match
+    // Find streams (kora-api first, then IPTV fallback)
     await findAndShowChannels();
   };
+
+  const isBasketballSport = match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') || match.competition?.toLowerCase().includes('euroleague');
+  const sportType = isBasketballSport ? 'basketball' : 'football';
 
   const findAndShowChannels = async () => {
     if (findingStream) return;
     setFindingStream(true);
     setShowChannels(true);
     setError(null);
+    setKoraStreams([]);
+    setFoundChannels([]);
+
     try {
+      // ── Step 1: Try kora-api first (fast, direct streams) ──
+      try {
+        const koraRes = await fetch('/api/streams', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            competition: match.competition,
+            sport: sportType,
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (koraRes.ok) {
+          const koraData = await koraRes.json();
+          if (koraData.streams && koraData.streams.length > 0) {
+            setKoraStreams(koraData.streams);
+            setBroadcasterInfo(`Diffusion en direct disponible (${koraData.streams.length} flux)`);
+            setFindingStream(false);
+            return; // Found streams — no need for IPTV fallback
+          }
+        }
+      } catch {
+        // kora-api failed, fall through to IPTV
+      }
+
+      // ── Step 2: IPTV fallback ──
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 45000); // 45s timeout
+      const timeout = setTimeout(() => controller.abort(), 45000);
 
       const res = await fetch('/api/match-stream', {
         method: 'POST',
@@ -103,7 +146,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           awayTeam: match.awayTeam,
           competition: match.competition,
           matchDate: match.matchDate,
-          sport: match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') || match.competition?.toLowerCase().includes('euroleague') ? 'basketball' : 'football',
+          sport: sportType,
         }),
         signal: controller.signal,
       });
@@ -118,14 +161,13 @@ export default function MatchCard({ match }: MatchCardProps) {
       const channels = data.channels || [];
       setFoundChannels(channels);
 
-      // Show broadcaster info if available
       if (data.broadcasters && data.broadcasters.length > 0) {
         setBroadcasterInfo(data.broadcasters.join(', '));
       } else if (data.message) {
         setBroadcasterInfo(null);
       }
 
-      if (channels.length === 0) {
+      if (channels.length === 0 && koraStreams.length === 0) {
         setError('Aucune chaîne trouvée pour ce match');
       }
     } catch (err: any) {
@@ -151,14 +193,45 @@ export default function MatchCard({ match }: MatchCardProps) {
     );
   };
 
-  // Try to auto-play the first channel directly
   const handleQuickPlay = async () => {
     if (findingStream) return;
     setFindingStream(true);
     setError(null);
+
     try {
+      // ── Step 1: Try kora-api first (fast, direct streams) ──
+      try {
+        const koraRes = await fetch('/api/streams', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            competition: match.competition,
+            sport: sportType,
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (koraRes.ok) {
+          const koraData = await koraRes.json();
+          if (koraData.streams && koraData.streams.length > 0) {
+            // Open the first kora stream in the player
+            const first = koraData.streams[0];
+            setKoraStreams(koraData.streams);
+            setBroadcasterInfo(`Diffusion en direct disponible (${koraData.streams.length} flux)`);
+            openPlayer(first.url, `${first.langFlag} ${first.name}`, undefined);
+            setFindingStream(false);
+            return;
+          }
+        }
+      } catch {
+        // kora-api failed, fall through to IPTV
+      }
+
+      // ── Step 2: IPTV fallback ──
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 45000); // 45s timeout
+      const timeout = setTimeout(() => controller.abort(), 45000);
 
       const res = await fetch('/api/match-stream', {
         method: 'POST',
@@ -168,7 +241,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           awayTeam: match.awayTeam,
           competition: match.competition,
           matchDate: match.matchDate,
-          sport: match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') || match.competition?.toLowerCase().includes('euroleague') ? 'basketball' : 'football',
+          sport: sportType,
         }),
         signal: controller.signal,
       });
@@ -182,19 +255,16 @@ export default function MatchCard({ match }: MatchCardProps) {
       const data = await res.json();
       const channels: FoundChannel[] = data.channels || [];
 
-      // Store broadcaster info
       if (data.broadcasters && data.broadcasters.length > 0) {
         setBroadcasterInfo(data.broadcasters.join(', '));
       }
 
       if (channels.length > 0) {
-        // Open player with first channel, pass rest as alternatives
         const first = channels[0];
         const alternatives = channels.slice(1);
         openPlayer(first.url, first.name, first.logo || undefined, alternatives);
       } else {
         setError('Aucune chaîne trouvée pour ce match');
-        // Show channel picker so user can see the result
         setFoundChannels(channels);
         setShowChannels(true);
       }
@@ -416,12 +486,12 @@ export default function MatchCard({ match }: MatchCardProps) {
         )}
       </div>
 
-      {/* Channel Selector - slide down */}
-      {showChannels && foundChannels.length > 0 && (
+      {/* Channel/Stream Selector - slide down */}
+      {showChannels && (koraStreams.length > 0 || foundChannels.length > 0) && (
         <div className="border-t border-border/20 bg-muted/20 px-4 py-3">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider">
-              Chaînes disponibles ({foundChannels.length})
+              {koraStreams.length > 0 ? 'Diffusion en direct' : 'Chaînes disponibles'} ({koraStreams.length || foundChannels.length})
             </p>
             {broadcasterInfo && (
               <span className="text-[9px] text-green-500/60 font-medium">
@@ -430,6 +500,30 @@ export default function MatchCard({ match }: MatchCardProps) {
             )}
           </div>
           <div className="max-h-40 overflow-y-auto space-y-1">
+            {/* Kora API streams (primary — direct streaming links) */}
+            {koraStreams.map((stream, idx) => (
+              <button
+                key={`kora-${idx}`}
+                onClick={() => openPlayer(stream.url, `${stream.langFlag} ${stream.name}`, undefined)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-muted/60 transition-colors text-left group/ch"
+              >
+                <div className="w-6 h-6 rounded bg-green-500/10 flex items-center justify-center shrink-0">
+                  <ExternalLink className="h-3 w-3 text-green-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">{stream.langFlag}</span>
+                    <span className="text-xs font-medium truncate">{stream.lang} Stream</span>
+                    <span className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-green-500/10">
+                      <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-[8px] font-bold text-green-600">DIRECT</span>
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover/ch:text-green-500 transition-colors shrink-0" />
+              </button>
+            ))}
+            {/* IPTV channels (fallback) */}
             {foundChannels.map((channel, idx) => (
               <button
                 key={`${channel.name}-${idx}`}

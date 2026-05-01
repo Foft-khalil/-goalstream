@@ -2,11 +2,19 @@
 
 import Hls from 'hls.js';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { X, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Loader2, RefreshCw, Tv, SkipForward } from 'lucide-react';
+import { X, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Loader2, RefreshCw, Tv, SkipForward, ExternalLink } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 
 type StreamStatus = 'loading' | 'ready' | 'error';
+
+/**
+ * Determine if a URL is an HLS stream (can be played with video element + hls.js)
+ * vs an iframe embed URL (needs to be shown in an iframe)
+ */
+function isHlsUrl(url: string): boolean {
+  return url.includes('.m3u8') || url.includes('m3u8') || url.includes('/live/') && url.includes('.ts');
+}
 
 export default function VideoPlayer() {
   const { playerVisible, playerStreamUrl, playerChannelName, playerChannelLogo, playerAlternatives, closePlayer, openPlayer } =
@@ -26,10 +34,17 @@ export default function VideoPlayer() {
   const [readyUrl, setReadyUrl] = useState<string>('');
   const [errorInfo, setErrorInfo] = useState<{ url: string; msg: string } | null>(null);
 
+  // Determine stream type
+  const isHls = playerStreamUrl ? isHlsUrl(playerStreamUrl) : true;
+  const isIframe = playerStreamUrl ? !isHlsUrl(playerStreamUrl) : false;
+
+  // For iframe streams, compute ready state directly instead of using an effect
+  const iframeReady = isIframe && !!playerStreamUrl;
+
   // Compute derived state - auto-reset when URL changes
-  const streamReady = readyUrl === playerStreamUrl && !!playerStreamUrl;
+  const streamReady = (isIframe ? iframeReady : (readyUrl === playerStreamUrl && !!playerStreamUrl));
   const streamError = errorInfo?.url === playerStreamUrl ? errorInfo.msg : null;
-  const isLoading = playerVisible && !!playerStreamUrl && !streamReady && !streamError;
+  const isLoading = isHls && playerVisible && !!playerStreamUrl && !streamReady && !streamError;
 
   const hideControlsAfterDelay = useCallback(() => {
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -58,9 +73,9 @@ export default function VideoPlayer() {
   // Reset state when URL changes - use a key approach instead of setState in effect
   const streamKey = useMemo(() => playerStreamUrl, [playerStreamUrl]);
 
-  // Setup HLS player
+  // Setup HLS player (only for HLS URLs)
   useEffect(() => {
-    if (!playerVisible || !videoRef.current || !playerStreamUrl) return;
+    if (!playerVisible || !videoRef.current || !playerStreamUrl || !isHls) return;
 
     const video = videoRef.current;
     const currentUrl = playerStreamUrl;
@@ -149,7 +164,7 @@ export default function VideoPlayer() {
         hlsRef.current = null;
       }
     };
-  }, [playerVisible, streamKey, tryNextChannel]);
+  }, [playerVisible, streamKey, tryNextChannel, isHls]);
 
   // Lock body scroll when player is open
   useEffect(() => {
@@ -208,7 +223,7 @@ export default function VideoPlayer() {
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
       {/* Header */}
       <div
-        className={`absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4 transition-opacity duration-300 ${showControls || isIframe ? 'opacity-100' : 'opacity-0'}`}
         onMouseMove={hideControlsAfterDelay}
       >
         <div className="flex items-center gap-3">
@@ -231,6 +246,12 @@ export default function VideoPlayer() {
             />
           )}
           <h2 className="text-white font-semibold text-lg truncate">{playerChannelName}</h2>
+          {isIframe && (
+            <span className="text-green-400/80 text-xs ml-2 flex items-center gap-1">
+              <ExternalLink className="h-3 w-3" />
+              DIRECT
+            </span>
+          )}
           {playerAlternatives && playerAlternatives.length > 0 && (
             <span className="text-white/40 text-xs ml-auto">
               +{playerAlternatives.length} autre{playerAlternatives.length > 1 ? 's' : ''} chaîne{playerAlternatives.length > 1 ? 's' : ''}
@@ -239,21 +260,34 @@ export default function VideoPlayer() {
         </div>
       </div>
 
-      {/* Video */}
+      {/* Video / Iframe content */}
       <div
         ref={containerRef}
         className="flex-1 flex items-center justify-center relative"
         onMouseMove={hideControlsAfterDelay}
-        onClick={togglePlay}
+        onClick={isHls ? togglePlay : undefined}
       >
-        <video
-          ref={videoRef}
-          className="w-full h-full object-contain"
-          playsInline
-          onClick={(e) => e.stopPropagation()}
-        />
+        {isIframe ? (
+          /* Iframe-based stream (e.g. from kora-api) */
+          <iframe
+            src={playerStreamUrl || ''}
+            className="w-full h-full border-0"
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+            allowFullScreen
+            title={`Diffusion en direct: ${playerChannelName}`}
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
+          />
+        ) : (
+          /* HLS video element */
+          <video
+            ref={videoRef}
+            className="w-full h-full object-contain"
+            playsInline
+            onClick={(e) => e.stopPropagation()}
+          />
+        )}
 
-        {/* Loading Overlay */}
+        {/* Loading Overlay - only for HLS */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60">
             <div className="flex flex-col items-center gap-3">
@@ -326,8 +360,8 @@ export default function VideoPlayer() {
           </div>
         )}
 
-        {/* Play/Pause Center Overlay */}
-        {!isLoading && !streamError && (
+        {/* Play/Pause Center Overlay - only for HLS */}
+        {!isIframe && !isLoading && !streamError && (
           <div
             className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
             onClick={(e) => e.stopPropagation()}
@@ -344,41 +378,43 @@ export default function VideoPlayer() {
         )}
       </div>
 
-      {/* Bottom Controls */}
-      <div
-        className={`absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
-        onMouseMove={hideControlsAfterDelay}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      {/* Bottom Controls - only for HLS streams */}
+      {isHls && (
+        <div
+          className={`absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+          onMouseMove={hideControlsAfterDelay}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={togglePlay}
+                className="text-white hover:bg-white/20"
+              >
+                {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleMute}
+                className="text-white hover:bg-white/20"
+              >
+                {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+              </Button>
+            </div>
             <Button
               variant="ghost"
               size="icon"
-              onClick={togglePlay}
+              onClick={toggleFullscreen}
               className="text-white hover:bg-white/20"
             >
-              {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleMute}
-              className="text-white hover:bg-white/20"
-            >
-              {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+              {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
             </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleFullscreen}
-            className="text-white hover:bg-white/20"
-          >
-            {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-          </Button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
