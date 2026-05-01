@@ -1,7 +1,7 @@
 {
-  "name": "GoalStream — Football en direct",
+  "name": "GoalStream — Sport en direct",
   "short_name": "GoalStream",
-  "description": "Regardez les matchs de football en direct gratuitement. Scores en temps réel, chaînes sportives et plus encore.",
+  "description": "Regardez les matchs de football et basketball en direct. Scores en temps réel, chaînes sportives et plus encore.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

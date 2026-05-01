@@ -22,10 +22,10 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "GoalStream — Football en direct",
+  title: "GoalStream — Sport en direct",
   description:
-    "Regardez les matchs de football en direct gratuitement. Scores en temps réel, chaînes sportives et plus encore.",
-  keywords: ["football", "live streaming", "IPTV", "soccer", "sports", "direct", "match"],
+    "Regardez les matchs de football et basketball en direct. Scores en temps réel, chaînes sportives et plus encore.",
+  keywords: ["football", "basketball", "NBA", "live streaming", "soccer", "sports", "direct", "match"],
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -40,8 +40,8 @@ export const metadata: Metadata = {
     title: "GoalStream",
   },
   openGraph: {
-    title: "GoalStream — Football en direct",
-    description: "Regardez les matchs de football en direct gratuitement",
+    title: "GoalStream — Sport en direct",
+    description: "Regardez les matchs de football et basketball en direct",
     type: "website",
     siteName: "GoalStream",
   },
