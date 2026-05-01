@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { X, RefreshCw, Loader2, Circle, ArrowRightLeft, AlertTriangle, Tv, Clock } from 'lucide-react';
+import { X, RefreshCw, Loader2, Circle, ArrowRightLeft, AlertTriangle, Tv, Clock, MapPin, Users, Trophy, BarChart3, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import DynamicBasketballCourt from '@/components/dynamic-basketball-court';
 
+// ─── Types (must match API) ───────────────────────────────────────────────────
 interface BasketballMatchEvent {
   id: string;
   type: 'field_goal' | 'three_pointer' | 'free_throw' | 'rebound' | 'assist' | 'turnover' |
@@ -22,6 +23,47 @@ interface BasketballMatchEvent {
   homeScore: number;
   awayScore: number;
   scoringPlay: boolean;
+}
+
+interface QuarterScore {
+  period: number;
+  label: string;
+  homeScore: number;
+  awayScore: number;
+}
+
+interface TeamStat {
+  label: string;
+  homeValue: string;
+  awayValue: string;
+}
+
+interface TopPerformer {
+  name: string;
+  headshot?: string | null;
+  teamAbbr: string;
+  position?: string;
+  value: string;
+  category: string;
+}
+
+interface MatchSummary {
+  homeScore: number;
+  awayScore: number;
+  homeTeam: string;
+  awayTeam: string;
+  homeAbbr: string;
+  awayAbbr: string;
+  homeLogo: string | null;
+  awayLogo: string | null;
+  homeRecord: string | null;
+  awayRecord: string | null;
+  quarterScores: QuarterScore[];
+  teamStats: TeamStat[];
+  topPerformers: TopPerformer[];
+  venue: string | null;
+  attendance: string | null;
+  matchDate: string | null;
 }
 
 interface BasketballMatchTrackerProps {
@@ -119,6 +161,8 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [possession, setPossession] = useState<'home' | 'away' | null>(null);
+  const [summary, setSummary] = useState<MatchSummary | null>(null);
+  const [activeTab, setActiveTab] = useState<'timeline' | 'stats' | 'players'>('timeline');
   const { openPlayer } = useAppStore();
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -153,6 +197,9 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
         setEvents(data.events || []);
         setLastUpdated(data.lastUpdated);
         setPossession(data.possession || null);
+        if (data.summary) {
+          setSummary(data.summary);
+        }
       }
     } catch (err: any) {
       setError('Impossible de charger les événements');
@@ -190,15 +237,27 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
+  // Reset state when closed
+  useEffect(() => {
+    if (!isOpen) {
+      setEvents([]);
+      setSummary(null);
+      setError(null);
+      setActiveTab('timeline');
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const isLive = match.status === 'live';
   const isFinished = match.status === 'finished';
-  const homeScore = match.homeScore ?? 0;
-  const awayScore = match.awayScore ?? 0;
+
+  // Use summary data for accurate scores when available
+  const homeScore = summary?.homeScore ?? match.homeScore ?? 0;
+  const awayScore = summary?.awayScore ?? match.awayScore ?? 0;
 
   // Find latest score from events
-  const latestEvent = events.length > 0 ? events[0] : null; // Newest first
+  const latestEvent = events.length > 0 ? events[0] : null;
   const displayHomeScore = latestEvent ? latestEvent.homeScore : homeScore;
   const displayAwayScore = latestEvent ? latestEvent.awayScore : awayScore;
 
@@ -216,6 +275,10 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
   })();
 
   const canWatchLive = isLive || isAboutToStart;
+
+  // Determine winner for finished matches
+  const homeWins = isFinished && displayHomeScore > displayAwayScore;
+  const awayWins = isFinished && displayAwayScore > displayHomeScore;
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-xl overflow-hidden flex flex-col">
@@ -266,25 +329,30 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
                 <img
                   src={match.homeLogo}
                   alt={match.homeTeam}
-                  className="w-12 h-12 rounded-xl object-contain bg-muted/40 p-1"
+                  className={`w-12 h-12 rounded-xl object-contain bg-muted/40 p-1 ${homeWins ? 'ring-2 ring-green-500/40' : ''}`}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : (
-                <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-sm font-bold text-orange-500">
+                <div className={`w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-sm font-bold text-orange-500 ${homeWins ? 'ring-2 ring-green-500/40' : ''}`}>
                   {homeAbbr}
                 </div>
               )}
-              <span className="text-sm font-bold text-center truncate w-full">{match.homeTeam}</span>
+              <span className={`text-sm font-bold text-center truncate w-full ${homeWins ? 'text-green-500' : ''}`}>
+                {match.homeTeam}
+              </span>
+              {summary?.homeRecord && (
+                <span className="text-[10px] text-muted-foreground/50">{summary.homeRecord}</span>
+              )}
             </div>
 
             {/* Score */}
             <div className="flex flex-col items-center gap-1">
               <div className="flex items-center gap-3">
-                <span className={`text-4xl font-black tabular-nums ${isLive ? 'text-orange-400' : ''}`}>
+                <span className={`text-4xl font-black tabular-nums ${isLive ? 'text-orange-400' : homeWins ? 'text-green-500' : ''}`}>
                   {displayHomeScore}
                 </span>
                 <span className="text-xl text-muted-foreground/30 font-light">—</span>
-                <span className={`text-4xl font-black tabular-nums ${isLive ? 'text-orange-400' : ''}`}>
+                <span className={`text-4xl font-black tabular-nums ${isLive ? 'text-orange-400' : awayWins ? 'text-green-500' : ''}`}>
                   {displayAwayScore}
                 </span>
               </div>
@@ -313,17 +381,65 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
                 <img
                   src={match.awayLogo}
                   alt={match.awayTeam}
-                  className="w-12 h-12 rounded-xl object-contain bg-muted/40 p-1"
+                  className={`w-12 h-12 rounded-xl object-contain bg-muted/40 p-1 ${awayWins ? 'ring-2 ring-green-500/40' : ''}`}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : (
-                <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center text-sm font-bold text-green-500">
+                <div className={`w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center text-sm font-bold text-green-500 ${awayWins ? 'ring-2 ring-green-500/40' : ''}`}>
                   {awayAbbr}
                 </div>
               )}
-              <span className="text-sm font-bold text-center truncate w-full">{match.awayTeam}</span>
+              <span className={`text-sm font-bold text-center truncate w-full ${awayWins ? 'text-green-500' : ''}`}>
+                {match.awayTeam}
+              </span>
+              {summary?.awayRecord && (
+                <span className="text-[10px] text-muted-foreground/50">{summary.awayRecord}</span>
+              )}
             </div>
           </div>
+
+          {/* Quarter-by-quarter scores table */}
+          {summary && summary.quarterScores.length > 0 && (
+            <div className="mb-4 overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-muted-foreground/50">
+                    <th className="text-left py-1 px-2 font-medium w-16"></th>
+                    {summary.quarterScores.map(q => (
+                      <th key={q.label} className="text-center py-1 px-1.5 font-medium min-w-[32px]">{q.label}</th>
+                    ))}
+                    <th className="text-center py-1 px-2 font-bold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-border/20">
+                    <td className="py-1.5 px-2 font-semibold text-left flex items-center gap-1">
+                      {summary.homeLogo ? (
+                        <img src={summary.homeLogo} alt="" className="w-4 h-4 rounded object-contain" />
+                      ) : null}
+                      {summary.homeAbbr || homeAbbr}
+                    </td>
+                    {summary.quarterScores.map(q => (
+                      <td key={`h-${q.label}`} className="text-center py-1.5 px-1.5 tabular-nums">{q.homeScore}</td>
+                    ))}
+                    <td className={`text-center py-1.5 px-2 font-bold tabular-nums ${homeWins ? 'text-green-500' : ''}`}>{summary.homeScore}</td>
+                  </tr>
+                  <tr className="border-t border-border/20">
+                    <td className="py-1.5 px-2 font-semibold text-left flex items-center gap-1">
+                      {summary.awayLogo ? (
+                        <img src={summary.awayLogo} alt="" className="w-4 h-4 rounded object-contain" />
+                      ) : null}
+                      {summary.awayAbbr || awayAbbr}
+                    </td>
+                    {summary.quarterScores.map(q => (
+                      <td key={`a-${q.label}`} className="text-center py-1.5 px-1.5 tabular-nums">{q.awayScore}</td>
+                    ))}
+                    <td className={`text-center py-1.5 px-2 font-bold tabular-nums ${awayWins ? 'text-green-500' : ''}`}>{summary.awayScore}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Dynamic Basketball Court Visualization */}
           <DynamicBasketballCourt
@@ -341,153 +457,372 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
         </div>
       </div>
 
-      {/* Match Timeline */}
+      {/* Tab Navigation */}
+      <div className="border-b border-border/30 px-4">
+        <div className="max-w-lg mx-auto flex">
+          <button
+            onClick={() => setActiveTab('timeline')}
+            className={`flex-1 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${
+              activeTab === 'timeline'
+                ? 'border-orange-500 text-orange-500'
+                : 'border-transparent text-muted-foreground/60 hover:text-foreground'
+            }`}
+          >
+            📋 Chronologie
+          </button>
+          <button
+            onClick={() => setActiveTab('stats')}
+            className={`flex-1 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${
+              activeTab === 'stats'
+                ? 'border-orange-500 text-orange-500'
+                : 'border-transparent text-muted-foreground/60 hover:text-foreground'
+            }`}
+          >
+            📊 Statistiques
+          </button>
+          <button
+            onClick={() => setActiveTab('players')}
+            className={`flex-1 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${
+              activeTab === 'players'
+                ? 'border-orange-500 text-orange-500'
+                : 'border-transparent text-muted-foreground/60 hover:text-foreground'
+            }`}
+          >
+            ⭐ Joueurs clés
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Content */}
       <div className="flex-1 overflow-y-auto px-4 pb-24">
         <div className="max-w-lg mx-auto">
-          {/* Section title */}
-          <div className="flex items-center gap-2 mb-4 mt-2">
-            <div className="h-px flex-1 bg-border/40" />
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Chronologie du match
-            </span>
-            <div className="h-px flex-1 bg-border/40" />
-          </div>
 
-          {/* Loading state */}
-          {loading && events.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-orange-500 mb-3" />
-              <p className="text-sm text-muted-foreground">Chargement des événements...</p>
-            </div>
-          )}
+          {/* ── TIMELINE TAB ──────────────────────────────────────────────── */}
+          {activeTab === 'timeline' && (
+            <>
+              {/* Loading state */}
+              {loading && events.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-orange-500 mb-3" />
+                  <p className="text-sm text-muted-foreground">Chargement des événements...</p>
+                </div>
+              )}
 
-          {/* Error state */}
-          {error && events.length === 0 && !loading && (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <AlertTriangle className="h-8 w-8 text-amber-400 mb-3" />
-              <p className="text-sm text-muted-foreground mb-3">{error}</p>
-              <Button onClick={fetchEvents} size="sm" variant="outline" className="gap-2">
-                <RefreshCw className="h-3.5 w-3.5" />
-                Réessayer
-              </Button>
-            </div>
-          )}
+              {/* Error state */}
+              {error && events.length === 0 && !loading && (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertTriangle className="h-8 w-8 text-amber-400 mb-3" />
+                  <p className="text-sm text-muted-foreground mb-3">{error}</p>
+                  <Button onClick={fetchEvents} size="sm" variant="outline" className="gap-2">
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Réessayer
+                  </Button>
+                </div>
+              )}
 
-          {/* Events list */}
-          {events.length > 0 && (
-            <div className="space-y-1">
-              {events.map((event) => {
-                const isHome = event.team.toLowerCase().includes(match.homeTeam.toLowerCase()) ||
-                  match.homeTeam.toLowerCase().includes(event.team.toLowerCase());
+              {/* Events list */}
+              {events.length > 0 && (
+                <div className="space-y-1 mt-3">
+                  {events.map((event) => {
+                    const isHome = event.team.toLowerCase().includes(match.homeTeam.toLowerCase()) ||
+                      match.homeTeam.toLowerCase().includes(event.team.toLowerCase());
 
-                return (
-                  <div
-                    key={event.id}
-                    className={`flex items-start gap-3 py-3 px-4 rounded-xl transition-colors ${
-                      event.scoringPlay
-                        ? 'bg-orange-500/5 border border-orange-500/10'
-                        : event.type === 'flagrant_foul' || event.type === 'ejection'
-                          ? 'bg-red-500/5 border border-red-500/10'
-                          : event.type === 'technical_foul'
-                            ? 'bg-yellow-500/5 border border-yellow-500/10'
-                            : 'hover:bg-muted/30'
-                    }`}
-                  >
-                    {/* Clock + Period */}
-                    <div className="flex-shrink-0 w-16 text-right">
-                      <span className="text-xs font-bold tabular-nums text-muted-foreground">
-                        {event.minute || '—'}
-                      </span>
-                      {event.period && (
-                        <span className="block text-[9px] text-muted-foreground/50 truncate">
-                          {event.period}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Timeline dot */}
-                    <div className="flex-shrink-0 flex flex-col items-center pt-0.5">
-                      <EventIcon type={event.type} />
-                    </div>
-
-                    {/* Event details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`text-xs font-semibold ${
-                          event.scoringPlay ? 'text-orange-500' :
-                          event.type === 'technical_foul' ? 'text-yellow-600' :
-                          event.type === 'flagrant_foul' || event.type === 'ejection' ? 'text-red-500' :
-                          event.type === 'foul' ? 'text-yellow-600' :
-                          'text-foreground'
-                        }`}>
-                          {eventLabel(event.type)}
-                        </span>
-                        {event.detail && (
-                          <span className="text-[10px] text-muted-foreground/60 font-medium truncate max-w-[200px]">
-                            ({event.detail})
+                    return (
+                      <div
+                        key={event.id}
+                        className={`flex items-start gap-3 py-3 px-4 rounded-xl transition-colors ${
+                          event.scoringPlay
+                            ? 'bg-orange-500/5 border border-orange-500/10'
+                            : event.type === 'flagrant_foul' || event.type === 'ejection'
+                              ? 'bg-red-500/5 border border-red-500/10'
+                              : event.type === 'technical_foul'
+                                ? 'bg-yellow-500/5 border border-yellow-500/10'
+                                : 'hover:bg-muted/30'
+                        }`}
+                      >
+                        {/* Clock + Period */}
+                        <div className="flex-shrink-0 w-16 text-right">
+                          <span className="text-xs font-bold tabular-nums text-muted-foreground">
+                            {event.minute || '—'}
                           </span>
-                        )}
-                      </div>
-
-                      {/* Player info */}
-                      {event.player && (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          {event.teamLogo && (
-                            <img src={event.teamLogo} alt="" className="w-4 h-4 rounded object-contain" />
-                          )}
-                          <span className="text-sm font-medium truncate">{event.player}</span>
-                          {event.assistPlayer && (
-                            <span className="text-xs text-muted-foreground/60">
-                              (passe: {event.assistPlayer})
-                            </span>
-                          )}
-                          {event.playerIn && event.type === 'substitution' && (
-                            <span className="text-xs text-green-500/70 flex items-center gap-0.5">
-                              <ArrowRightLeft className="h-2.5 w-2.5" />
-                              {event.playerIn}
+                          {event.period && (
+                            <span className="block text-[9px] text-muted-foreground/50 truncate">
+                              {event.period}
                             </span>
                           )}
                         </div>
-                      )}
 
-                      {/* Team name if no player */}
-                      {!event.player && event.team && (
-                        <span className="text-xs text-muted-foreground">{event.team}</span>
-                      )}
-                    </div>
+                        {/* Timeline dot */}
+                        <div className="flex-shrink-0 flex flex-col items-center pt-0.5">
+                          <EventIcon type={event.type} />
+                        </div>
 
-                    {/* Score at this point for scoring plays */}
-                    {event.scoringPlay && (
-                      <div className="flex-shrink-0 px-2 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/15">
-                        <span className="text-xs font-bold tabular-nums text-orange-500">
-                          {event.homeScore} - {event.awayScore}
-                        </span>
+                        {/* Event details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`text-xs font-semibold ${
+                              event.scoringPlay ? 'text-orange-500' :
+                              event.type === 'technical_foul' ? 'text-yellow-600' :
+                              event.type === 'flagrant_foul' || event.type === 'ejection' ? 'text-red-500' :
+                              event.type === 'foul' ? 'text-yellow-600' :
+                              'text-foreground'
+                            }`}>
+                              {eventLabel(event.type)}
+                            </span>
+                            {event.detail && (
+                              <span className="text-[10px] text-muted-foreground/60 font-medium truncate max-w-[200px]">
+                                ({event.detail})
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Player info */}
+                          {event.player && (
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {event.teamLogo && (
+                                <img src={event.teamLogo} alt="" className="w-4 h-4 rounded object-contain" />
+                              )}
+                              <span className="text-sm font-medium truncate">{event.player}</span>
+                              {event.assistPlayer && (
+                                <span className="text-xs text-muted-foreground/60">
+                                  (passe: {event.assistPlayer})
+                                </span>
+                              )}
+                              {event.playerIn && event.type === 'substitution' && (
+                                <span className="text-xs text-green-500/70 flex items-center gap-0.5">
+                                  <ArrowRightLeft className="h-2.5 w-2.5" />
+                                  {event.playerIn}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Team name if no player */}
+                          {!event.player && event.team && (
+                            <span className="text-xs text-muted-foreground">{event.team}</span>
+                          )}
+                        </div>
+
+                        {/* Score at this point for scoring plays */}
+                        {event.scoringPlay && (
+                          <div className="flex-shrink-0 px-2 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/15">
+                            <span className="text-xs font-bold tabular-nums text-orange-500">
+                              {event.homeScore} - {event.awayScore}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* No events */}
+              {!loading && !error && events.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <span className="text-4xl mb-3">🏀</span>
+                  <p className="text-sm text-muted-foreground">
+                    {isLive
+                      ? 'Les événements apparaîtront ici en temps réel'
+                      : match.status === 'upcoming'
+                        ? 'Le suivi en direct sera disponible au coup d\'envoi'
+                        : 'Aucun événement disponible pour ce match'
+                    }
+                  </p>
+                  {isLive && (
+                    <p className="text-xs text-muted-foreground/50 mt-1">
+                      Mise à jour automatique toutes les 15 secondes
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
-          {/* No events */}
-          {!loading && !error && events.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <span className="text-4xl mb-3">🏀</span>
-              <p className="text-sm text-muted-foreground">
-                {isLive
-                  ? 'Les événements apparaîtront ici en temps réel'
-                  : match.status === 'upcoming'
-                    ? 'Le suivi en direct sera disponible au coup d\'envoi'
-                    : 'Aucun événement disponible pour ce match'
-                }
-              </p>
-              {isLive && (
-                <p className="text-xs text-muted-foreground/50 mt-1">
-                  Mise à jour automatique toutes les 15 secondes
-                </p>
+          {/* ── STATS TAB ──────────────────────────────────────────────────── */}
+          {activeTab === 'stats' && (
+            <>
+              {loading && !summary && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-orange-500 mb-3" />
+                  <p className="text-sm text-muted-foreground">Chargement des statistiques...</p>
+                </div>
               )}
-            </div>
+
+              {summary && summary.teamStats.length > 0 ? (
+                <div className="mt-4 space-y-1">
+                  {/* Team headers */}
+                  <div className="flex items-center mb-2">
+                    <div className="flex-1 text-center">
+                      <span className="text-xs font-bold">{summary.homeAbbr || homeAbbr}</span>
+                    </div>
+                    <div className="w-24"></div>
+                    <div className="flex-1 text-center">
+                      <span className="text-xs font-bold">{summary.awayAbbr || awayAbbr}</span>
+                    </div>
+                  </div>
+
+                  {summary.teamStats.map((stat, idx) => {
+                    // Determine which side is "winning" this stat
+                    const homeNum = parseFloat(stat.homeValue) || 0;
+                    const awayNum = parseFloat(stat.awayValue) || 0;
+                    const homeBetter = homeNum > awayNum;
+                    const awayBetter = awayNum > homeNum;
+
+                    return (
+                      <div
+                        key={`${stat.label}-${idx}`}
+                        className="flex items-center py-2.5 px-3 rounded-lg hover:bg-muted/20 transition-colors"
+                      >
+                        <div className={`flex-1 text-right text-sm font-semibold tabular-nums ${
+                          homeBetter ? 'text-green-500' : 'text-muted-foreground'
+                        }`}>
+                          {stat.homeValue}
+                        </div>
+                        <div className="w-24 text-center">
+                          <span className="text-[11px] font-medium text-muted-foreground/70">{stat.label}</span>
+                        </div>
+                        <div className={`flex-1 text-left text-sm font-semibold tabular-nums ${
+                          awayBetter ? 'text-green-500' : 'text-muted-foreground'
+                        }`}>
+                          {stat.awayValue}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : !loading ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <BarChart3 className="h-8 w-8 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground">Statistiques non disponibles</p>
+                </div>
+              ) : null}
+
+              {/* Game Info */}
+              {summary && (summary.venue || summary.attendance) && (
+                <div className="mt-6 p-4 rounded-xl bg-muted/30 border border-border/20 space-y-2">
+                  {summary.venue && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground/50" />
+                      <span className="text-xs text-muted-foreground">{summary.venue}</span>
+                    </div>
+                  )}
+                  {summary.attendance && (
+                    <div className="flex items-center gap-2">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground/50" />
+                      <span className="text-xs text-muted-foreground">{Number(summary.attendance).toLocaleString('fr-FR')} spectateurs</span>
+                    </div>
+                  )}
+                  {summary.matchDate && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground/50" />
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(summary.matchDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── PLAYERS TAB ──────────────────────────────────────────────────── */}
+          {activeTab === 'players' && (
+            <>
+              {loading && !summary && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-orange-500 mb-3" />
+                  <p className="text-sm text-muted-foreground">Chargement des joueurs clés...</p>
+                </div>
+              )}
+
+              {summary && summary.topPerformers.length > 0 ? (
+                <div className="mt-4 space-y-4">
+                  {/* Group by category */}
+                  {['points', 'rebounds', 'assists'].map(category => {
+                    const performers = summary.topPerformers.filter(p => p.category === category);
+                    if (performers.length === 0) return null;
+
+                    const categoryLabel = category === 'points' ? 'Points' :
+                                         category === 'rebounds' ? 'Rebonds' : 'Passes décisives';
+                    const categoryIcon = category === 'points' ? '🏀' :
+                                        category === 'rebounds' ? '↩️' : '🤝';
+
+                    return (
+                      <div key={category}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm">{categoryIcon}</span>
+                          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{categoryLabel}</span>
+                          <div className="h-px flex-1 bg-border/30" />
+                        </div>
+                        <div className="space-y-1.5">
+                          {performers.map((performer, idx) => (
+                            <div
+                              key={`${performer.name}-${category}`}
+                              className={`flex items-center gap-3 py-2.5 px-3 rounded-xl ${
+                                idx === 0 ? 'bg-orange-500/5 border border-orange-500/10' : 'bg-muted/20'
+                              }`}
+                            >
+                              {/* Headshot or placeholder */}
+                              {performer.headshot ? (
+                                <img
+                                  src={performer.headshot}
+                                  alt={performer.name}
+                                  className="w-8 h-8 rounded-full object-cover bg-muted/40"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                                  }}
+                                />
+                              ) : null}
+                              {!performer.headshot && (
+                                <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center">
+                                  <span className="text-[10px] font-bold text-orange-500">
+                                    {performer.name.split(' ').map(n => n[0]).join('')}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Name & team */}
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm font-semibold truncate block">{performer.name}</span>
+                                <span className="text-[10px] text-muted-foreground/60">
+                                  {performer.teamAbbr}{performer.position ? ` · ${performer.position}` : ''}
+                                </span>
+                              </div>
+
+                              {/* Value */}
+                              <div className="flex-shrink-0 px-2.5 py-1 rounded-lg bg-orange-500/10 border border-orange-500/15">
+                                <span className="text-sm font-bold tabular-nums text-orange-500">{performer.value}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : !loading ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Star className="h-8 w-8 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground">Données des joueurs non disponibles</p>
+                </div>
+              ) : null}
+
+              {/* Season series info if available */}
+              {isFinished && summary && (
+                <div className="mt-6 p-4 rounded-xl bg-muted/30 border border-border/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Trophy className="h-3.5 w-3.5 text-muted-foreground/50" />
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Résumé</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {homeWins ? match.homeTeam : match.awayTeam} remporte le match {displayHomeScore} - {displayAwayScore}
+                    {summary.venue ? ` à ${summary.venue}` : ''}.
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           {/* Watch live button — only for live or about-to-start matches */}
@@ -537,18 +872,6 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
                 <Tv className="h-4 w-4" />
                 {isLive ? 'Regarder en direct' : 'Regarder le match'}
               </Button>
-            </div>
-          )}
-
-          {/* Finished match info */}
-          {isFinished && (
-            <div className="mt-6 p-4 rounded-xl bg-muted/30 border border-border/20">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Résumé du match</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Ce match est terminé. Consultez la chronologie ci-dessus pour les événements du match.
-              </p>
             </div>
           )}
         </div>

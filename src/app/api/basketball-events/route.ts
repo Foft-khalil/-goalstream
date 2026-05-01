@@ -7,8 +7,8 @@ export interface BasketballMatchEvent {
   type: 'field_goal' | 'three_pointer' | 'free_throw' | 'rebound' | 'assist' | 'turnover' |
         'foul' | 'technical_foul' | 'flagrant_foul' | 'ejection' | 'timeout' |
         'period_start' | 'period_end' | 'substitution' | 'jump_ball' | 'review';
-  minute: string;       // e.g. "6:07" in Q2
-  period: string;       // e.g. "1st Quarter", "2nd Quarter", "Halftime", "OT"
+  minute: string;
+  period: string;
   team: string;
   teamLogo: string | null;
   player: string;
@@ -20,17 +20,61 @@ export interface BasketballMatchEvent {
   scoringPlay: boolean;
 }
 
+// ─── Match Summary types ──────────────────────────────────────────────────────
+export interface QuarterScore {
+  period: number;
+  label: string; // "Q1", "Q2", "Q3", "Q4", "OT"
+  homeScore: number;
+  awayScore: number;
+}
+
+export interface TeamStat {
+  label: string;
+  homeValue: string;
+  awayValue: string;
+}
+
+export interface TopPerformer {
+  name: string;
+  headshot?: string | null;
+  teamAbbr: string;
+  position?: string;
+  value: string;
+  category: string; // "points", "rebounds", "assists"
+}
+
+export interface MatchSummary {
+  homeScore: number;
+  awayScore: number;
+  homeTeam: string;
+  awayTeam: string;
+  homeAbbr: string;
+  awayAbbr: string;
+  homeLogo: string | null;
+  awayLogo: string | null;
+  homeRecord: string | null;
+  awayRecord: string | null;
+  quarterScores: QuarterScore[];
+  teamStats: TeamStat[];
+  topPerformers: TopPerformer[];
+  venue: string | null;
+  attendance: string | null;
+  matchDate: string | null;
+}
+
 export interface BasketballMatchEventsResponse {
   events: BasketballMatchEvent[];
   matchId: string;
   lastUpdated: string;
   possession?: 'home' | 'away' | null;
+  summary?: MatchSummary | null;
   error?: string;
 }
 
 // ─── ESPN API types ────────────────────────────────────────────────────────────
 interface ESPNPlayParticipant {
   athlete?: {
+    id?: string;
     displayName?: string;
     name?: string;
   };
@@ -88,16 +132,74 @@ interface ESPNCommentaryItem {
   type?: ESPNPlayType;
 }
 
+interface ESPNLineScore {
+  value?: number;
+  displayValue?: string;
+  period?: { number?: number; displayValue?: string; abbreviation?: string };
+}
+
 interface ESPNHeaderCompetitor {
   team: {
+    id?: string;
     name: string;
     abbreviation?: string;
     logo?: string;
     displayName?: string;
+    color?: string;
+    logos?: Array<{ href?: string }>;
   };
   score?: string;
   homeAway: 'home' | 'away';
-  records?: Array<{ summary?: string }>;
+  winner?: boolean;
+  records?: Array<{ summary?: string; type?: string }>;
+  linescores?: ESPNLineScore[];
+}
+
+interface ESPNBoxscoreTeamStat {
+  label?: string;
+  displayValue?: string;
+  name?: string;
+}
+
+interface ESPNBoxscoreTeam {
+  team?: {
+    id?: string;
+    displayName?: string;
+    abbreviation?: string;
+    logo?: string;
+    logos?: Array<{ href?: string }>;
+  };
+  statistics?: ESPNBoxscoreTeamStat[];
+}
+
+interface ESPNLeaderAthlete {
+  displayValue?: string;
+  value?: number;
+  athlete?: {
+    id?: string;
+    displayName?: string;
+    shortName?: string;
+    headshot?: { href?: string };
+    position?: { abbreviation?: string };
+    jersey?: string;
+  };
+}
+
+interface ESPNLeaderCategory {
+  name?: string;
+  displayName?: string;
+  leaders?: ESPNLeaderAthlete[];
+}
+
+interface ESPNTeamLeaders {
+  team?: {
+    id?: string;
+    displayName?: string;
+    abbreviation?: string;
+    logo?: string;
+    logos?: Array<{ href?: string }>;
+  };
+  leaders?: ESPNLeaderCategory[];
 }
 
 interface ESPNSummary {
@@ -106,25 +208,37 @@ interface ESPNSummary {
   header?: {
     id?: string;
     competitions?: Array<{
+      date?: string;
       competitors?: ESPNHeaderCompetitor[];
     }>;
   };
   drives?: { current?: { team?: { id?: string } } };
   boxscore?: {
+    teams?: ESPNBoxscoreTeam[];
     players?: Array<{
       team?: {
         id?: string;
         displayName?: string;
       };
       statistics?: Array<{
+        labels?: string[];
         athletes?: Array<{
           athlete?: {
             id?: string;
             displayName?: string;
           };
+          stats?: string[];
         }>;
       }>;
     }>;
+  };
+  leaders?: ESPNTeamLeaders[];
+  gameInfo?: {
+    venue?: {
+      fullName?: string;
+      address?: { city?: string; state?: string };
+    };
+    attendance?: number | string;
   };
 }
 
@@ -221,13 +335,43 @@ function mapPlayType(play: ESPNPlay): BasketballMatchEvent['type'] | null {
   return null;
 }
 
+// ─── Map commentary item type (fixes missing mapEventType) ────────────────────
+function mapCommentaryEventType(item: ESPNCommentaryItem): BasketballMatchEvent['type'] | null {
+  const typeName = (item.type?.text || item.text || '').toLowerCase();
+  const isScoring = item.scoringPlay || item.play?.scoringPlay || false;
+
+  if (typeName.includes('three point') || typeName.includes('3-point') || typeName.includes('3pt')) return 'three_pointer';
+  if (typeName.includes('jump shot') || typeName.includes('field goal') || typeName.includes('layup') ||
+      typeName.includes('dunk') || typeName.includes('hook shot') || typeName.includes('fadeaway')) {
+    return isScoring ? 'field_goal' : null;
+  }
+  if (typeName.includes('free throw')) return 'free_throw';
+  if (typeName.includes('rebound')) return 'rebound';
+  if (typeName.includes('turnover') || typeName.includes('steal') || typeName.includes('bad pass')) return 'turnover';
+  if (typeName.includes('flagrant foul')) return 'flagrant_foul';
+  if (typeName.includes('technical foul')) return 'technical_foul';
+  if (typeName.includes('foul')) return 'foul';
+  if (typeName.includes('eject')) return 'ejection';
+  if (typeName.includes('timeout') || typeName.includes('temps mort')) return 'timeout';
+  if (typeName.includes('substitution') || typeName.includes('enters') || typeName.includes('returns')) return 'substitution';
+  if (typeName.includes('jump ball') || typeName.includes('jumpball')) return 'jump_ball';
+  if (typeName.includes('review') || typeName.includes('challenge')) return 'review';
+  if (typeName.includes('start') || typeName.includes('begin')) return 'period_start';
+  if (typeName.includes('end') || typeName.includes('halftime') || typeName.includes('mi-temps')) return 'period_end';
+
+  if (isScoring) return 'field_goal';
+
+  // Try via the embedded play
+  if (item.play) return mapPlayType(item.play);
+
+  return null;
+}
+
 // ─── Parse period display ─────────────────────────────────────────────────────
 function parsePeriod(item: ESPNCommentaryItem): string {
-  // Try to get from play.period.displayValue first
   const periodDisplay = item.play?.period?.displayValue;
   if (periodDisplay) return periodDisplay;
 
-  // Try from the raw text
   const text = (item.text || '').toLowerCase();
   if (text.includes('1st quarter') || text.includes('1er quart')) return '1st Quarter';
   if (text.includes('2nd quarter') || text.includes('2e quart')) return '2nd Quarter';
@@ -249,19 +393,17 @@ function parseCommentaryItems(
 
   const homeTeamName = homeTeam?.team?.displayName || homeTeam?.team?.name || '';
   const awayTeamName = awayTeam?.team?.displayName || awayTeam?.team?.name || '';
-  const homeTeamLogo = homeTeam?.team?.logo || null;
-  const awayTeamLogo = awayTeam?.team?.logo || null;
+  const homeTeamLogo = homeTeam?.team?.logos?.[0]?.href || homeTeam?.team?.logo || null;
+  const awayTeamLogo = awayTeam?.team?.logos?.[0]?.href || awayTeam?.team?.logo || null;
 
   for (const item of items) {
     try {
-      const eventType = mapEventType(item);
+      const eventType = mapCommentaryEventType(item);
       if (!eventType) continue;
 
-      // Get clock display
       const minute = item.play?.clock?.displayValue || '';
       const period = parsePeriod(item);
 
-      // Determine team
       let team = '';
       let teamLogo: string | null = null;
 
@@ -282,7 +424,6 @@ function parseCommentaryItems(
         teamLogo = item.play.team.logo || null;
       }
 
-      // Match team name to home/away
       if (team && homeTeamName && awayTeamName) {
         const teamLower = team.toLowerCase();
         const homeLower = homeTeamName.toLowerCase();
@@ -296,14 +437,10 @@ function parseCommentaryItems(
         }
       }
 
-      // Get scores
       const homeScore = parseInt(String(item.homeScore ?? item.play?.homeScore ?? '0'), 10) || 0;
       const awayScore = parseInt(String(item.awayScore ?? item.play?.awayScore ?? '0'), 10) || 0;
-
-      // Is this a scoring play?
       const scoringPlay = item.scoringPlay || item.play?.scoringPlay || false;
 
-      // Get player name
       let player = '';
       if (participants && participants.length > 0) {
         player = participants[0].athlete?.displayName || participants[0].athlete?.name || '';
@@ -322,13 +459,11 @@ function parseCommentaryItems(
         scoringPlay,
       };
 
-      // Add assist player for scoring plays
       if ((eventType === 'field_goal' || eventType === 'three_pointer' || eventType === 'free_throw') && participants && participants.length > 1) {
         const assist = participants[1].athlete?.displayName || participants[1].athlete?.name || '';
         if (assist) event.assistPlayer = assist;
       }
 
-      // Substitution: playerIn/playerOut
       if (eventType === 'substitution' && participants) {
         let playerOut = '';
         let playerIn = '';
@@ -344,7 +479,6 @@ function parseCommentaryItems(
         if (playerIn) event.playerIn = playerIn;
       }
 
-      // Detail text
       const detailText = item.text || item.play?.type?.text || '';
       if (detailText) event.detail = detailText;
 
@@ -354,15 +488,12 @@ function parseCommentaryItems(
     }
   }
 
-  // Sort by period + clock (reverse chronological for basketball — newest first)
   events.reverse();
-
   return events;
 }
 
 // ─── Determine possession ─────────────────────────────────────────────────────
 function determinePossession(data: ESPNSummary, homeTeam: ESPNHeaderCompetitor | null): 'home' | 'away' | null {
-  // Try from drives (NBA-specific)
   const currentDriveTeam = data.drives?.current?.team?.id;
   if (currentDriveTeam) {
     if (homeTeam && homeTeam.team && String(homeTeam.team.id) === String(currentDriveTeam)) {
@@ -371,10 +502,9 @@ function determinePossession(data: ESPNSummary, homeTeam: ESPNHeaderCompetitor |
     return 'away';
   }
 
-  // Try from last commentary item's team
   const items = data.commentary?.items || [];
   if (items.length > 0) {
-    const lastItem = items[0]; // ESPN returns newest first
+    const lastItem = items[0];
     const teamId = lastItem.team?.id || lastItem.play?.team?.id;
     if (teamId && homeTeam?.team) {
       if (String(homeTeam.team.id) === String(teamId)) return 'home';
@@ -383,6 +513,164 @@ function determinePossession(data: ESPNSummary, homeTeam: ESPNHeaderCompetitor |
   }
 
   return null;
+}
+
+// ─── Parse match summary from ESPN data ───────────────────────────────────────
+function parseMatchSummary(data: ESPNSummary): MatchSummary | null {
+  try {
+    const competitors = data.header?.competitions?.[0]?.competitors || [];
+    const homeComp = competitors.find(c => c.homeAway === 'home');
+    const awayComp = competitors.find(c => c.homeAway === 'away');
+
+    if (!homeComp || !awayComp) return null;
+
+    const homeScore = parseInt(homeComp.score || '0', 10) || 0;
+    const awayScore = parseInt(awayComp.score || '0', 10) || 0;
+    const homeTeam = homeComp.team?.displayName || homeComp.team?.name || '';
+    const awayTeam = awayComp.team?.displayName || awayComp.team?.name || '';
+    const homeAbbr = homeComp.team?.abbreviation || '';
+    const awayAbbr = awayComp.team?.abbreviation || '';
+    const homeLogo = homeComp.team?.logos?.[0]?.href || homeComp.team?.logo || null;
+    const awayLogo = awayComp.team?.logos?.[0]?.href || awayComp.team?.logo || null;
+
+    // Records
+    const homeRecord = homeComp.records?.find(r => r.type === 'total')?.summary || null;
+    const awayRecord = awayComp.records?.find(r => r.type === 'total')?.summary || null;
+
+    // Quarter-by-quarter scores from linescores
+    const quarterScores: QuarterScore[] = [];
+    const homeLinescores = homeComp.linescores || [];
+    const awayLinescores = awayComp.linescores || [];
+    const maxPeriods = Math.max(homeLinescores.length, awayLinescores.length);
+
+    for (let i = 0; i < maxPeriods; i++) {
+      const homeLS = homeLinescores[i];
+      const awayLS = awayLinescores[i];
+      const periodNum = homeLS?.period?.number || awayLS?.period?.number || (i + 1);
+      const periodLabel = periodNum <= 4 ? `Q${periodNum}` : `OT${periodNum - 4}`;
+
+      quarterScores.push({
+        period: periodNum,
+        label: periodLabel,
+        homeScore: homeLS?.value ?? 0,
+        awayScore: awayLS?.value ?? 0,
+      });
+    }
+
+    // Team stats from boxscore.teams
+    const teamStats: TeamStat[] = [];
+    const boxscoreTeams = data.boxscore?.teams || [];
+    const homeBoxTeam = boxscoreTeams.find(t => {
+      const teamId = t.team?.id;
+      return teamId && String(teamId) === String(homeComp.team?.id);
+    });
+    const awayBoxTeam = boxscoreTeams.find(t => {
+      const teamId = t.team?.id;
+      return teamId && String(teamId) === String(awayComp.team?.id);
+    });
+
+    if (homeBoxTeam?.statistics && awayBoxTeam?.statistics) {
+      // Key stats to show (translated to French)
+      const keyStatNames: Record<string, string> = {
+        'FG': 'Tirs',
+        'Field Goal %': '% Tirs',
+        '3PT': '3 Points',
+        'Three Point %': '% 3Pts',
+        'FT': 'Lancés francs',
+        'Free Throw %': '% LFrancs',
+        'Rebounds': 'Rebonds',
+        'Offensive Rebounds': 'Reb. off.',
+        'Defensive Rebounds': 'Reb. déf.',
+        'Assists': 'Passes dec.',
+        'Steals': 'Interceptions',
+        'Blocks': 'Contres',
+        'Turnovers': 'Ballons perdus',
+        'Total Turnovers': 'Total BP',
+        'Fouls': 'Fautes',
+        'Technical Fouls': 'Fautes tech.',
+        'Fast Break Points': 'Pts contre-attaque',
+        'Points in Paint': 'Pts dans la raquette',
+        'Largest Lead': 'Plus grand écart',
+      };
+
+      const homeStats = homeBoxTeam.statistics;
+      const awayStats = awayBoxTeam.statistics;
+      const statCount = Math.min(homeStats.length, awayStats.length);
+
+      for (let i = 0; i < statCount; i++) {
+        const homeStat = homeStats[i];
+        const awayStat = awayStats[i];
+        const label = homeStat.label || homeStat.name || '';
+        const frenchLabel = keyStatNames[label] || label;
+
+        // Only include important stats (skip niche ones)
+        if (keyStatNames[label]) {
+          teamStats.push({
+            label: frenchLabel,
+            homeValue: homeStat.displayValue || '',
+            awayValue: awayStat.displayValue || '',
+          });
+        }
+      }
+    }
+
+    // Top performers from leaders
+    const topPerformers: TopPerformer[] = [];
+    const leadersData = data.leaders || [];
+
+    for (const teamLeader of leadersData) {
+      const teamAbbr = teamLeader.team?.abbreviation || '';
+      const categories = teamLeader.leaders || [];
+
+      for (const category of categories) {
+        const catName = category.name || '';
+        const catDisplay = catName === 'points' ? 'Points' :
+                          catName === 'rebounds' ? 'Rebonds' :
+                          catName === 'assists' ? 'Passes dec.' : catName;
+
+        for (const leader of category.leaders || []) {
+          const athlete = leader.athlete;
+          if (athlete?.displayName && leader.displayValue) {
+            topPerformers.push({
+              name: athlete.displayName,
+              headshot: athlete.headshot?.href || null,
+              teamAbbr,
+              position: athlete.position?.abbreviation,
+              value: leader.displayValue,
+              category: catName,
+            });
+          }
+        }
+      }
+    }
+
+    // Game info
+    const venue = data.gameInfo?.venue?.fullName || null;
+    const attendance = data.gameInfo?.attendance ? String(data.gameInfo.attendance) : null;
+    const matchDate = data.header?.competitions?.[0]?.date || null;
+
+    return {
+      homeScore,
+      awayScore,
+      homeTeam,
+      awayTeam,
+      homeAbbr,
+      awayAbbr,
+      homeLogo,
+      awayLogo,
+      homeRecord,
+      awayRecord,
+      quarterScores,
+      teamStats,
+      topPerformers,
+      venue,
+      attendance,
+      matchDate,
+    };
+  } catch (err) {
+    console.error('[Basketball Events API] Error parsing match summary:', err);
+    return null;
+  }
 }
 
 // ─── Fetch match events from ESPN API ─────────────────────────────────────────
@@ -403,7 +691,7 @@ async function fetchBasketballMatchEvents(eventId: string, league: string): Prom
   const data: ESPNSummary = await res.json();
 
   // Extract team info from header.competitions[0].competitors
-  const competitors = data.header?.competitions?.[0]?.competitors || data.header?.competitors || [];
+  const competitors = data.header?.competitions?.[0]?.competitors || data.header?.competitions || [];
   const homeTeam = competitors.find(c => c.homeAway === 'home') || null;
   const awayTeam = competitors.find(c => c.homeAway === 'away') || null;
 
@@ -435,7 +723,6 @@ async function fetchBasketballMatchEvents(eventId: string, league: string): Prom
   const events: BasketballMatchEvent[] = [];
 
   if (data.plays && data.plays.length > 0) {
-    // NBA summary API returns plays array
     for (const play of data.plays) {
       try {
         const eventType = mapPlayType(play);
@@ -447,7 +734,6 @@ async function fetchBasketballMatchEvents(eventId: string, league: string): Prom
         const homeScore = play.homeScore || 0;
         const awayScore = play.awayScore || 0;
 
-        // Determine team from play.team.id
         let team = '';
         let teamLogo: string | null = null;
         const playTeamId = play.team?.id;
@@ -461,17 +747,14 @@ async function fetchBasketballMatchEvents(eventId: string, league: string): Prom
           }
         }
 
-        // Get player name from participants or text
         let player = '';
         let assistPlayer = '';
         const participants = play.participants || [];
         if (participants.length > 0) {
-          // First participant is the primary player
           const firstId = participants[0].athlete?.id;
           if (firstId) {
             player = playerNames.get(String(firstId)) || '';
           }
-          // Second participant is often the assister
           if (participants.length > 1 && (eventType === 'field_goal' || eventType === 'three_pointer' || eventType === 'free_throw')) {
             const secondId = participants[1].athlete?.id;
             if (secondId) {
@@ -480,17 +763,13 @@ async function fetchBasketballMatchEvents(eventId: string, league: string): Prom
           }
         }
 
-        // Fallback: try to extract player name from text
         if (!player && play.text) {
-          // ESPN format: "Jalen Brunson makes 25-foot three point jumper"
           const match = play.text.match(/^([A-Z][a-z]+ [A-Z][a-zA-Z\-]+)/);
           if (match) player = match[1];
         }
 
-        // Substitution: parse player in/out from text
         let playerIn = '';
         if (eventType === 'substitution' && play.text) {
-          // ESPN format: "Player X enters the game for Player Y"
           const enterMatch = play.text.match(/([A-Z][a-z]+ [A-Z][a-zA-Z\-]+)\s+enters?\s+.*for\s+([A-Z][a-z]+ [A-Z][a-zA-Z\-]+)/i);
           if (enterMatch) {
             playerIn = enterMatch[1];
@@ -519,7 +798,6 @@ async function fetchBasketballMatchEvents(eventId: string, league: string): Prom
         if (assistPlayer) event.assistPlayer = assistPlayer;
         if (playerIn) event.playerIn = playerIn;
 
-        // Add detail text
         const detailText = play.text || play.type?.text || '';
         if (detailText) event.detail = detailText;
 
@@ -529,7 +807,6 @@ async function fetchBasketballMatchEvents(eventId: string, league: string): Prom
       }
     }
   } else if (data.commentary?.items && data.commentary.items.length > 0) {
-    // Fallback: commentary format (some leagues or older API versions)
     const commentaryEvents = parseCommentaryItems(data.commentary.items, homeTeam, awayTeam);
     events.push(...commentaryEvents);
   }
@@ -537,13 +814,17 @@ async function fetchBasketballMatchEvents(eventId: string, league: string): Prom
   // Determine possession
   const possession = determinePossession(data, homeTeam);
 
-  console.log(`[Basketball Events API] Parsed ${events.length} events (plays: ${data.plays?.length || 0}, commentary: ${data.commentary?.items?.length || 0})`);
+  // Parse match summary (quarter scores, team stats, top performers)
+  const summary = parseMatchSummary(data);
+
+  console.log(`[Basketball Events API] Parsed ${events.length} events (plays: ${data.plays?.length || 0}, commentary: ${data.commentary?.items?.length || 0}), summary: ${summary ? 'yes' : 'no'}`);
 
   return {
     events,
     matchId: `espn_${eventId}`,
     lastUpdated: new Date().toISOString(),
     possession,
+    summary,
   };
 }
 
@@ -560,6 +841,7 @@ export async function GET(request: NextRequest) {
           matchId: '',
           lastUpdated: new Date().toISOString(),
           possession: null,
+          summary: null,
           error: 'Paramètre matchId manquant',
         },
         { status: 400 }
@@ -571,9 +853,9 @@ export async function GET(request: NextRequest) {
     // Strip "espn_bball_" or "espn_" prefix if present
     let eventId = matchId;
     if (eventId.startsWith('espn_bball_')) {
-      eventId = eventId.slice(11); // strip "espn_bball_", leaving numeric ID
+      eventId = eventId.slice(11);
     } else if (eventId.startsWith('espn_')) {
-      eventId = eventId.slice(5); // strip "espn_", leaving numeric ID
+      eventId = eventId.slice(5);
     }
 
     const cacheKey = `basketball-events-${eventId}`;
@@ -628,6 +910,7 @@ export async function GET(request: NextRequest) {
       matchId,
       lastUpdated: new Date().toISOString(),
       possession: null,
+      summary: null,
       error: 'Impossible de charger les événements du match',
     };
 
