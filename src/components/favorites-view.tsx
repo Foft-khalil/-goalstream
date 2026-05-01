@@ -212,7 +212,7 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
 }
 
 function FavoriteChannelCard({ channel }: { channel: { name: string; logo: string; url: string; group: string } }) {
-  const { openPlayer } = useAppStore();
+  const { openPlayer, language } = useAppStore();
   const { removeChannelFavorite } = useFavorites();
 
   return (
@@ -267,7 +267,7 @@ function FavoriteChannelCard({ channel }: { channel: { name: string; logo: strin
 }
 
 export default function FavoritesView() {
-  const { footballMatches, footballLoading, fetchFootballMatches } = useAppStore();
+  const { footballMatches, footballLoading, fetchFootballMatches, language } = useAppStore();
   const { favoriteTeams, favoriteChannels, removeTeamFavorite, removeChannelFavorite, totalFavorites, clearAll } = useFavorites();
   const [confirmClear, setConfirmClear] = useState(false);
 
