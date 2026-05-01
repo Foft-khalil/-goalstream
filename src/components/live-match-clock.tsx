@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { t, Language } from '@/lib/i18n';
 
 /**
  * LiveMatchClock — real-time ticking chronometer for football matches.
@@ -43,12 +44,12 @@ function formatClock(secs: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-/** Get French period label */
-function getPeriodLabel(period: number | null, statusDescription: string | null): string | null {
+/** Get period label based on language */
+function getPeriodLabel(period: number | null, statusDescription: string | null, lang: Language = 'fr'): string | null {
   const desc = statusDescription?.toLowerCase() || '';
-  if (period === 1 || desc.includes('1st') || desc.includes('first')) return '1ère MT';
-  if (period === 2 || desc.includes('2nd') || desc.includes('second')) return '2ème MT';
-  if (desc.includes('extra') || desc.includes('overtime') || desc.includes('prolongation')) return 'PROL';
+  if (period === 1 || desc.includes('1st') || desc.includes('first')) return t(lang, 'match.firstHalf');
+  if (period === 2 || desc.includes('2nd') || desc.includes('second')) return t(lang, 'match.secondHalf');
+  if (desc.includes('extra') || desc.includes('overtime') || desc.includes('prolongation')) return t(lang, 'match.extraTime');
   return null;
 }
 
@@ -203,7 +204,7 @@ export default function LiveMatchClock({
           </span>
         </div>
         <span className="text-[10px] text-amber-500/60 font-semibold">
-          Mi-temps
+          {t('fr', 'football.halftime')}
         </span>
       </div>
     );

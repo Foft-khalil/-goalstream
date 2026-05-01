@@ -1,6 +1,7 @@
 'use client';
 
 import { useAppStore, FootballMatch } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +17,7 @@ interface FoundChannel {
 }
 
 function FavoriteMatchCard({ match }: { match: FootballMatch }) {
-  const { openPlayer } = useAppStore();
+  const { openPlayer, language } = useAppStore();
   const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
   const [findingStream, setFindingStream] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,9 +36,9 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
     const tomorrowYMD = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
     const dayAfter = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
     const dayAfterYMD = `${dayAfter.getFullYear()}-${String(dayAfter.getMonth() + 1).padStart(2, '0')}-${String(dayAfter.getDate()).padStart(2, '0')}`;
-    if (matchYMD === todayYMD) return "Aujourd'hui";
-    if (matchYMD === tomorrowYMD) return 'Demain';
-    if (matchYMD === dayAfterYMD) return 'Après-demain';
+    if (matchYMD === todayYMD) return t(language, 'common.today');
+    if (matchYMD === tomorrowYMD) return t(language, 'common.tomorrow');
+    if (matchYMD === dayAfterYMD) return t(language, 'dates.dayAfter');
     return matchDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   })();
 
@@ -62,10 +63,10 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
         const first = channels[0];
         openPlayer(first.url, first.name, first.logo || undefined, channels.slice(1));
       } else {
-        setError('Aucune chaîne trouvée');
+        setError(t(language, 'match.noChannelFound'));
       }
     } catch {
-      setError('Aucune chaîne trouvée — réessayez');
+      setError(t(language, 'match.noChannelRetry'));
     } finally {
       setFindingStream(false);
     }
@@ -86,7 +87,7 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
         {/* Competition + status */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-[11px] text-muted-foreground/60 font-medium">
-            {match.competition || 'Amical'}
+            {match.competition || t(language, 'match.friendly')}
           </span>
           {isLive ? (
             <div className="flex items-center gap-1.5">
@@ -126,7 +127,7 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
             <button
               onClick={() => toggleTeamFavorite(match.homeTeam, match.homeLogo)}
               className="shrink-0 ml-auto"
-              title={homeFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              title={homeFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
             >
               <Heart className={`h-3.5 w-3.5 transition-colors ${homeFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
             </button>
@@ -150,7 +151,7 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
             <button
               onClick={() => toggleTeamFavorite(match.awayTeam, match.awayLogo)}
               className="shrink-0"
-              title={awayFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              title={awayFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
             >
               <Heart className={`h-3.5 w-3.5 transition-colors ${awayFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
             </button>
@@ -187,17 +188,17 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
             {findingStream ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Recherche...
+                {t(language, 'match.searching')}
               </>
             ) : isLive ? (
               <>
                 <Radio className="h-3.5 w-3.5 fill-current" />
-                Regarder en direct
+                {t(language, 'match.watchLive')}
               </>
             ) : (
               <>
                 <Play className="h-3.5 w-3.5 fill-current" />
-                Regarder
+                {t(language, 'match.watch')}
               </>
             )}
           </Button>
@@ -250,7 +251,7 @@ function FavoriteChannelCard({ channel }: { channel: { name: string; logo: strin
           className="h-8 gap-1.5 text-xs bg-green-600 hover:bg-green-700 text-white"
         >
           <Play className="h-3 w-3 fill-current" />
-          <span className="hidden sm:inline">Regarder</span>
+          <span className="hidden sm:inline">{t(language, 'match.watch')}</span>
         </Button>
         <Button
           variant="ghost"
@@ -289,10 +290,10 @@ export default function FavoritesView() {
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Heart className="h-5 w-5 text-green-500 fill-green-500" />
-            Mes Favoris
+            {t(language, 'favorites.myFavorites')}
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {favoriteTeams.length} équipe{favoriteTeams.length !== 1 ? 's' : ''} · {favoriteChannels.length} chaîne{favoriteChannels.length !== 1 ? 's' : ''}
+            {favoriteTeams.length} {t(language, 'favorites.teams')}{favoriteTeams.length !== 1 ? 's' : ''} · {favoriteChannels.length} {t(language, 'favorites.channels')}{favoriteChannels.length !== 1 ? 's' : ''}
           </p>
         </div>
         {hasContent && (
@@ -306,7 +307,7 @@ export default function FavoritesView() {
                   className="h-7 text-[11px] gap-1"
                 >
                   <Trash2 className="h-3 w-3" />
-                  Confirmer
+                  {t(language, 'common.confirm')}
                 </Button>
                 <Button
                   variant="outline"
@@ -314,7 +315,7 @@ export default function FavoritesView() {
                   onClick={() => setConfirmClear(false)}
                   className="h-7 text-[11px]"
                 >
-                  Annuler
+                  {t(language, 'common.cancel')}
                 </Button>
               </div>
             ) : (
@@ -325,7 +326,7 @@ export default function FavoritesView() {
                 className="h-7 text-[11px] gap-1 border-border/40 text-muted-foreground"
               >
                 <Trash2 className="h-3 w-3" />
-                Tout effacer
+                {t(language, 'common.clearAll')}
               </Button>
             )}
           </div>
@@ -338,18 +339,18 @@ export default function FavoritesView() {
           <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-600/10 flex items-center justify-center mb-4">
             <Star className="h-10 w-10 text-green-500/40" />
           </div>
-          <h3 className="text-lg font-semibold mb-2">Aucun favori</h3>
+          <h3 className="text-lg font-semibold mb-2">{t(language, 'favorites.noFavorites')}</h3>
           <p className="text-sm text-muted-foreground/60 max-w-xs mb-4">
-            Ajoutez vos équipes et chaînes préférées en appuyant sur l&apos;icône ❤️ pour un accès rapide
+            {t(language, 'favorites.addFavoritesHint')}
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground/40">
             <div className="flex items-center gap-1.5">
               <Heart className="h-3.5 w-3.5" />
-              <span>Appuyez sur ❤️</span>
+              <span>{t(language, 'favorites.tapHeart')}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Zap className="h-3.5 w-3.5" />
-              <span>Accès rapide</span>
+              <span>{t(language, 'favorites.quickAccess')}</span>
             </div>
           </div>
         </div>
@@ -362,7 +363,7 @@ export default function FavoritesView() {
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-green-500/10 border border-green-500/15">
               <Users className="h-3.5 w-3.5 text-green-500" />
               <span className="text-xs font-bold text-green-500 uppercase tracking-wide">
-                Équipes favorites ({favoriteTeams.length})
+                {t(language, 'favorites.favoriteTeams')} ({favoriteTeams.length})
               </span>
             </div>
           </div>
@@ -441,8 +442,8 @@ export default function FavoritesView() {
           ) : (
             <div className="flex flex-col items-center py-8 px-4 text-center rounded-xl bg-muted/20 border border-border/20">
               <WifiOff className="h-8 w-8 text-muted-foreground/20 mb-2" />
-              <p className="text-sm text-muted-foreground/60">Aucun match prévu pour vos équipes sur les 3 prochains jours</p>
-              <p className="text-xs text-muted-foreground/40 mt-1">Revenez plus tard !</p>
+              <p className="text-sm text-muted-foreground/60">{t(language, 'favorites.noMatches')}</p>
+              <p className="text-xs text-muted-foreground/40 mt-1">{t(language, 'favorites.comeBackLater')}</p>
             </div>
           )}
         </section>
@@ -455,7 +456,7 @@ export default function FavoritesView() {
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/15">
               <Tv className="h-3.5 w-3.5 text-amber-500" />
               <span className="text-xs font-bold text-amber-500 uppercase tracking-wide">
-                Chaînes favorites ({favoriteChannels.length})
+                {t(language, 'favorites.favoriteChannels')} ({favoriteChannels.length})
               </span>
             </div>
           </div>
@@ -469,7 +470,7 @@ export default function FavoritesView() {
 
       {/* Footer */}
       <div className="text-center text-[10px] text-muted-foreground/30 pt-1">
-        Vos favoris sont sauvegardés localement sur votre appareil
+        {t(language, 'favorites.savedLocally')}
       </div>
     </div>
   );

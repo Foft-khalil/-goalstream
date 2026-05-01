@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Play, Tv, Clock, Loader2, Radio, ChevronRight, Heart, Activity, ExternalLink, Globe } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useState } from 'react';
 import type { BasketballMatch } from '@/lib/basketball/types';
@@ -32,7 +33,7 @@ export interface KoraStream {
 }
 
 export default function BasketballMatchCard({ match }: BasketballMatchCardProps) {
-  const { openPlayer } = useAppStore();
+  const { openPlayer, language } = useAppStore();
   const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
   const [findingStream, setFindingStream] = useState(false);
   const [foundChannels, setFoundChannels] = useState<FoundChannel[]>([]);
@@ -91,7 +92,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
           const koraData = await koraRes.json();
           if (koraData.streams && koraData.streams.length > 0) {
             setKoraStreams(koraData.streams);
-            setBroadcasterInfo(`Diffusion en direct disponible (${koraData.streams.length} flux)`);
+            setBroadcasterInfo(t(language, 'match.liveStreamAvailable', koraData.streams.length));
             setFindingStream(false);
             return; // Found streams — no need for IPTV fallback
           }
@@ -131,11 +132,11 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
       }
 
       if (channels.length === 0 && koraStreams.length === 0) {
-        setError('Aucune chaîne trouvée');
+        setError(t(language, 'match.noChannelFound'));
       }
     } catch (err) {
       console.error('Error finding channels:', err);
-      setError('Aucune chaîne trouvée — réessayez');
+      setError(t(language, 'match.noChannelRetry'));
       setFoundChannels([]);
     } finally {
       setFindingStream(false);
@@ -177,7 +178,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
             // Open the first kora stream in the player
             const first = koraData.streams[0];
             setKoraStreams(koraData.streams);
-            setBroadcasterInfo(`Diffusion en direct disponible (${koraData.streams.length} flux)`);
+            setBroadcasterInfo(t(language, 'match.liveStreamAvailable', koraData.streams.length));
             openPlayer(first.url, `${first.langFlag} ${first.name}`, undefined);
             setFindingStream(false);
             return;
@@ -219,13 +220,13 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
         const alternatives = channels.slice(1);
         openPlayer(first.url, first.name, first.logo || undefined, alternatives);
       } else {
-        setError('Aucune chaîne trouvée');
+        setError(t(language, 'match.noChannelFound'));
         setFoundChannels(channels);
         setShowChannels(true);
       }
     } catch (err) {
       console.error('Error finding channels:', err);
-      setError('Aucune chaîne trouvée — réessayez');
+      setError(t(language, 'match.noChannelRetry'));
     } finally {
       setFindingStream(false);
     }
@@ -243,7 +244,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
         {/* Top row: competition + date/time/status */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-[11px] text-muted-foreground/60 font-medium flex items-center gap-1">
-            🏀 {match.competition || 'Basketball'}
+            🏀 {match.competition || t(language, 'nav.basketball')}
           </span>
           {isLive ? (
             <BasketballLiveClock
@@ -253,13 +254,13 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
           ) : isFinished ? (
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/50 border border-border/30">
               <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
-              <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">Terminé</span>
+              <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">{t(language, 'common.finished')}</span>
             </div>
           ) : (
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3 text-muted-foreground/40" />
               <span className="text-[11px] font-semibold text-muted-foreground">
-                {isToday ? `Aujourd'hui ${timeStr}` : isTomorrow ? `Demain ${timeStr}` : `${dateStr} ${timeStr}`}
+                {isToday ? `${t(language, 'common.today')} ${timeStr}` : isTomorrow ? `${t(language, 'common.tomorrow')} ${timeStr}` : `${dateStr} ${timeStr}`}
               </span>
             </div>
           )}
@@ -292,7 +293,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
             <button
               onClick={(e) => { e.stopPropagation(); toggleTeamFavorite(match.homeTeam, match.homeLogo); }}
               className="shrink-0 ml-auto"
-              title={homeFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              title={homeFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
             >
               <Heart className={`h-3.5 w-3.5 transition-colors ${homeFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
             </button>
@@ -324,7 +325,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
             <button
               onClick={(e) => { e.stopPropagation(); toggleTeamFavorite(match.awayTeam, match.awayLogo); }}
               className="shrink-0"
-              title={awayFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              title={awayFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
             >
               <Heart className={`h-3.5 w-3.5 transition-colors ${awayFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
             </button>
@@ -367,17 +368,17 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
               {findingStream ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Recherche...
+                  {t(language, 'match.searching')}
                 </>
               ) : isLive ? (
                 <>
                   <Radio className="h-3.5 w-3.5 fill-current" />
-                  Regarder en direct
+                  {t(language, 'match.watchLive')}
                 </>
               ) : (
                 <>
                   <Play className="h-3.5 w-3.5 fill-current" />
-                  Regarder
+                  {t(language, 'match.watch')}
                 </>
               )}
             </Button>
@@ -388,7 +389,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
               className="flex-1 h-8 gap-2 text-xs font-semibold rounded-lg bg-muted/60 hover:bg-muted/80 text-foreground border border-border/30"
             >
               <Activity className="h-3.5 w-3.5" />
-              Voir le résumé
+              {t(language, 'match.seeSummary')}
             </Button>
           ) : (
             <Button
@@ -397,7 +398,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
               className="flex-1 h-8 gap-2 text-xs font-semibold rounded-lg bg-muted/40 hover:bg-muted/60 text-muted-foreground border border-border/20"
             >
               <Activity className="h-3.5 w-3.5" />
-              Suivre le match
+              {t(language, 'match.followMatch')}
             </Button>
           )}
           {/* Match Tracker button */}
@@ -408,7 +409,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
             className="h-8 px-3 rounded-lg border-border/40 text-xs gap-1"
           >
             <Activity className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Suivre</span>
+            <span className="hidden sm:inline">{t(language, 'match.follow')}</span>
           </Button>
           {canWatchLive && (
             <Button
@@ -441,7 +442,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
           <div className="mt-2 flex items-center gap-1.5 justify-center">
             <Tv className="h-3 w-3 text-green-500/60" />
             <span className="text-[10px] text-green-500/70 font-medium">
-              Diffusé sur: {broadcasterInfo}
+              {t(language, 'match.broadcastOn')}: {broadcasterInfo}
             </span>
           </div>
         )}
@@ -452,7 +453,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
         <div className="border-t border-border/20 bg-muted/20 px-4 py-3">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider">
-              {koraStreams.length > 0 ? 'Diffusion en direct' : 'Chaînes disponibles'} ({koraStreams.length || foundChannels.length})
+              {koraStreams.length > 0 ? t(language, 'match.liveBroadcast') : t(language, 'channels.title')} ({koraStreams.length || foundChannels.length})
             </p>
             {broadcasterInfo && (
               <span className="text-[9px] text-green-500/60 font-medium">
@@ -477,7 +478,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
                     <span className="text-xs font-medium truncate">{stream.lang} Stream</span>
                     <span className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-green-500/10">
                       <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-[8px] font-bold text-green-600">DIRECT</span>
+                      <span className="text-[8px] font-bold text-green-600">{t(language, 'channels.direct')}</span>
                     </span>
                   </div>
                 </div>
@@ -511,13 +512,13 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
                     {channel.health === 'online' && (
                       <span className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-green-500/10">
                         <span className="w-1 h-1 rounded-full bg-green-500" />
-                        <span className="text-[8px] font-bold text-green-600">EN LIGNE</span>
+                        <span className="text-[8px] font-bold text-green-600">{t(language, 'channels.online').toUpperCase()}</span>
                       </span>
                     )}
                     {channel.health === 'offline' && (
                       <span className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-red-500/10">
                         <span className="w-1 h-1 rounded-full bg-red-400" />
-                        <span className="text-[8px] font-bold text-red-400">HORS LIGNE</span>
+                        <span className="text-[8px] font-bold text-red-400">{t(language, 'channels.offline').toUpperCase()}</span>
                       </span>
                     )}
                   </div>

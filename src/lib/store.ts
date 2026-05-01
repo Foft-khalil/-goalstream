@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { BasketballMatch } from '@/lib/basketball/types';
+import { Language, getSavedLanguage, saveLanguage } from '@/lib/i18n';
 
 export type ViewType = 'live' | 'channels' | 'standings' | 'favorites' | 'basketball';
 export type DateTab = 'day0' | 'day1' | 'day2' | 'day3' | 'day4' | 'day5' | 'day6';
@@ -113,6 +114,10 @@ interface AppState {
   // Admin
   isAdmin: boolean;
   setIsAdmin: (value: boolean) => void;
+
+  // Language
+  language: Language;
+  setLanguage: (lang: Language) => void;
 
   // Search/Filter
   channelSearch: string;
@@ -411,6 +416,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Admin
   isAdmin: false,
   setIsAdmin: (value) => set({ isAdmin: value }),
+
+  // Language
+  language: getSavedLanguage(),
+  setLanguage: (lang) => {
+    saveLanguage(lang);
+    set({ language: lang });
+  },
 
   // Search/Filter
   channelSearch: '',

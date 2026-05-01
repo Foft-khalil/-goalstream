@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import ChannelCard from '@/components/channel-card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,24 +18,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const COUNTRIES = [
-  { code: '', label: 'Tous les pays' },
-  { code: 'fr', label: '🇫🇷 France' },
-  { code: 'ma', label: '🇲🇦 Maroc' },
-  { code: 'dz', label: '🇩🇿 Algérie' },
-  { code: 'sn', label: '🇸🇳 Sénégal' },
-  { code: 'tn', label: '🇹🇳 Tunisie' },
-  { code: 'eg', label: '🇪🇬 Égypte' },
-  { code: 'uk', label: '🇬🇧 Royaume-Uni' },
-  { code: 'us', label: '🇺🇸 États-Unis' },
-  { code: 'es', label: '🇪🇸 Espagne' },
-  { code: 'de', label: '🇩🇪 Allemagne' },
-  { code: 'it', label: '🇮🇹 Italie' },
-  { code: 'br', label: '🇧🇷 Brésil' },
-  { code: 'ar', label: '🇦🇷 Argentine' },
-  { code: 'sa', label: '🇸🇦 Arabie Saoudite' },
-  { code: 'tr', label: '🇹🇷 Turquie' },
-  { code: 'ir', label: '🇮🇷 Iran' },
+const COUNTRIES_BASE: Array<{ code: string; labelFr: string; labelEn: string }> = [
+  { code: '', labelFr: 'Tous les pays', labelEn: 'All countries' },
+  { code: 'fr', labelFr: '🇫🇷 France', labelEn: '🇫🇷 France' },
+  { code: 'ma', labelFr: '🇲🇦 Maroc', labelEn: '🇲🇦 Morocco' },
+  { code: 'dz', labelFr: '🇩🇿 Algérie', labelEn: '🇩🇿 Algeria' },
+  { code: 'sn', labelFr: '🇸🇳 Sénégal', labelEn: '🇸🇳 Senegal' },
+  { code: 'tn', labelFr: '🇹🇳 Tunisie', labelEn: '🇹🇳 Tunisia' },
+  { code: 'eg', labelFr: '🇪🇬 Égypte', labelEn: '🇪🇬 Egypt' },
+  { code: 'uk', labelFr: '🇬🇧 Royaume-Uni', labelEn: '🇬🇧 United Kingdom' },
+  { code: 'us', labelFr: '🇺🇸 États-Unis', labelEn: '🇺🇸 United States' },
+  { code: 'es', labelFr: '🇪🇸 Espagne', labelEn: '🇪🇸 Spain' },
+  { code: 'de', labelFr: '🇩🇪 Allemagne', labelEn: '🇩🇪 Germany' },
+  { code: 'it', labelFr: '🇮🇹 Italie', labelEn: '🇮🇹 Italy' },
+  { code: 'br', labelFr: '🇧🇷 Brésil', labelEn: '🇧🇷 Brazil' },
+  { code: 'ar', labelFr: '🇦🇷 Argentine', labelEn: '🇦🇷 Argentina' },
+  { code: 'sa', labelFr: '🇸🇦 Arabie Saoudite', labelEn: '🇸🇦 Saudi Arabia' },
+  { code: 'tr', labelFr: '🇹🇷 Turquie', labelEn: '🇹🇷 Turkey' },
+  { code: 'ir', labelFr: '🇮🇷 Iran', labelEn: '🇮🇷 Iran' },
 ];
 
 export default function ChannelsList() {
@@ -50,6 +51,7 @@ export default function ChannelsList() {
     setOnlineOnly,
     checkingChannels,
     checkChannelsHealth,
+    language,
   } = useAppStore();
 
   const [page, setPage] = useState(0);
@@ -132,7 +134,7 @@ export default function ChannelsList() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Rechercher une chaîne..."
+            placeholder={t(language, 'channels.searchPlaceholder')}
             value={channelSearch}
             onChange={(e) => {
               setChannelSearch(e.target.value);
@@ -150,9 +152,9 @@ export default function ChannelsList() {
               <SelectValue placeholder="Pays" />
             </SelectTrigger>
             <SelectContent>
-              {COUNTRIES.map((c) => (
+              {COUNTRIES_BASE.map((c) => (
                 <SelectItem key={c.code || 'all'} value={c.code || 'all'}>
-                  {c.label}
+                  {language === 'fr' ? c.labelFr : c.labelEn}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -180,7 +182,7 @@ export default function ChannelsList() {
             />
             <Label htmlFor="online-only" className="text-xs font-medium cursor-pointer flex items-center gap-1.5">
               <Wifi className="h-3.5 w-3.5 text-green-500" />
-              En ligne uniquement
+              {t(language, 'channels.onlineOnly')}
             </Label>
           </div>
 
@@ -194,12 +196,12 @@ export default function ChannelsList() {
             {checkingChannels ? (
               <>
                 <Loader2 className="h-3 w-3 animate-spin" />
-                Vérification...
+                {t(language, 'channels.checking')}
               </>
             ) : (
               <>
                 <CheckCircle2 className="h-3 w-3" />
-                Tester
+                {t(language, 'channels.check')}
               </>
             )}
           </Button>
@@ -211,19 +213,19 @@ export default function ChannelsList() {
             {onlineCount > 0 && (
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-green-500" />
-                {onlineCount} en ligne
+                {onlineCount} {t(language, 'channels.online')}
               </span>
             )}
             {offlineCount > 0 && (
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-red-500" />
-                {offlineCount} hors ligne
+                {offlineCount} {t(language, 'channels.offline')}
               </span>
             )}
             {uncheckedCount > 0 && (
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-gray-500" />
-                {uncheckedCount} non testé{uncheckedCount > 1 ? 's' : ''}
+                {uncheckedCount} {t(language, 'channels.untested')}{uncheckedCount > 1 ? 's' : ''}
               </span>
             )}
           </div>
@@ -240,7 +242,7 @@ export default function ChannelsList() {
                 setPage(0);
               }}
             >
-              Tout
+              {t(language, 'common.all')}
             </Badge>
             {groups.slice(0, 10).map((group) => (
               <Badge
@@ -257,7 +259,7 @@ export default function ChannelsList() {
             ))}
             {groups.length > 10 && (
               <span className="text-[10px] text-muted-foreground self-center">
-                +{groups.length - 10} plus
+                +{groups.length - 10} {t(language, 'common.more')}
               </span>
             )}
           </div>
@@ -268,14 +270,14 @@ export default function ChannelsList() {
       {channelsLoading && channels.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">Chargement des chaînes...</p>
+          <p className="text-sm text-muted-foreground">{t(language, 'common.loading')}...</p>
         </div>
       ) : displayChannels.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Tv className="h-12 w-12 text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">Aucune chaîne trouvée</p>
+          <p className="text-sm text-muted-foreground">{t(language, 'channels.noChannels')}</p>
           <p className="text-xs text-muted-foreground/70 mt-1">
-            {onlineOnly ? 'Essayez de désactiver le filtre "En ligne uniquement"' : 'Ajustez votre recherche ou vos filtres'}
+            {onlineOnly ? t(language, 'channels.tryDisableFilter') : t(language, 'channels.adjustFilters')}
           </p>
           {onlineOnly && (
             <Button
@@ -285,7 +287,7 @@ export default function ChannelsList() {
               className="mt-3"
             >
               <WifiOff className="h-3.5 w-3.5 mr-1.5" />
-              Afficher toutes les chaînes
+              {t(language, 'channels.showAllChannels')}
             </Button>
           )}
         </div>
@@ -293,7 +295,7 @@ export default function ChannelsList() {
         <>
           <div className="flex items-center justify-between px-1">
             <p className="text-xs text-muted-foreground">
-              {filteredChannels.length} chaîne{filteredChannels.length !== 1 ? 's' : ''} trouvée{filteredChannels.length !== 1 ? 's' : ''}
+              {filteredChannels.length} {t(language, 'channels.channelsFound')}{filteredChannels.length !== 1 ? 's' : ''}
             </p>
           </div>
           <div className="grid gap-2">
@@ -310,7 +312,7 @@ export default function ChannelsList() {
                 onClick={() => setPage(page + 1)}
                 className="bg-card/80 border-border/50"
               >
-                Charger plus de chaînes
+                {t(language, 'channels.loadMore')}
               </Button>
             </div>
           )}

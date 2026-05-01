@@ -2,7 +2,8 @@
 
 import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useAppStore, DateTab } from '@/lib/store';
-import { formatFrShort, formatFrLong } from '@/lib/date-utils';
+import { t } from '@/lib/i18n';
+import { formatShort, formatLong } from '@/lib/date-utils';
 import MatchCard from '@/components/match-card';
 import { Loader2, Zap, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,7 @@ export default function LiveMatches() {
     selectedDate,
     setSelectedDate,
     fetchFootballMatches,
+    language,
   } = useAppStore();
 
   const [countdown, setCountdown] = useState(60);
@@ -149,19 +151,19 @@ export default function LiveMatches() {
 
   const countdownStr = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`;
 
-  // Tab labels with day info — uses deterministic French formatting to avoid hydration mismatch
+  // Tab labels with day info — uses language-aware formatting
   const dateTabs = useMemo(() => {
     return ALL_DATE_TABS.map((tab, idx) => {
       const d = new Date();
       d.setDate(d.getDate() + idx);
       const dayLabel = idx === 0
-        ? "Aujourd'hui"
+        ? t(language, 'common.today')
         : idx === 1
-          ? 'Demain'
-          : formatFrShort(d);
+          ? t(language, 'common.tomorrow')
+          : formatShort(d, language);
       const sublabel = idx === 0
         ? ''
-        : formatFrShort(d);
+        : formatShort(d, language);
       return {
         key: tab,
         label: dayLabel,
@@ -170,7 +172,7 @@ export default function LiveMatches() {
         dateObj: d,
       };
     });
-  }, [tabCounts]);
+  }, [tabCounts, language]);
 
   // Auto-scroll to active tab
   useEffect(() => {
@@ -192,10 +194,10 @@ export default function LiveMatches() {
 
   const headerDateStr = useMemo(() => {
     const idx = parseInt(selectedDate.replace('day', ''), 10);
-    if (idx === 0) return formatFrLong(new Date());
-    if (idx === 1) return `Demain — ${formatFrShort(selectedDateObj)}`;
-    return formatFrLong(selectedDateObj);
-  }, [selectedDate, selectedDateObj]);
+    if (idx === 0) return formatLong(new Date(), language);
+    if (idx === 1) return `${t(language, 'common.tomorrow')} — ${formatShort(selectedDateObj, language)}`;
+    return formatLong(selectedDateObj, language);
+  }, [selectedDate, selectedDateObj, language]);
 
   // Loading state
   if (footballLoading && footballMatches.length === 0) {
@@ -207,8 +209,8 @@ export default function LiveMatches() {
           </div>
           <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 animate-ping opacity-60" />
         </div>
-        <p className="text-base font-semibold mb-1">Chargement des matchs</p>
-        <p className="text-sm text-muted-foreground/60">Recherche sur 7 jours...</p>
+        <p className="text-base font-semibold mb-1">{t(language, 'common.loading')}</p>
+        <p className="text-sm text-muted-foreground/60">...</p>
         <div className="flex items-center gap-1.5 mt-4">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '0ms' }} />
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -225,11 +227,11 @@ export default function LiveMatches() {
         <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
           <WifiOff className="h-8 w-8 text-red-400" />
         </div>
-        <h3 className="text-lg font-semibold mb-2">Impossible de charger</h3>
+        <h3 className="text-lg font-semibold mb-2">{t(language, 'errors.cannotLoad')}</h3>
         <p className="text-sm text-muted-foreground mb-5 max-w-xs">{footballError}</p>
         <Button onClick={handleRetry} size="sm" className="gap-2 bg-green-600 hover:bg-green-700 text-white">
           <RefreshCw className="h-4 w-4" />
-          Réessayer
+          {t(language, 'common.retry')}
         </Button>
       </div>
     );
@@ -292,14 +294,14 @@ export default function LiveMatches() {
               <div className="flex items-center gap-1.5">
                 <Wifi className="h-3.5 w-3.5 text-green-500" />
                 <span className="text-sm text-green-500 font-semibold">
-                  {liveMatches.length} en direct
+                  {liveMatches.length} {t(language, 'common.live').toLowerCase()}
                 </span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
-                  {upcomingMatches.length + finishedMatches.length} match{(upcomingMatches.length + finishedMatches.length) !== 1 ? 's' : ''}
+                  {upcomingMatches.length + finishedMatches.length} {t(language, 'nav.matches').toLowerCase()}
                 </span>
               </div>
             )}
@@ -307,7 +309,7 @@ export default function LiveMatches() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground/40 tabular-nums">
-            Maj {countdownStr}
+            {t(language, 'common.update')} {countdownStr}
           </span>
           <Button
             variant="outline"
@@ -327,7 +329,7 @@ export default function LiveMatches() {
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
           <span>{footballError}</span>
           <Button variant="ghost" size="sm" onClick={handleRetry} className="ml-auto h-5 px-2 text-[10px] text-red-400">
-            Réessayer
+            {t(language, 'common.retry')}
           </Button>
         </div>
       )}
@@ -338,9 +340,9 @@ export default function LiveMatches() {
           <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
             <Calendar className="h-8 w-8 text-muted-foreground/40" />
           </div>
-          <h3 className="text-base font-semibold mb-1">Aucun match ce jour</h3>
+          <h3 className="text-base font-semibold mb-1">{t(language, 'common.loading')}</h3>
           <p className="text-sm text-muted-foreground/60">
-            Pas de match prévu pour cette date
+            ...
           </p>
         </div>
       )}
@@ -351,7 +353,7 @@ export default function LiveMatches() {
           <div className="flex items-center gap-2 mb-3">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/15">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-xs font-bold text-red-500 uppercase tracking-wide">En Direct</span>
+              <span className="text-xs font-bold text-red-500 uppercase tracking-wide">{t(language, 'common.live')}</span>
             </div>
           </div>
           <div className="space-y-3">
@@ -390,7 +392,7 @@ export default function LiveMatches() {
           <div className="flex items-center gap-2 mb-3">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/50 border border-border/30">
               <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
-              <span className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide">Terminés</span>
+              <span className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide">{t(language, 'common.finished')}</span>
               <span className="text-[10px] text-muted-foreground/40">{finishedMatches.length}</span>
             </div>
           </div>
@@ -412,7 +414,7 @@ export default function LiveMatches() {
 
       {/* Footer info */}
       <div className="text-center text-[10px] text-muted-foreground/30 pt-1">
-        Programme sur 7 jours — mise à jour auto toutes les {hasLive ? '15s' : '2 min'}{hasLive ? ' (en direct)' : ''}
+        {t(language, 'common.update')} {hasLive ? '15s' : '2 min'}{hasLive ? ` (${t(language, 'common.live').toLowerCase()})` : ''}
       </div>
     </div>
   );
