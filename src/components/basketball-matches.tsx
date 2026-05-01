@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useAppStore, DateTab } from '@/lib/store';
+import { formatFrShort, formatFrLong } from '@/lib/date-utils';
 import BasketballMatchCard from '@/components/basketball-match-card';
 import { Loader2, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -141,10 +142,10 @@ export default function BasketballMatches() {
         ? "Aujourd'hui"
         : idx === 1
           ? 'Demain'
-          : d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+          : formatFrShort(d);
       const sublabel = idx === 0
         ? ''
-        : d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+        : formatFrShort(d);
       return {
         key: tab,
         label: dayLabel,
@@ -172,7 +173,7 @@ export default function BasketballMatches() {
     if (idx === 1) return `Demain`;
     const d = new Date();
     d.setDate(d.getDate() + idx);
-    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' });
+    return formatFrLong(d);
   }, [selectedBasketballDate]);
 
   // Loading state

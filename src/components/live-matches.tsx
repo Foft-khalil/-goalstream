@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useAppStore, DateTab } from '@/lib/store';
+import { formatFrShort, formatFrLong } from '@/lib/date-utils';
 import MatchCard from '@/components/match-card';
 import { Loader2, Zap, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -148,7 +149,7 @@ export default function LiveMatches() {
 
   const countdownStr = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`;
 
-  // Tab labels with day info
+  // Tab labels with day info — uses deterministic French formatting to avoid hydration mismatch
   const dateTabs = useMemo(() => {
     return ALL_DATE_TABS.map((tab, idx) => {
       const d = new Date();
@@ -157,10 +158,10 @@ export default function LiveMatches() {
         ? "Aujourd'hui"
         : idx === 1
           ? 'Demain'
-          : d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+          : formatFrShort(d);
       const sublabel = idx === 0
         ? ''
-        : d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+        : formatFrShort(d);
       return {
         key: tab,
         label: dayLabel,
@@ -191,9 +192,9 @@ export default function LiveMatches() {
 
   const headerDateStr = useMemo(() => {
     const idx = parseInt(selectedDate.replace('day', ''), 10);
-    if (idx === 0) return new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-    if (idx === 1) return `Demain — ${selectedDateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })}`;
-    return selectedDateObj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    if (idx === 0) return formatFrLong(new Date());
+    if (idx === 1) return `Demain — ${formatFrShort(selectedDateObj)}`;
+    return formatFrLong(selectedDateObj);
   }, [selectedDate, selectedDateObj]);
 
   // Loading state
