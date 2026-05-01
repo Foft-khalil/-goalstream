@@ -102,12 +102,30 @@ interface ESPNHeaderCompetitor {
 
 interface ESPNSummary {
   commentary?: { items?: ESPNCommentaryItem[] };
+  plays?: ESPNPlay[];
   header?: {
-    competitors?: ESPNHeaderCompetitor[];
     id?: string;
+    competitions?: Array<{
+      competitors?: ESPNHeaderCompetitor[];
+    }>;
   };
   drives?: { current?: { team?: { id?: string } } };
-  boxscore?: { players?: any[] };
+  boxscore?: {
+    players?: Array<{
+      team?: {
+        id?: string;
+        displayName?: string;
+      };
+      statistics?: Array<{
+        athletes?: Array<{
+          athlete?: {
+            id?: string;
+            displayName?: string;
+          };
+        }>;
+      }>;
+    }>;
+  };
 }
 
 // ─── Cache TTL ────────────────────────────────────────────────────────────────
@@ -118,39 +136,41 @@ function getMatchEventsCache<T>(key: string): T | null {
 }
 
 // ─── Map ESPN play type to our event type ─────────────────────────────────────
-function mapEventType(item: ESPNCommentaryItem): BasketballMatchEvent['type'] | null {
-  const typeId = item.play?.type?.id || item.type?.id;
-  const typeName = (item.play?.type?.text || item.play?.type?.name || item.type?.text || item.type?.name || '').toLowerCase();
-  const abbreviation = (item.play?.type?.abbreviation || item.type?.abbreviation || '').toLowerCase();
+function mapPlayType(play: ESPNPlay): BasketballMatchEvent['type'] | null {
+  const typeId = play.type?.id;
+  const typeName = (play.type?.text || '').toLowerCase();
+  const scoreValue = play.scoreValue || 0;
 
-  // Field goal (2-point)
-  if (typeId === '42' || typeName.includes('field goal') || typeName.includes('field_goal') ||
-      typeName.includes('2-point') || abbreviation === 'fg') {
-    return 'field_goal';
-  }
-  // Three-pointer
-  if (typeId === '43' || typeName.includes('three point') || typeName.includes('3-point') ||
-      typeName.includes('three-point') || typeName.includes('3pt') || abbreviation === '3pt') {
+  // Three-pointer (check before field goal — ESPN uses "Jump Shot" for both)
+  if (scoreValue === 3 || typeId === '92' && typeName.includes('three') ||
+      typeName.includes('three point') || typeName.includes('3-point') ||
+      typeName.includes('3pt') || typeName.includes('three-point')) {
     return 'three_pointer';
   }
+  // Field goal (2-point shot)
+  if (typeId === '92' || typeName.includes('jump shot') || typeName.includes('field goal') ||
+      typeName.includes('2-point') || typeName.includes('layup') || typeName.includes('dunk') ||
+      typeName.includes('hook shot') || typeName.includes('fadeaway') ||
+      typeName.includes('bank shot') || typeName.includes('pullup') ||
+      typeName.includes('step back') || typeName.includes('floating')) {
+    if (scoreValue === 3) return 'three_pointer';
+    return 'field_goal';
+  }
   // Free throw
-  if (typeId === '44' || typeName.includes('free throw') || typeName.includes('free_throw') || abbreviation === 'ft') {
+  if (typeId === '93' || typeName.includes('free throw') || typeName.includes('free_throw')) {
     return 'free_throw';
   }
   // Rebound
-  if (typeId === '45' || typeName.includes('rebound') || typeName.includes('rebond')) {
+  if (typeId === '94' || typeName.includes('rebound') || typeName.includes('rebond')) {
     return 'rebound';
   }
-  // Assist
-  if (typeId === '46' || typeName.includes('assist') || typeName.includes('passe décisive')) {
-    return 'assist';
-  }
   // Turnover
-  if (typeId === '47' || typeName.includes('turnover') || typeName.includes('ball perdu') || abbreviation === 'to') {
+  if (typeId === '95' || typeName.includes('turnover') || typeName.includes('bad pass') ||
+      typeName.includes('ball perdu') || typeName.includes('steal') || typeName.includes('lost ball')) {
     return 'turnover';
   }
-  // Foul (regular)
-  if (typeId === '48' || typeName.includes('foul') || typeName.includes('faute')) {
+  // Foul
+  if (typeId === '96' || typeName.includes('foul') || typeName.includes('faute')) {
     if (typeName.includes('technical') || typeName.includes('technique')) return 'technical_foul';
     if (typeName.includes('flagrant')) return 'flagrant_foul';
     return 'foul';
@@ -168,15 +188,16 @@ function mapEventType(item: ESPNCommentaryItem): BasketballMatchEvent['type'] | 
     return 'ejection';
   }
   // Timeout
-  if (typeId === '53' || typeName.includes('timeout') || typeName.includes('temps mort')) {
+  if (typeId === '98' || typeName.includes('timeout') || typeName.includes('temps mort')) {
     return 'timeout';
   }
   // Substitution
-  if (typeId === '54' || typeName.includes('substitution') || typeName.includes('remplacement') || typeName.includes('enters') || typeName.includes('exits')) {
+  if (typeId === '99' || typeName.includes('substitution') || typeName.includes('enters') ||
+      typeName.includes('returns') || typeName.includes('leaves')) {
     return 'substitution';
   }
   // Jump ball
-  if (typeName.includes('jump ball') || typeName.includes('entre-deux')) {
+  if (typeName.includes('jumpball') || typeName.includes('jump ball') || typeName.includes('entre-deux')) {
     return 'jump_ball';
   }
   // Review
@@ -184,17 +205,17 @@ function mapEventType(item: ESPNCommentaryItem): BasketballMatchEvent['type'] | 
     return 'review';
   }
   // Period start/end
-  if (typeName.includes('start') || typeName.includes('début') || typeName.includes('begin') || typeName.includes('kick off')) {
+  if (typeName.includes('start') || typeName.includes('début') || typeName.includes('begin')) {
     return 'period_start';
   }
-  if (typeName.includes('end') || typeName.includes('fin') || typeName.includes('halftime') || typeName.includes('mi-temps') ||
-      typeName.includes('quarter end') || typeName.includes('end of')) {
+  if (typeName.includes('end') || typeName.includes('fin') || typeName.includes('halftime') ||
+      typeName.includes('mi-temps') || typeName.includes('quarter end') || typeName.includes('end of')) {
     return 'period_end';
   }
 
-  // Also check for scoring plays that didn't match specific type
-  if (item.scoringPlay || item.play?.scoringPlay) {
-    return 'field_goal'; // Default scoring type
+  // Scoring play that didn't match specific type
+  if (play.scoringPlay) {
+    return scoreValue === 3 ? 'three_pointer' : 'field_goal';
   }
 
   return null;
@@ -381,19 +402,142 @@ async function fetchBasketballMatchEvents(eventId: string, league: string): Prom
 
   const data: ESPNSummary = await res.json();
 
-  // Extract team info from header
-  const competitors = data.header?.competitors || [];
+  // Extract team info from header.competitions[0].competitors
+  const competitors = data.header?.competitions?.[0]?.competitors || data.header?.competitors || [];
   const homeTeam = competitors.find(c => c.homeAway === 'home') || null;
   const awayTeam = competitors.find(c => c.homeAway === 'away') || null;
 
-  // Extract commentary items
-  const commentaryItems = data.commentary?.items || [];
+  const homeTeamName = homeTeam?.team?.displayName || homeTeam?.team?.name || '';
+  const awayTeamName = awayTeam?.team?.displayName || awayTeam?.team?.name || '';
+  const homeTeamLogo = homeTeam?.team?.logos?.[0]?.href || homeTeam?.team?.logo || null;
+  const awayTeamLogo = awayTeam?.team?.logos?.[0]?.href || awayTeam?.team?.logo || null;
+  const homeTeamId = homeTeam?.team?.id || '';
+  const awayTeamId = awayTeam?.team?.id || '';
 
-  // Parse into our event format
-  const events = parseCommentaryItems(commentaryItems, homeTeam, awayTeam);
+  // Build player name lookup from boxscore
+  const playerNames = new Map<string, string>();
+  const boxscorePlayers = data.boxscore?.players || [];
+  for (const teamData of boxscorePlayers) {
+    const stats = teamData.statistics || [];
+    for (const stat of stats) {
+      const athletes = stat.athletes || [];
+      for (const a of athletes) {
+        const id = a.athlete?.id;
+        const name = a.athlete?.displayName;
+        if (id && name) {
+          playerNames.set(String(id), name);
+        }
+      }
+    }
+  }
+
+  // Parse events — prefer 'plays' array (NBA summary format), fall back to 'commentary'
+  const events: BasketballMatchEvent[] = [];
+
+  if (data.plays && data.plays.length > 0) {
+    // NBA summary API returns plays array
+    for (const play of data.plays) {
+      try {
+        const eventType = mapPlayType(play);
+        if (!eventType) continue;
+
+        const minute = play.clock?.displayValue || '';
+        const period = play.period?.displayValue || '';
+        const scoringPlay = play.scoringPlay || false;
+        const homeScore = play.homeScore || 0;
+        const awayScore = play.awayScore || 0;
+
+        // Determine team from play.team.id
+        let team = '';
+        let teamLogo: string | null = null;
+        const playTeamId = play.team?.id;
+        if (playTeamId) {
+          if (String(playTeamId) === String(homeTeamId)) {
+            team = homeTeamName;
+            teamLogo = homeTeamLogo;
+          } else if (String(playTeamId) === String(awayTeamId)) {
+            team = awayTeamName;
+            teamLogo = awayTeamLogo;
+          }
+        }
+
+        // Get player name from participants or text
+        let player = '';
+        let assistPlayer = '';
+        const participants = play.participants || [];
+        if (participants.length > 0) {
+          // First participant is the primary player
+          const firstId = participants[0].athlete?.id;
+          if (firstId) {
+            player = playerNames.get(String(firstId)) || '';
+          }
+          // Second participant is often the assister
+          if (participants.length > 1 && (eventType === 'field_goal' || eventType === 'three_pointer' || eventType === 'free_throw')) {
+            const secondId = participants[1].athlete?.id;
+            if (secondId) {
+              assistPlayer = playerNames.get(String(secondId)) || '';
+            }
+          }
+        }
+
+        // Fallback: try to extract player name from text
+        if (!player && play.text) {
+          // ESPN format: "Jalen Brunson makes 25-foot three point jumper"
+          const match = play.text.match(/^([A-Z][a-z]+ [A-Z][a-zA-Z\-]+)/);
+          if (match) player = match[1];
+        }
+
+        // Substitution: parse player in/out from text
+        let playerIn = '';
+        if (eventType === 'substitution' && play.text) {
+          // ESPN format: "Player X enters the game for Player Y"
+          const enterMatch = play.text.match(/([A-Z][a-z]+ [A-Z][a-zA-Z\-]+)\s+enters?\s+.*for\s+([A-Z][a-z]+ [A-Z][a-zA-Z\-]+)/i);
+          if (enterMatch) {
+            playerIn = enterMatch[1];
+            player = enterMatch[2];
+          } else {
+            const returnMatch = play.text.match(/([A-Z][a-z]+ [A-Z][a-zA-Z\-]+)\s+returns/);
+            if (returnMatch) {
+              player = returnMatch[1];
+            }
+          }
+        }
+
+        const event: BasketballMatchEvent = {
+          id: String(play.id || `evt-${events.length}-${minute}-${eventType}`),
+          type: eventType,
+          minute,
+          period,
+          team,
+          teamLogo,
+          player,
+          homeScore,
+          awayScore,
+          scoringPlay,
+        };
+
+        if (assistPlayer) event.assistPlayer = assistPlayer;
+        if (playerIn) event.playerIn = playerIn;
+
+        // Add detail text
+        const detailText = play.text || play.type?.text || '';
+        if (detailText) event.detail = detailText;
+
+        events.push(event);
+      } catch {
+        // Skip malformed plays
+      }
+    }
+  } else if (data.commentary?.items && data.commentary.items.length > 0) {
+    // Fallback: commentary format (some leagues or older API versions)
+    const commentaryEvents = parseCommentaryItems(data.commentary.items, homeTeam, awayTeam);
+    events.push(...commentaryEvents);
+  }
 
   // Determine possession
   const possession = determinePossession(data, homeTeam);
+
+  console.log(`[Basketball Events API] Parsed ${events.length} events (plays: ${data.plays?.length || 0}, commentary: ${data.commentary?.items?.length || 0})`);
 
   return {
     events,
@@ -424,8 +568,13 @@ export async function GET(request: NextRequest) {
 
     const league = searchParams.get('league') || 'nba';
 
-    // Strip "espn_" prefix if present
-    const eventId = matchId.startsWith('espn_') ? matchId.slice(5) : matchId;
+    // Strip "espn_bball_" or "espn_" prefix if present
+    let eventId = matchId;
+    if (eventId.startsWith('espn_bball_')) {
+      eventId = eventId.slice(11); // strip "espn_bball_", leaving numeric ID
+    } else if (eventId.startsWith('espn_')) {
+      eventId = eventId.slice(5); // strip "espn_", leaving numeric ID
+    }
 
     const cacheKey = `basketball-events-${eventId}`;
 
@@ -455,7 +604,12 @@ export async function GET(request: NextRequest) {
     console.error('[Basketball Events API] Error fetching match events:', error);
 
     const matchId = request.nextUrl.searchParams.get('matchId') || '';
-    const eventId = matchId.startsWith('espn_') ? matchId.slice(5) : matchId;
+    let eventId = matchId;
+    if (eventId.startsWith('espn_bball_')) {
+      eventId = eventId.slice(11);
+    } else if (eventId.startsWith('espn_')) {
+      eventId = eventId.slice(5);
+    }
 
     // Try stale cache
     const cacheKey = `basketball-events-${eventId}`;
