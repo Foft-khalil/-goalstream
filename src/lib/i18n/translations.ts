@@ -365,6 +365,22 @@ export interface Translations {
   footer: {
     description: string;
     streamsFrom: string;
+    privacyPolicy: string;
+  };
+  privacy: {
+    title: string;
+    lastUpdated: string;
+    introduction: string;
+    introductionContent: string;
+    dataCollection: string;
+    dataCollectionContent: string;
+    automaticData: string;
+    automaticDataContent: string;
+    notifications: string;
+    notificationsContent: string;
+    contact: string;
+    contactContent: string;
+    contactEmail: string;
   };
   dates: {
     today: string;
@@ -742,6 +758,22 @@ export const translations: Record<Language, Translations> = {
     footer: {
       description: 'Streaming sportif gratuit via IPTV',
       streamsFrom: 'Flux issus de',
+      privacyPolicy: 'Politique de confidentialité',
+    },
+    privacy: {
+      title: 'Politique de confidentialité',
+      lastUpdated: 'Dernière mise à jour : Mai 2026',
+      introduction: '1. Introduction',
+      introductionContent: 'GoalStream est une application gratuite de suivi de matchs sportifs en direct. Nous respectons la vie privée de nos utilisateurs et nous nous engageons à la protéger.',
+      dataCollection: '2. Collecte de données',
+      dataCollectionContent: 'GoalStream ne collecte aucune donnée personnelle de ses utilisateurs. Aucune inscription ni connexion n\'est requise pour utiliser l\'application.',
+      automaticData: '3. Données collectées automatiquement',
+      automaticDataContent: 'Notre application peut collecter automatiquement certaines données techniques comme l\'adresse IP de l\'appareil, le type d\'appareil et le système d\'exploitation, ainsi que des données de navigation anonymes. Ces données sont utilisées uniquement pour améliorer les performances de l\'application et ne sont jamais vendues à des tiers.',
+      notifications: '4. Notifications',
+      notificationsContent: 'Si l\'utilisateur active les notifications, celles-ci sont utilisées uniquement pour l\'informer du début des matchs et des buts marqués.',
+      contact: '5. Contact',
+      contactContent: 'Pour toute question concernant cette politique de confidentialité, les utilisateurs peuvent nous contacter à l\'adresse ci-dessous.',
+      contactEmail: 'Adresse de contact',
     },
     dates: {
       today: "Aujourd'hui",
@@ -1117,6 +1149,22 @@ export const translations: Record<Language, Translations> = {
     footer: {
       description: 'Free sports streaming via IPTV',
       streamsFrom: 'Streams from',
+      privacyPolicy: 'Privacy Policy',
+    },
+    privacy: {
+      title: 'Privacy Policy',
+      lastUpdated: 'Last updated: May 2026',
+      introduction: '1. Introduction',
+      introductionContent: 'GoalStream is a free live sports match tracking application. We respect the privacy of our users and are committed to protecting it.',
+      dataCollection: '2. Data Collection',
+      dataCollectionContent: 'GoalStream does not collect any personal data from its users. No registration or login is required to use the application.',
+      automaticData: '3. Automatically Collected Data',
+      automaticDataContent: 'Our application may automatically collect certain technical data such as the device IP address, device type and operating system, as well as anonymous browsing data. This data is used solely to improve the performance of the application and is never sold to third parties.',
+      notifications: '4. Notifications',
+      notificationsContent: 'If the user enables notifications, they are used solely to inform about match starts and goals scored.',
+      contact: '5. Contact',
+      contactContent: 'For any questions regarding this privacy policy, users can contact us at the address below.',
+      contactEmail: 'Contact email',
     },
     dates: {
       today: 'Today',
@@ -1492,6 +1540,22 @@ export const translations: Record<Language, Translations> = {
     footer: {
       description: 'بث رياضي مجاني عبر IPTV',
       streamsFrom: 'البث من',
+      privacyPolicy: 'سياسة الخصوصية',
+    },
+    privacy: {
+      title: 'سياسة الخصوصية',
+      lastUpdated: 'آخر تحديث: مايو 2026',
+      introduction: '1. مقدمة',
+      introductionContent: 'GoalStream هو تطبيق مجاني لتتبع المباريات الرياضية المباشرة. نحن نحترم خصوصية مستخدمينا ونلتزم بحمايتها.',
+      dataCollection: '2. جمع البيانات',
+      dataCollectionContent: 'GoalStream لا يجمع أي بيانات شخصية من مستخدميه. لا يتطلب التسجيل أو تسجيل الدخول لاستخدام التطبيق.',
+      automaticData: '3. البيانات المجمعة تلقائياً',
+      automaticDataContent: 'قد يجمع تطبيقنا تلقائياً بعض البيانات التقنية مثل عنوان IP للجهاز ونوع الجهاز ونظام التشغيل بالإضافة إلى بيانات التصفح المجهولة. تستخدم هذه البيانات فقط لتحسين أداء التطبيق ولا يتم بيعها أبداً لأطراف ثالثة.',
+      notifications: '4. الإشعارات',
+      notificationsContent: 'إذا قام المستخدم بتفعيل الإشعارات، فتُستخدم فقط لإبلاغه ببداية المباريات والأهداف المسجلة.',
+      contact: '5. الاتصال',
+      contactContent: 'لأي أسئلة تتعلق بسياسة الخصوصية هذه، يمكن للمستخدمين الاتصال بنا على العنوان أدناه.',
+      contactEmail: 'البريد الإلكتروني للاتصال',
     },
     dates: {
       today: 'اليوم',
@@ -1867,6 +1931,22 @@ export const translations: Record<Language, Translations> = {
     footer: {
       description: 'Streaming deportivo gratuito vía IPTV',
       streamsFrom: 'Transmisiones de',
+      privacyPolicy: 'Política de privacidad',
+    },
+    privacy: {
+      title: 'Política de privacidad',
+      lastUpdated: 'Última actualización: Mayo 2026',
+      introduction: '1. Introducción',
+      introductionContent: 'GoalStream es una aplicación gratuita de seguimiento de partidos deportivos en vivo. Respetamos la privacidad de nuestros usuarios y nos comprometemos a protegerla.',
+      dataCollection: '2. Recopilación de datos',
+      dataCollectionContent: 'GoalStream no recopila ningún dato personal de sus usuarios. No se requiere registro ni inicio de sesión para utilizar la aplicación.',
+      automaticData: '3. Datos recopilados automáticamente',
+      automaticDataContent: 'Nuestra aplicación puede recopilar automáticamente ciertos datos técnicos como la dirección IP del dispositivo, el tipo de dispositivo y el sistema operativo, así como datos de navegación anónimos. Estos datos se utilizan únicamente para mejorar el rendimiento de la aplicación y nunca se venden a terceros.',
+      notifications: '4. Notificaciones',
+      notificationsContent: 'Si el usuario activa las notificaciones, estas se utilizan únicamente para informarle sobre el inicio de los partidos y los goles marcados.',
+      contact: '5. Contacto',
+      contactContent: 'Para cualquier pregunta sobre esta política de privacidad, los usuarios pueden contactarnos en la dirección a continuación.',
+      contactEmail: 'Correo de contacto',
     },
     dates: {
       today: 'Hoy',
@@ -2242,6 +2322,22 @@ export const translations: Record<Language, Translations> = {
     footer: {
       description: 'Streaming esportivo gratuito via IPTV',
       streamsFrom: 'Transmissões de',
+      privacyPolicy: 'Política de privacidade',
+    },
+    privacy: {
+      title: 'Política de privacidade',
+      lastUpdated: 'Última atualização: Maio 2026',
+      introduction: '1. Introdução',
+      introductionContent: 'GoalStream é um aplicativo gratuito de acompanhamento de partidas esportivas ao vivo. Respeitamos a privacidade de nossos usuários e nos comprometemos a protegê-la.',
+      dataCollection: '2. Coleta de dados',
+      dataCollectionContent: 'GoalStream não coleta nenhum dado pessoal de seus usuários. Nenhum registro ou login é necessário para usar o aplicativo.',
+      automaticData: '3. Dados coletados automaticamente',
+      automaticDataContent: 'Nosso aplicativo pode coletar automaticamente certos dados técnicos como o endereço IP do dispositivo, tipo de dispositivo e sistema operacional, além de dados de navegação anônimos. Esses dados são usados exclusivamente para melhorar o desempenho do aplicativo e nunca são vendidos a terceiros.',
+      notifications: '4. Notificações',
+      notificationsContent: 'Se o usuário ativar as notificações, elas serão usadas exclusivamente para informá-lo sobre o início das partidas e os gols marcados.',
+      contact: '5. Contato',
+      contactContent: 'Para qualquer pergunta sobre esta política de privacidade, os usuários podem nos contatar no endereço abaixo.',
+      contactEmail: 'E-mail de contato',
     },
     dates: {
       today: 'Hoje',

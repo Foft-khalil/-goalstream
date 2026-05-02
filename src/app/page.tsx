@@ -11,7 +11,7 @@ import FavoritesView from '@/components/favorites-view';
 import VideoPlayer from '@/components/video-player';
 import LanguageSelector from '@/components/language-selector';
 import ErrorBoundary from '@/components/error-boundary';
-import { Zap, Tv, BarChart3, Menu, Download, WifiOff, Heart, Dribbble, Bell, Sun, Moon, Search } from 'lucide-react';
+import { Zap, Tv, BarChart3, Menu, Download, WifiOff, Heart, Dribbble, Bell, Sun, Moon, Search, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -20,6 +20,7 @@ import { usePWA } from '@/hooks/use-pwa';
 import { NotificationSettingsDialog } from '@/components/notification-settings';
 import NotificationCenter from '@/components/notification-center';
 import GlobalSearch from '@/components/global-search';
+import { PrivacyPolicyDialog } from '@/components/privacy-policy-dialog';
 import { useNotificationStore } from '@/lib/notification-store';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useNotifications } from '@/hooks/use-notifications';
@@ -33,6 +34,7 @@ function AppHeader() {
   const { unreadCount } = useNotificationStore();
   const [notifSettingsOpen, setNotifSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
 
   const footballLiveCount = footballMatches.filter((m) => m.status === 'live').length;
   const bballLiveCount = basketballMatches.filter((m) => m.status === 'live').length;
@@ -281,6 +283,16 @@ function AppHeader() {
                   );
                 })}
               </nav>
+              {/* Privacy Policy link in mobile menu */}
+              <div className="mt-6 pt-4 border-t border-border/20">
+                <button
+                  onClick={() => { setPrivacyOpen(true); setMobileMenuOpen(false); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+                >
+                  <Shield className="h-4 w-4" />
+                  <span>{t(language, 'footer.privacyPolicy')}</span>
+                </button>
+              </div>
             </SheetContent>
           </Sheet>
           </div>
@@ -295,6 +307,8 @@ function AppHeader() {
       />
       {/* Global Search Dialog */}
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      {/* Privacy Policy Dialog */}
+      <PrivacyPolicyDialog open={privacyOpen} onOpenChange={setPrivacyOpen} />
     </header>
   );
 }
@@ -359,6 +373,7 @@ function MobileBottomNav() {
 export default function Home() {
   const { currentView, fetchChannels, fetchFootballMatches, fetchBasketballMatches, language, theme, setTheme } = useAppStore();
   const { isOnline } = usePWA();
+  const [footerPrivacyOpen, setFooterPrivacyOpen] = useState(false);
 
   // Initialize theme from localStorage on mount
   useEffect(() => {
@@ -442,22 +457,34 @@ export default function Home() {
           <p className="text-[11px] text-muted-foreground/50 font-medium">
             GoalStream — {t(language, 'footer.description')}
           </p>
-          <p className="text-[11px] text-muted-foreground/50">
-            {t(language, 'footer.streamsFrom')}{' '}
-            <a
-              href="https://github.com/iptv-org/iptv"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-green-500/70 hover:text-green-500 hover:underline"
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setFooterPrivacyOpen(true)}
+              className="text-[11px] text-muted-foreground/50 hover:text-green-500 hover:underline transition-colors"
             >
-              iptv-org
-            </a>
-          </p>
+              {t(language, 'footer.privacyPolicy')}
+            </button>
+            <span className="text-[11px] text-muted-foreground/30">·</span>
+            <p className="text-[11px] text-muted-foreground/50">
+              {t(language, 'footer.streamsFrom')}{' '}
+              <a
+                href="https://github.com/iptv-org/iptv"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-green-500/70 hover:text-green-500 hover:underline"
+              >
+                iptv-org
+              </a>
+            </p>
+          </div>
         </div>
       </footer>
 
       {/* Mobile Bottom Nav */}
       <MobileBottomNav />
+
+      {/* Privacy Policy Dialog (from footer) */}
+      <PrivacyPolicyDialog open={footerPrivacyOpen} onOpenChange={setFooterPrivacyOpen} />
 
       {/* Video Player Overlay */}
       <VideoPlayer />

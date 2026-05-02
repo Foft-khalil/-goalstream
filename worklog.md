@@ -411,3 +411,32 @@ Stage Summary:
 - Boxing: Hardcoded weight class rankings (5 divisions, 3-5 fighters each)
 - Frontend: 14 category tabs with horizontal scroll, proper table formats per sport
 - Translations: 30+ new i18n keys in 5 languages (FR, EN, AR, ES, PT)
+
+---
+Task ID: privacy-policy
+Agent: Main Agent
+Task: Integrate Privacy Policy into GoalStream app
+
+Work Log:
+- Created PrivacyPolicyDialog component (src/components/privacy-policy-dialog.tsx): dialog with 5 sections (Introduction, Data Collection, Automatic Data, Notifications, Contact), each with icon, title, and content
+- Added `privacy` section to Translations interface with 12 keys: title, lastUpdated, introduction, introductionContent, dataCollection, dataCollectionContent, automaticData, automaticDataContent, notifications, notificationsContent, contact, contactContent, contactEmail
+- Added `footer.privacyPolicy` key to Translations interface
+- Added privacy translations for all 5 languages (FR, EN, AR, ES, PT)
+- Added PrivacyPolicyDialog import to page.tsx
+- Added Shield icon import from lucide-react
+- Added privacyOpen state to AppHeader component
+- Added Privacy Policy link in mobile sheet menu (with Shield icon, border-t separator)
+- Added PrivacyPolicyDialog in AppHeader (for mobile menu access)
+- Added footerPrivacyOpen state to Home component
+- Added "Politique de confidentialité" button in desktop footer (between description and streams-from)
+- Added PrivacyPolicyDialog in Home (for footer access)
+- Contact email (fofanakhalil272@gmail.com) rendered as clickable mailto: link
+- Lint passes with zero errors
+
+Stage Summary:
+- Privacy Policy fully integrated with professional dialog UI
+- Accessible from 2 locations: desktop footer button + mobile hamburger menu
+- Full i18n support in all 5 languages (FR, EN, AR, ES, PT)
+- Contact email displayed as clickable link
+- 12 privacy-specific i18n keys + 1 footer key added
+- All changes lint-clean
