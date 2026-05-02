@@ -17,6 +17,36 @@ function isHlsUrl(url: string): boolean {
   return url.includes('.m3u8') || url.includes('m3u8') || url.includes('/live/') && url.includes('.ts');
 }
 
+/**
+ * Check if a URL is a kora-api/embed-style stream that needs proxying.
+ * These are URLs from providers like streams.center that contain nested iframes
+ * and won't work directly in a sandboxed iframe.
+ */
+function needsProxy(url: string): boolean {
+  const proxyDomains = [
+    'streams.center',
+    'kora-api.top',
+    '000007.mov',
+    'streamcenter.pro',
+  ];
+  return proxyDomains.some(domain => url.includes(domain));
+}
+
+/**
+ * Convert a direct stream URL to our proxy URL.
+ * This allows embed-style streams to work in our iframe by serving
+ * them from our own domain (same method used by us-sport.eu).
+ */
+function getProxiedUrl(url: string): string {
+  if (!needsProxy(url)) return url;
+  try {
+    const encoded = btoa(url);
+    return `/api/proxy-stream?url=${encodeURIComponent(encoded)}`;
+  } catch {
+    return url;
+  }
+}
+
 export default function VideoPlayer() {
   // language is used for i18n throughout this component
   const { playerVisible, playerStreamUrl, playerChannelName, playerChannelLogo, playerAlternatives, closePlayer, openPlayer, language } =
@@ -39,6 +69,12 @@ export default function VideoPlayer() {
   // Determine stream type
   const isHls = playerStreamUrl ? isHlsUrl(playerStreamUrl) : true;
   const isIframe = playerStreamUrl ? !isHlsUrl(playerStreamUrl) : false;
+
+  // For iframe streams, compute the actual URL to use (proxied if needed)
+  const iframeSrc = useMemo(() => {
+    if (!isIframe || !playerStreamUrl) return '';
+    return getProxiedUrl(playerStreamUrl);
+  }, [isIframe, playerStreamUrl]);
 
   // For iframe streams, compute ready state directly instead of using an effect
   const iframeReady = isIframe && !!playerStreamUrl;
@@ -270,14 +306,14 @@ export default function VideoPlayer() {
         onClick={isHls ? togglePlay : undefined}
       >
         {isIframe ? (
-          /* Iframe-based stream (e.g. from kora-api) */
+          /* Iframe-based stream (e.g. from kora-api via proxy) */
           <iframe
-            src={playerStreamUrl || ''}
+            src={iframeSrc}
             className="w-full h-full border-0"
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             title={`${t(language, 'player.liveStream')}: ${playerChannelName}`}
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
+            referrerPolicy="no-referrer"
           />
         ) : (
           /* HLS video element */

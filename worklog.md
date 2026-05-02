@@ -117,3 +117,37 @@ Stage Summary:
 - PWA improved: v2 service worker with SPA fallback, stale-while-revalidate for assets, manifest shortcuts
 - Match highlights button added to finished matches (football + basketball), linking to YouTube search
 - App is lint-clean and running without errors
+---
+Task ID: stream-fix
+Agent: Main Agent
+Task: Fix streaming links by implementing same method as competitor sites (us-sport.eu, tarjetarojaenvivo.cx)
+
+Work Log:
+- Analyzed us-sport.eu: uses kora-api.space API + 000007.mov/watch.html iframe + /stream0.php?token=BASE64 proxy
+- Analyzed tarjetarojaenvivo.cx: uses /canal-XX.php pages with embedded stream players
+- Discovered root cause: our iframe had `sandbox` attribute which blocked nested iframes (chX.php → hls.php → player) and `fetch()` calls to decrypt.php
+- Created `/api/proxy-stream` GET/POST/OPTIONS route that:
+  1. Fetches embed pages server-side (no browser restrictions)
+  2. Removes referrer-blocking scripts that redirect to competitor sites
+  3. Removes top-frame redirect scripts (if window==window.top)
+  4. Rewrites protocol-relative URLs (//domain/path → https://domain/path)
+  5. Rewrites root-relative URLs (/path → https://streams.center/path)
+  6. Routes all streams.center iframe URLs through proxy (recursive)
+  7. Rewrites fetch() calls (decrypt.php) to use proxy (avoids CORS)
+  8. Injects <base> tag for remaining relative URL resolution
+  9. Forwards POST requests to decrypt.php and returns m3u8 URLs
+  10. Sets X-Frame-Options: ALLOWALL and CSP: frame-ancestors 'self' *
+- Updated video-player.tsx:
+  1. Added `needsProxy()` function to detect kora-api/embed URLs
+  2. Added `getProxiedUrl()` to route embed URLs through /api/proxy-stream
+  3. Removed `sandbox` attribute from iframe (was blocking nested iframes)
+  4. Added `referrerPolicy="no-referrer"` to avoid referrer-based blocking
+  5. Used `iframeSrc` memo for proxied URL computation
+- Tested full proxy chain: ch6.php → hls.php → decrypt.php → m3u8 URL ✅
+
+Stage Summary:
+- Streaming now works the same way as us-sport.eu (server-side proxy method)
+- Full chain verified: proxy fetches HTML → removes blocking scripts → rewrites URLs → forwards decrypt POST → returns m3u8
+- Video player no longer uses sandbox (allows nested iframes and fetch calls)
+- All embed URLs from kora-api (streams.center) are automatically proxied
+- Lint passes clean, dev server running without errors
