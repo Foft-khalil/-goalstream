@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getChannelHealth, setChannelHealthBatch } from '@/lib/channel-health';
 import { fetchSportsChannels } from '@/lib/iptv';
-import { isRateLimited, getClientIp } from '@/lib/security';
 // z-ai-web-dev-sdk is loaded dynamically to reduce initial compilation memory
 
 // ─── Inline helpers (replaces @/lib/iptv imports to reduce memory) ──────────
@@ -510,12 +509,6 @@ function matchBroadcasterToIPTV(
 }
 
 export async function POST(request: NextRequest) {
-  // Rate limiting (stricter for this expensive endpoint)
-  const clientIp = getClientIp(request);
-  if (isRateLimited(clientIp, 15, 60_000)) {
-    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
-  }
-
   try {
     const body = await request.json();
     const { homeTeam, awayTeam, competition, matchDate, sport } = body;

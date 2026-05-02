@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateProxyUrl, isRateLimited, getClientIp } from '@/lib/security';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const FETCH_TIMEOUT = 12_000; // 12 seconds per fetch
@@ -735,15 +734,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Rate limiting
-    const clientIp = getClientIp(request);
-    if (isRateLimited(clientIp, 20, 60_000)) {
-      return NextResponse.json(
-        { error: 'Rate limit exceeded', resolvedUrl: '', originalUrl: '', type: 'iframe' as const, resolved: false },
-        { status: 429 }
-      );
-    }
-
     // Decode the URL (handles base64)
     url = decodeInputUrl(url);
 
@@ -754,15 +744,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SSRF protection: validate URL against allowlist
-    const validationError = validateProxyUrl(url);
-    if (validationError) {
-      return NextResponse.json(
-        { error: validationError, resolvedUrl: '', originalUrl: url, type: 'iframe' as const, resolved: false },
-        { status: 403 }
-      );
-    }
-
     console.log(`[Resolve Stream] POST request — resolving: ${url}`);
 
     const result = await resolveEmbedChain(url);
@@ -770,6 +751,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result, {
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Access-Control-Allow-Origin': '*',
       },
     });
   } catch (err) {
@@ -800,30 +782,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Rate limiting
-    const clientIp = getClientIp(request);
-    if (isRateLimited(clientIp, 20, 60_000)) {
-      return NextResponse.json(
-        { error: 'Rate limit exceeded', resolvedUrl: '', originalUrl: '', type: 'iframe' as const, resolved: false },
-        { status: 429 }
-      );
-    }
-
     const url = decodeInputUrl(rawUrl);
 
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       return NextResponse.json(
         { error: 'Invalid URL format — must start with http:// or https://' },
         { status: 400 }
-      );
-    }
-
-    // SSRF protection: validate URL against allowlist
-    const validationError = validateProxyUrl(url);
-    if (validationError) {
-      return NextResponse.json(
-        { error: validationError, resolvedUrl: '', originalUrl: url, type: 'iframe' as const, resolved: false },
-        { status: 403 }
       );
     }
 
@@ -834,6 +798,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result, {
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Access-Control-Allow-Origin': '*',
       },
     });
   } catch (err) {
@@ -856,6 +821,7 @@ export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
     headers: {
+      'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     },
