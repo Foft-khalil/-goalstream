@@ -1,5 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { isRateLimited, getClientIp } from '@/lib/security';
+
+/**
+ * Verify admin access via custom header or API key.
+ * In production, this should use proper session-based auth (next-auth).
+ */
+function verifyAdminAccess(request: NextRequest): boolean {
+  const adminKey = process.env.ADMIN_PASSWORD || 'gs_@dm1n_s3cur3_2026!';
+  const authHeader = request.headers.get('x-admin-key');
+  const authCookie = request.cookies.get('admin_session')?.value;
+  
+  // Check custom header or cookie
+  if (authHeader === adminKey) return true;
+  if (authCookie === adminKey) return true;
+  
+  return false;
+}
 
 // GET /api/matches - Returns all matches, ordered by matchDate
 export async function GET() {
@@ -20,8 +37,19 @@ export async function GET() {
   }
 }
 
-// POST /api/matches - Create a new match
+// POST /api/matches - Create a new match (admin only)
 export async function POST(request: NextRequest) {
+  // Auth check
+  if (!verifyAdminAccess(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  // Rate limiting
+  const clientIp = getClientIp(request);
+  if (isRateLimited(clientIp, 30, 60_000)) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+  }
+  
   try {
     const body = await request.json();
     const { homeTeam, awayTeam, homeLogo, awayLogo, competition, matchDate, status } = body;

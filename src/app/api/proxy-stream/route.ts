@@ -1,28 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateProxyUrl, isRateLimited, getClientIp } from '@/lib/security';
 
 /**
  * Server-side proxy for streaming embed URLs.
  *
- * Why: Stream providers like streams.center embed their player in nested iframes
- * (chX.php → hls.php → decrypt.php → actual m3u8). When we load these directly
- * in a sandboxed iframe, the nested iframes are blocked by browser security policies.
- * Additionally, cross-origin fetch() calls from our domain to streams.center fail
- * due to CORS restrictions.
- *
- * This proxy solves the problem by:
- * 1. Fetching the embed page content server-side (no iframe restrictions)
- * 2. Serving it from our own domain (avoids referrer/X-Frame-Options blocks)
- * 3. Removing referrer-blocking scripts that redirect away
- * 4. Rewriting nested iframe URLs AND fetch() URLs to also go through the proxy
- * 5. Proxying POST requests to decrypt.php and similar endpoints
- *
- * This is the same method used by us-sport.eu (they use /stream0.php?token=BASE64)
+ * SECURITY: This endpoint now validates URLs against a domain allowlist
+ * and blocks private/internal IP addresses to prevent SSRF attacks.
+ * Rate limiting is also enforced.
  *
  * Usage:
  *   GET  /api/proxy-stream?url=BASE64_ENCODED_URL
  *   POST /api/proxy-stream?url=BASE64_ENCODED_URL  (forwards body to upstream)
  */
+
+// CORS headers - restricted to same origin only
+function getCorsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': '',  // Empty = same origin only (no wildcard)
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+}
+
 export async function GET(request: NextRequest) {
+  // Rate limiting
+  const clientIp = getClientIp(request);
+  if (isRateLimited(clientIp, 60, 60_000)) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+  }
+
   const { searchParams } = new URL(request.url);
   const encodedUrl = searchParams.get('url');
 
@@ -41,14 +47,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Validate URL format
-  if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-    return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
+  // SSRF protection: validate URL against allowlist
+  const validationError = validateProxyUrl(targetUrl);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 403 });
   }
 
   try {
-    console.log(`[Proxy Stream] GET fetching: ${targetUrl}`);
-
     const response = await fetch(targetUrl, {
       headers: {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -61,7 +66,6 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
-      console.warn(`[Proxy Stream] Upstream returned ${response.status} for ${targetUrl}`);
       return NextResponse.json(
         { error: `Upstream returned ${response.status}` },
         { status: 502 }
@@ -78,7 +82,6 @@ export async function GET(request: NextRequest) {
         headers: {
           'Content-Type': contentType,
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Access-Control-Allow-Origin': '*',
         },
       });
     }
@@ -139,12 +142,11 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    // Also proxy other known embed domains
     const PROXY_DOMAINS = ['streamcenter.pro', '000007.mov'];
     for (const domain of PROXY_DOMAINS) {
       const escapedDomain = domain.replace('.', '\\.');
       const regex = new RegExp(
-        `(<iframe[^>]+src=["'])(https?:\/\/[^"']*${escapedDomain}[^"']*)(["'])`,
+        `(<iframe[^>]+src=["'])(https?:\\/\\/[^"']*${escapedDomain}[^"']*)(["'])`,
         'gi'
       );
       html = html.replace(
@@ -157,12 +159,9 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Step 5: Rewrite fetch() calls to use proxy ──────────────────────────
-    // The player makes fetch('decrypt.php', {...}) which needs to be proxied
-    // to avoid CORS issues. We rewrite fetch('relative_url') to use our proxy.
     html = html.replace(
       /fetch\s*\(\s*['"]([^'"]+\.php[^'"]*)['"]/gi,
       (_match: string, fetchUrl: string) => {
-        // Resolve relative URL to absolute
         let absoluteUrl: string;
         if (fetchUrl.startsWith('http://') || fetchUrl.startsWith('https://')) {
           absoluteUrl = fetchUrl;
@@ -190,12 +189,12 @@ export async function GET(request: NextRequest) {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'X-Frame-Options': 'ALLOWALL',
-        'Content-Security-Policy': "frame-ancestors 'self' *",
+        // Fixed: proper security headers instead of ALLOWALL
+        'X-Frame-Options': 'SAMEORIGIN',
+        'Content-Security-Policy': "frame-ancestors 'self'",
       },
     });
-  } catch (err) {
-    console.error('[Proxy Stream] Error:', err);
+  } catch {
     return NextResponse.json(
       { error: 'Failed to fetch stream content' },
       { status: 500 }
@@ -208,6 +207,12 @@ export async function GET(request: NextRequest) {
  * Used by the decrypt.php endpoint to get the actual m3u8 stream URL.
  */
 export async function POST(request: NextRequest) {
+  // Rate limiting
+  const clientIp = getClientIp(request);
+  if (isRateLimited(clientIp, 30, 60_000)) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+  }
+
   const { searchParams } = new URL(request.url);
   const encodedUrl = searchParams.get('url');
 
@@ -226,16 +231,15 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-    return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
+  // SSRF protection: validate URL against allowlist
+  const validationError = validateProxyUrl(targetUrl);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 403 });
   }
 
   try {
-    // Forward the request body
     const body = await request.text();
     const contentType = request.headers.get('content-type') || 'application/x-www-form-urlencoded';
-
-    console.log(`[Proxy Stream] POST forwarding to: ${targetUrl}`);
 
     const response = await fetch(targetUrl, {
       method: 'POST',
@@ -252,20 +256,14 @@ export async function POST(request: NextRequest) {
 
     const responseBody = await response.text();
 
-    console.log(`[Proxy Stream] POST response: ${response.status} (${responseBody.length} bytes)`);
-
     return new NextResponse(responseBody, {
       status: response.status,
       headers: {
         'Content-Type': response.headers.get('content-type') || 'text/plain',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
       },
     });
-  } catch (err) {
-    console.error('[Proxy Stream] POST Error:', err);
+  } catch {
     return NextResponse.json(
       { error: 'Failed to forward request' },
       { status: 500 }
@@ -274,15 +272,11 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * OPTIONS handler - CORS preflight support
+ * OPTIONS handler - CORS preflight support (same-origin only)
  */
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
+    headers: getCorsHeaders(),
   });
 }

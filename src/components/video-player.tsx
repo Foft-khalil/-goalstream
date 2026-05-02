@@ -455,6 +455,7 @@ export default function VideoPlayer() {
           <iframe
             src={iframeSrc}
             className="w-full h-full border-0"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             title={`${t(language, 'player.liveStream')}: ${playerChannelName}`}

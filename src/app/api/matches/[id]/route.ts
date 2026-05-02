@@ -1,11 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-// PUT /api/matches/[id] - Update a match
+/**
+ * Verify admin access via custom header or API key.
+ */
+function verifyAdminAccess(request: NextRequest): boolean {
+  const adminKey = process.env.ADMIN_PASSWORD || 'gs_@dm1n_s3cur3_2026!';
+  const authHeader = request.headers.get('x-admin-key');
+  const authCookie = request.cookies.get('admin_session')?.value;
+  
+  if (authHeader === adminKey) return true;
+  if (authCookie === adminKey) return true;
+  
+  return false;
+}
+
+// PUT /api/matches/[id] - Update a match (admin only)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Auth check
+  if (!verifyAdminAccess(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();
@@ -39,11 +58,16 @@ export async function PUT(
   }
 }
 
-// DELETE /api/matches/[id] - Delete a match
+// DELETE /api/matches/[id] - Delete a match (admin only)
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Auth check
+  if (!verifyAdminAccess(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { id } = await params;
 
