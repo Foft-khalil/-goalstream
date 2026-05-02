@@ -478,7 +478,7 @@ function StandingsTable({
         <div className="divide-y divide-border/10">
           {displayedTeams.map((team) => (
             <div
-              key={team.team}
+              key={team.teamId}
               onClick={() => onTeamClick(team)}
               className={`grid gap-0 px-2.5 py-2 items-center text-xs hover:bg-green-500/5 transition-colors cursor-pointer ${getGridCols()} ${
                 team.note && (team.note.toLowerCase().includes('qualif') || team.note.toLowerCase().includes('champions') || team.note.toLowerCase().includes('top 10') || team.note.toLowerCase().includes('advance') || team.note.toLowerCase().includes('round of') || team.note.toLowerCase().includes('clinched playoff') || team.note.toLowerCase().includes('clinched'))
@@ -1269,7 +1269,7 @@ export default function StandingsView() {
         selectedStandings.map((league) => {
           // If this is a placeholder (World Cup), render the info card
           if (league.placeholder) {
-            return <WorldCupInfoCard key={league.leagueCode} placeholder={league} language={language} />;
+            return <WorldCupInfoCard key={`${league.leagueCode}-${league.groupName || 'all'}`} placeholder={league} language={language} />;
           }
 
           return (
