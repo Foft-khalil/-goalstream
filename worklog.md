@@ -288,3 +288,126 @@ Stage Summary:
 - Enhanced dialog with 4 tabs (Info, Roster, Stats, Schedule) instead of 3
 - Full i18n support added for team detail section
 - All data sections now display: team info, roster, stats, schedule
+
+---
+Task ID: 3
+Agent: i18n Agent
+Task: Add i18n translations for new sports categories in all 5 languages
+
+Work Log:
+- Read translations.ts to understand existing file structure (Translations interface + 5 language objects: fr, en, ar, es, pt)
+- Added 16 new keys to `standings` interface: mlb, nhl, cricket, motorSport, mma, boxing, motorsports, other, rugby, otLosses, ties, drivers, constructors, runsFor, runsAgainst, goalsFor, goalsAgainst, winPctShort, streak
+- Added 14 new keys to `teamDetail` interface: pitcher, catcher, baseman, outfielder, defenseman, forward, goaltender, quarterback, runningBack, wideReceiver, driver, fighter, weightClass, champion
+- Added French (fr) translations for all 30 new keys
+- Added English (en) translations for all 30 new keys
+- Added Arabic (ar) translations for all 30 new keys
+- Added Spanish (es) translations for all 30 new keys
+- Added Portuguese (pt) translations for all 30 new keys
+- Ran `bun run lint` — zero errors
+
+Stage Summary:
+- Added 30 new i18n keys across 2 sections (standings + teamDetail) for all 5 languages
+- standings: 16 new keys covering MLB, NHL, Cricket, Motor Sport, MMA, Boxing, Motorsports, Other, Rugby categories plus stats abbreviations (otLosses, ties, drivers, constructors, runsFor, runsAgainst, goalsFor, goalsAgainst, winPctShort, streak)
+- teamDetail: 14 new keys covering sport-specific positions (pitcher, catcher, baseman, outfielder, defenseman, forward, goaltender, quarterback, runningBack, wideReceiver, driver, fighter, weightClass, champion)
+- All changes lint-clean
+
+---
+Task ID: 1
+Agent: Backend Standings Agent
+Task: Update the backend standings API to support new sports categories
+
+Work Log:
+- Read existing `/src/app/api/standings/route.ts` (910 lines) and worklog.md for context
+- Added 5 new league definition arrays: MOTOR_SPORT (F1), MOTORSPORTS (NASCAR/IndyCar/MotoGP), CRICKET (IPL/BBL/PSL/SA20/CPL/ICC), RUGBY (6Nations/Premiership/URC/SuperRugby/TRC/NRL), OTHER (NFL/NCAA Football)
+- Added 8 new ESPN API base URLs: ESPN_MLB_PRIMARY/FALLBACK, ESPN_NHL_PRIMARY/FALLBACK, ESPN_NFL_PRIMARY/FALLBACK, ESPN_CFB_PRIMARY/FALLBACK, ESPN_F1_PRIMARY/FALLBACK
+- Added 3 new ParsedTeam fields: otLosses (NHL), ties (NFL), streak (general)
+- Created generic `fetchESPNData()` helper to reduce code duplication across all sport fetch functions
+- Created `fetchMLBStandings()` - 2 children (AL/NL), W/L/PCT/GB format, conference field
+- Created `fetchNHLStandings()` - 2 children (Eastern/Western), W/L/OTL/PTS/GB format, otLosses field
+- Created `fetchNFLStandings()` - 2 children (AFC/NFC), W/L/T/PCT/GB format, ties field
+- Created `fetchCollegeFootballStandings()` - Multiple conference groups, similar to NFL format
+- Created `fetchF1Standings()` - 2 children (Driver/Constructor), uses athlete field for drivers, rank/championshipPts stats
+- Created 7 placeholder generators: getNASCARPlaceholder(), getIndyCarPlaceholder(), getMotoGPPlaceholder(), getIPLPlaceholder(), getSixNationsPlaceholder(), getUFCRankingsPlaceholder(), getBoxingRankingsPlaceholder()
+- UFC placeholder uses weight class groups (10 weight classes, 5 fighters each)
+- Boxing placeholder uses weight class groups (5 weight classes, 3-5 fighters each)
+- Updated PLACEHOLDER_CODES with all new placeholder league codes
+- Updated GET handler to route all new league codes and categories (mlb, nhl, nfl, college-football, f1, nascar-cup, indycar, moto-gp, ipl, 6nations, ufc.rankings, boxing.rankings, and category-based: mlb, nhl, motorSport, motorsports, cricket, rugby, mma, boxing, other)
+- Lint passes with zero errors
+
+Stage Summary:
+- All 12 new sports categories implemented in the backend standings API
+- ESPN API integration: MLB, NHL, NFL, College Football, F1 (with primary/fallback URL pattern)
+- Off-season placeholders: NASCAR Cup, IndyCar, MotoGP, IPL, Six Nations
+- Hardcoded rankings: UFC (10 weight classes), Boxing (5 weight classes)
+- PLACEHOLDER_CODES updated with all new codes
+- File grew from 910 lines to 1846 lines
+- All changes lint-clean
+
+---
+Task ID: 2
+Agent: Standings Categories Agent
+Task: Update standings-view.tsx to support 9 new sports categories (MLB, NHL, Cricket, Motor Sport, MMA, Boxing, Motorsports, Other, Rugby)
+
+Work Log:
+- Read existing standings-view.tsx (1201 lines) and worklog.md to understand context
+- Extended StandingTeam interface with otLosses (NHL) and ties (NFL) optional fields
+- Extended Category type from 5 to 14 categories
+- Added CATEGORY_KEYS for all 9 new categories (standings.mlb, standings.nhl, standings.cricket, standings.motorSport, standings.mma, standings.boxing, standings.motorsports, standings.other, standings.rugby)
+- Added CATEGORY_ICONS with distinct Lucide icons: Volleyball (MLB), Shield (NHL), Activity (Cricket), Gauge (Motor Sport), Swords (MMA), Flame (Boxing), Car (Motorsports), Grid3x3 (Other), Radar (Rugby)
+- Updated CATEGORIES array to include all 14 categories in logical order
+- Added LEAGUE_TABS for all 9 new categories with appropriate league codes, names, and flag emojis
+- Updated StandingsTable component with 4 new props (isMLB, isNHL, isNFL, isF1) and 5 new table formats:
+  - MLB: same as NBA (W | L | PCT | GB)
+  - NHL: W | L | OTL | PTS | GB (with otLosses display)
+  - NFL: W | L | T | PCT | GB (with ties display)
+  - F1: same as FIFA Rankings (# | Name | PTS)
+- Added legend sections for MLB (Playoffs/Play-In/Eliminated), NHL (Playoffs/Wild Card/Eliminated), NFL (Playoffs/Draft Pick/Eliminated)
+- Replaced hardcoded data/loading initializers with utility objects generated from CATEGORIES array
+- Added NO_SCORERS_CATEGORIES constant to disable top scorers for all new categories
+- Made category tabs scrollable with overflow-x-auto and flex-nowrap for 14 categories
+- Updated EmptyLeagueState with placeholder codes for all new league codes
+- Updated sub-tab toggle to use hasScorers check instead of hardcoded basketball check
+- Added new Lucide icon imports: Swords, Flame, Gauge, Car, Grid3x3, Volleyball, Shield, Radar, Activity
+- Ran `bun run lint` — zero errors
+
+Stage Summary:
+- standings-view.tsx updated from 1201 to 1353 lines
+- 9 new category tabs fully integrated with distinct icons, league tabs, and table formats
+- MLB and NHL use existing NBA-style table with extensions (OTL, ties)
+- F1 uses FIFA Rankings-style simple table
+- Top scorers disabled for all new categories (NO_SCORERS_CATEGORIES)
+- Category tabs now scrollable horizontally for 14 categories
+- All changes lint-clean with zero errors
+---
+Task ID: 1
+Agent: main
+Task: Add MLB, NHL, Cricket, Motor Sport, MMA, Boxing, Motorsports, Other, Rugby to Classement section
+
+Work Log:
+- Explored ESPN API endpoints for all new sports to verify data availability
+- Confirmed working endpoints: MLB, NHL, NFL, College Football, F1, IPL cricket, Rugby leagues
+- Confirmed off-season/empty: NASCAR Cup, IndyCar, MotoGP, Cricket (all), Rugby (all), UFC
+- Delegated backend API update to subagent - added 5 new fetch functions + 7 placeholder generators
+- Delegated frontend standings-view.tsx update to subagent - added 9 new categories with proper table formats
+- Delegated i18n translations update to subagent - added 30 new keys across 5 languages
+- Updated team detail API (getSportPrefix) to support all new sports
+- Added LEAGUE_NAMES mappings for all new league codes
+- Added placeholder league handling in team detail API
+- Updated computeFormAndStats to handle MLB, NHL, NFL stat formats
+- Verified all API endpoints return data correctly (MLB, NHL, NFL, CFB, F1, UFC, Boxing, IPL, 6Nations, NASCAR, IndyCar, MotoGP)
+- Lint passes with zero errors
+
+Stage Summary:
+- Added 9 new sport categories: MLB, NHL, Cricket, Motor Sport, MMA, Boxing, Motorsports, Other, Rugby
+- MLB: Full ESPN API data with AL/NL conferences, W/L/PCT/GB format
+- NHL: Full ESPN API data with Eastern/Western conferences, W/L/OTL/PTS/GB format
+- NFL: Full ESPN API data with AFC/NFC conferences, W/L/T/PCT/GB format
+- College Football: Full ESPN API data with conference groups
+- F1: Full ESPN API data with Driver & Constructor standings
+- NASCAR/IndyCar/MotoGP: Rich placeholder cards with off-season info
+- Cricket (IPL, BBL, PSL, SA20, CPL, ICC WC): Placeholder cards
+- Rugby (6Nations, Premiership, URC, Super Rugby, TRC, NRL): Placeholder cards
+- UFC: Hardcoded weight class rankings (10 divisions, 5 fighters each)
+- Boxing: Hardcoded weight class rankings (5 divisions, 3-5 fighters each)
+- Frontend: 14 category tabs with horizontal scroll, proper table formats per sport
+- Translations: 30+ new i18n keys in 5 languages (FR, EN, AR, ES, PT)

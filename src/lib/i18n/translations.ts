@@ -129,6 +129,25 @@ export interface Translations {
     assists: string;
     player: string;
     matchesPlayed: string;
+    mlb: string;
+    nhl: string;
+    cricket: string;
+    motorSport: string;
+    mma: string;
+    boxing: string;
+    motorsports: string;
+    other: string;
+    rugby: string;
+    otLosses: string;
+    ties: string;
+    drivers: string;
+    constructors: string;
+    runsFor: string;
+    runsAgainst: string;
+    goalsFor: string;
+    goalsAgainst: string;
+    winPctShort: string;
+    streak: string;
   };
   teamDetail: {
     info: string;
@@ -181,6 +200,20 @@ export interface Translations {
     powerForward: string;
     center: string;
     yearsOld: string;
+    pitcher: string;
+    catcher: string;
+    baseman: string;
+    outfielder: string;
+    defenseman: string;
+    forward: string;
+    goaltender: string;
+    quarterback: string;
+    runningBack: string;
+    wideReceiver: string;
+    driver: string;
+    fighter: string;
+    weightClass: string;
+    champion: string;
   };
   favorites: {
     title: string;
@@ -473,6 +506,25 @@ export const translations: Record<Language, Translations> = {
       assists: 'Passes D.',
       player: 'Joueur',
       matchesPlayed: 'MJ',
+      mlb: 'MLB ⚾',
+      nhl: 'NHL 🏒',
+      cricket: 'Cricket 🏏',
+      motorSport: 'Sport Auto 🏎️',
+      mma: 'MMA 🥊',
+      boxing: 'Boxe 🥊',
+      motorsports: 'Motorsports 🏁',
+      other: 'Autres 🏈',
+      rugby: 'Rugby 🏉',
+      otLosses: 'OTL',
+      ties: 'N',
+      drivers: 'Pilotes',
+      constructors: 'Constructeurs',
+      runsFor: 'RC',
+      runsAgainst: 'RA',
+      goalsFor: 'BP',
+      goalsAgainst: 'BC',
+      winPctShort: 'PCT',
+      streak: 'Série',
     },
     teamDetail: {
       info: 'Infos',
@@ -525,6 +577,20 @@ export const translations: Record<Language, Translations> = {
       powerForward: 'Ailier fort',
       center: 'Pivot',
       yearsOld: 'ans',
+      pitcher: 'Lanceur',
+      catcher: 'Receveur',
+      baseman: 'Base',
+      outfielder: 'Voltigeur',
+      defenseman: 'Défenseur',
+      forward: 'Attaquant',
+      goaltender: 'Gardien',
+      quarterback: 'Quarterback',
+      runningBack: 'Coureur',
+      wideReceiver: 'Receveur',
+      driver: 'Pilote',
+      fighter: 'Combattant',
+      weightClass: 'Catégorie',
+      champion: 'Champion',
     },
     favorites: {
       title: 'Favoris',
@@ -815,6 +881,25 @@ export const translations: Record<Language, Translations> = {
       assists: 'Assists',
       player: 'Player',
       matchesPlayed: 'MP',
+      mlb: 'MLB ⚾',
+      nhl: 'NHL 🏒',
+      cricket: 'Cricket 🏏',
+      motorSport: 'Motor Sport 🏎️',
+      mma: 'MMA 🥊',
+      boxing: 'Boxing 🥊',
+      motorsports: 'Motorsports 🏁',
+      other: 'Other 🏈',
+      rugby: 'Rugby 🏉',
+      otLosses: 'OTL',
+      ties: 'T',
+      drivers: 'Drivers',
+      constructors: 'Constructors',
+      runsFor: 'RS',
+      runsAgainst: 'RA',
+      goalsFor: 'GF',
+      goalsAgainst: 'GA',
+      winPctShort: 'PCT',
+      streak: 'Streak',
     },
     teamDetail: {
       info: 'Info',
@@ -867,6 +952,20 @@ export const translations: Record<Language, Translations> = {
       powerForward: 'Power Forward',
       center: 'Center',
       yearsOld: 'y/o',
+      pitcher: 'Pitcher',
+      catcher: 'Catcher',
+      baseman: 'Baseman',
+      outfielder: 'Outfielder',
+      defenseman: 'Defenseman',
+      forward: 'Forward',
+      goaltender: 'Goaltender',
+      quarterback: 'Quarterback',
+      runningBack: 'Running Back',
+      wideReceiver: 'Wide Receiver',
+      driver: 'Driver',
+      fighter: 'Fighter',
+      weightClass: 'Weight Class',
+      champion: 'Champion',
     },
     favorites: {
       title: 'Favorites',
@@ -1157,6 +1256,25 @@ export const translations: Record<Language, Translations> = {
       assists: 'تمريرات',
       player: 'لاعب',
       matchesPlayed: 'مباريات',
+      mlb: 'MLB ⚾',
+      nhl: 'NHL 🏒',
+      cricket: 'الكريكت 🏏',
+      motorSport: 'سباق السيارات 🏎️',
+      mma: 'MMA 🥊',
+      boxing: 'الملاكمة 🥊',
+      motorsports: 'الرياضات الآلية 🏁',
+      other: 'أخرى 🏈',
+      rugby: 'الرغبي 🏉',
+      otLosses: 'خ.إ',
+      ties: 'ت',
+      drivers: 'السائقون',
+      constructors: 'الفرق',
+      runsFor: 'نقاط',
+      runsAgainst: 'عليه',
+      goalsFor: 'له',
+      goalsAgainst: 'عليه',
+      winPctShort: 'نسبة',
+      streak: 'سلسلة',
     },
     teamDetail: {
       info: 'معلومات',
@@ -1209,6 +1327,20 @@ export const translations: Record<Language, Translations> = {
       powerForward: 'جناح قوي',
       center: 'محور',
       yearsOld: 'سنة',
+      pitcher: 'رامي',
+      catcher: 'لاقط',
+      baseman: 'قاعدي',
+      outfielder: 'خارجي',
+      defenseman: 'مدافع',
+      forward: 'مهاجم',
+      goaltender: 'حارس',
+      quarterback: 'ظهير',
+      runningBack: 'عداء',
+      wideReceiver: 'مستقبل',
+      driver: 'سائق',
+      fighter: 'مقاتل',
+      weightClass: 'فئة وزن',
+      champion: 'بطل',
     },
     favorites: {
       title: 'المفضلة',
@@ -1499,6 +1631,25 @@ export const translations: Record<Language, Translations> = {
       assists: 'Asistencias',
       player: 'Jugador',
       matchesPlayed: 'PJ',
+      mlb: 'MLB ⚾',
+      nhl: 'NHL 🏒',
+      cricket: 'Cricket 🏏',
+      motorSport: 'Automovilismo 🏎️',
+      mma: 'MMA 🥊',
+      boxing: 'Boxeo 🥊',
+      motorsports: 'Motociclismo 🏁',
+      other: 'Otros 🏈',
+      rugby: 'Rugby 🏉',
+      otLosses: 'DPR',
+      ties: 'E',
+      drivers: 'Pilotos',
+      constructors: 'Constructores',
+      runsFor: 'CA',
+      runsAgainst: 'CP',
+      goalsFor: 'GF',
+      goalsAgainst: 'GC',
+      winPctShort: 'PCT',
+      streak: 'Racha',
     },
     teamDetail: {
       info: 'Información',
@@ -1551,6 +1702,20 @@ export const translations: Record<Language, Translations> = {
       powerForward: 'Ala-pívot',
       center: 'Pívot',
       yearsOld: 'años',
+      pitcher: 'Lanzador',
+      catcher: 'Receptor',
+      baseman: 'Base',
+      outfielder: 'Jardinero',
+      defenseman: 'Defensa',
+      forward: 'Delantero',
+      goaltender: 'Portero',
+      quarterback: 'Quarterback',
+      runningBack: 'Corredor',
+      wideReceiver: 'Receptor',
+      driver: 'Piloto',
+      fighter: 'Luchador',
+      weightClass: 'Categoría',
+      champion: 'Campeón',
     },
     favorites: {
       title: 'Favoritos',
@@ -1841,6 +2006,25 @@ export const translations: Record<Language, Translations> = {
       assists: 'Assistências',
       player: 'Jogador',
       matchesPlayed: 'JJ',
+      mlb: 'MLB ⚾',
+      nhl: 'NHL 🏒',
+      cricket: 'Críquete 🏏',
+      motorSport: 'Automobilismo 🏎️',
+      mma: 'MMA 🥊',
+      boxing: 'Boxe 🥊',
+      motorsports: 'Motociclismo 🏁',
+      other: 'Outros 🏈',
+      rugby: 'Rugby 🏉',
+      otLosses: 'DPP',
+      ties: 'E',
+      drivers: 'Pilotos',
+      constructors: 'Construtores',
+      runsFor: 'RC',
+      runsAgainst: 'RS',
+      goalsFor: 'GP',
+      goalsAgainst: 'GC',
+      winPctShort: 'PCT',
+      streak: 'Sequência',
     },
     teamDetail: {
       info: 'Informações',
@@ -1893,6 +2077,20 @@ export const translations: Record<Language, Translations> = {
       powerForward: 'Ala-pivô',
       center: 'Pivô',
       yearsOld: 'anos',
+      pitcher: 'Arremessador',
+      catcher: 'Receptor',
+      baseman: 'Base',
+      outfielder: 'Externo',
+      defenseman: 'Zagueiro',
+      forward: 'Atacante',
+      goaltender: 'Goleiro',
+      quarterback: 'Quarterback',
+      runningBack: 'Corredor',
+      wideReceiver: 'Receptor',
+      driver: 'Piloto',
+      fighter: 'Lutador',
+      weightClass: 'Categoria',
+      champion: 'Campeão',
     },
     favorites: {
       title: 'Favoritos',

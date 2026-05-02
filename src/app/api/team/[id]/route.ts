@@ -37,15 +37,62 @@ const LEAGUE_NAMES: Record<string, string> = {
   'afc.w.asian.cup': "Women's Asian Cup",
   'caf.w.nations': "Women's AFCON",
   'fifa.friendly.w': "Women's Friendly",
+  // New sports
+  'mlb': 'MLB',
+  'nhl': 'NHL',
+  'nfl': 'NFL',
+  'college-football': 'NCAA Football',
+  'f1': 'Formula 1',
+  'nascar-cup': 'NASCAR Cup',
+  'indycar': 'IndyCar',
+  'moto-gp': 'MotoGP',
+  'ipl': 'IPL',
+  'bbl': 'Big Bash League',
+  'psl': 'PSL',
+  'sa20': 'SA20',
+  'cpl': 'CPL',
+  'icc.wc': 'ICC World Cup',
+  '6nations': 'Six Nations',
+  'prem.rugby': 'Premiership Rugby',
+  'urc': 'United Rugby Championship',
+  'sr': 'Super Rugby',
+  'trc': 'The Rugby Championship',
+  'nrl': 'NRL',
+  'ufc.rankings': 'UFC Rankings',
+  'boxing.rankings': 'Boxing Rankings',
 };
 
 /**
  * Determine the ESPN sport prefix based on league code.
- * Basketball leagues use 'basketball', everything else uses 'soccer'.
+ * Each sport has its own prefix for ESPN API URLs.
  */
 function getSportPrefix(leagueCode: string): string {
   if (leagueCode === 'nba' || leagueCode.startsWith('basketball')) {
     return 'basketball';
+  }
+  if (leagueCode === 'mlb') {
+    return 'baseball';
+  }
+  if (leagueCode === 'nhl') {
+    return 'hockey';
+  }
+  if (leagueCode === 'nfl' || leagueCode === 'college-football') {
+    return 'football';
+  }
+  if (leagueCode === 'f1' || leagueCode === 'nascar-cup' || leagueCode === 'indycar' || leagueCode === 'moto-gp') {
+    return 'racing';
+  }
+  if (leagueCode === 'ipl' || leagueCode === 'bbl' || leagueCode === 'psl' || leagueCode === 'sa20' || leagueCode === 'cpl' || leagueCode === 'icc.wc') {
+    return 'cricket';
+  }
+  if (leagueCode === '6nations' || leagueCode === 'prem.rugby' || leagueCode === 'urc' || leagueCode === 'sr' || leagueCode === 'trc' || leagueCode === 'nrl') {
+    return 'rugby';
+  }
+  if (leagueCode === 'ufc.rankings') {
+    return 'mma';
+  }
+  if (leagueCode === 'boxing.rankings') {
+    return 'boxing';
   }
   return 'soccer';
 }
@@ -714,8 +761,14 @@ function computeFormAndStats(schedule: TeamMatch[], leagueCode?: string): { form
   }, 0);
 
   const isBasketball = leagueCode === 'nba';
+  const isMLB = leagueCode === 'mlb';
+  const isNHL = leagueCode === 'nhl';
+  const isNFL = leagueCode === 'nfl' || leagueCode === 'college-football';
 
-  const stats: TeamStats[] = isBasketball ? [
+  let stats: TeamStats[];
+
+  if (isBasketball || isMLB) {
+    stats = [
     { label: 'Matchs joués', value: finished.length },
     { label: 'Victoires', value: wins },
     { label: 'Défaites', value: losses },
@@ -723,23 +776,50 @@ function computeFormAndStats(schedule: TeamMatch[], leagueCode?: string): { form
     { label: 'Points marqués', value: goalsFor },
     { label: 'Points encaissés', value: goalsAgainst },
     { label: 'Diff. de points', value: goalsFor - goalsAgainst },
-    {
-      label: 'Moy. points/match',
-      value: finished.length > 0 ? (goalsFor / finished.length).toFixed(1) : '0',
-    },
-  ] : [
-    { label: 'Matchs joués', value: finished.length },
-    { label: 'Victoires', value: wins },
-    { label: 'Nuls', value: draws },
-    { label: 'Défaites', value: losses },
-    { label: 'Buts marqués', value: goalsFor },
-    { label: 'Buts encaissés', value: goalsAgainst },
-    { label: 'Diff. de buts', value: goalsFor - goalsAgainst },
-    {
-      label: 'Moy. buts/match',
-      value: finished.length > 0 ? (goalsFor / finished.length).toFixed(2) : '0',
-    },
-  ];
+      {
+        label: isMLB ? 'Moy. points/match' : 'Moy. points/match',
+        value: finished.length > 0 ? (goalsFor / finished.length).toFixed(1) : '0',
+      },
+    ];
+  } else if (isNHL) {
+    stats = [
+      { label: 'Matchs joués', value: finished.length },
+      { label: 'Victoires', value: wins },
+      { label: 'Défaites', value: losses },
+      { label: 'Buts marqués', value: goalsFor },
+      { label: 'Buts encaissés', value: goalsAgainst },
+      { label: 'Diff. de buts', value: goalsFor - goalsAgainst },
+      {
+        label: 'Moy. buts/match',
+        value: finished.length > 0 ? (goalsFor / finished.length).toFixed(2) : '0',
+      },
+    ];
+  } else if (isNFL) {
+    stats = [
+      { label: 'Matchs joués', value: finished.length },
+      { label: 'Victoires', value: wins },
+      { label: 'Nuls', value: draws },
+      { label: 'Défaites', value: losses },
+      { label: '% Victoires', value: finished.length > 0 ? ((wins / finished.length) * 100).toFixed(1) + '%' : '0%' },
+      { label: 'Points marqués', value: goalsFor },
+      { label: 'Points encaissés', value: goalsAgainst },
+      { label: 'Diff. de points', value: goalsFor - goalsAgainst },
+    ];
+  } else {
+    stats = [
+      { label: 'Matchs joués', value: finished.length },
+      { label: 'Victoires', value: wins },
+      { label: 'Nuls', value: draws },
+      { label: 'Défaites', value: losses },
+      { label: 'Buts marqués', value: goalsFor },
+      { label: 'Buts encaissés', value: goalsAgainst },
+      { label: 'Diff. de buts', value: goalsFor - goalsAgainst },
+      {
+        label: 'Moy. buts/match',
+        value: finished.length > 0 ? (goalsFor / finished.length).toFixed(2) : '0',
+      },
+    ];
+  }
 
   return { form, stats };
 }
@@ -753,8 +833,14 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     let leagueCode = searchParams.get('league') || 'eng.1';
 
-    // FIFA rankings teams don't have a real ESPN league code
-    // Try to find the team in a national league instead
+    // Placeholder leagues that don't have real ESPN team IDs
+    const PLACEHOLDER_LEAGUES = new Set([
+      'ufc.rankings', 'boxing.rankings',
+      'nascar-cup', 'indycar', 'moto-gp',
+      'ipl', 'bbl', 'psl', 'sa20', 'cpl', 'icc.wc',
+      '6nations', 'prem.rugby', 'urc', 'sr', 'trc', 'nrl',
+    ]);
+
     if (leagueCode === 'fifa.rankings') {
       // For FIFA-ranked teams, we try to use web search + ESPN API to find team details
       const teamName = searchParams.get('name') || '';
@@ -792,6 +878,31 @@ export async function GET(
         },
         { status: 200 }
       );
+    }
+
+    // Handle placeholder leagues (UFC, Boxing, off-season sports, etc.)
+    if (PLACEHOLDER_LEAGUES.has(leagueCode)) {
+      const teamName = searchParams.get('name') || '';
+      return NextResponse.json({
+        team: {
+          id,
+          name: teamName || `Équipe #${id}`,
+          shortName: (teamName || '').slice(0, 3).toUpperCase(),
+          abbreviation: (teamName || '').slice(0, 3).toUpperCase(),
+          logo: null,
+          color: null,
+          venue: null,
+          coach: null,
+          founded: null,
+          leagueCode,
+          leagueName: LEAGUE_NAMES[leagueCode] || leagueCode,
+        },
+        roster: [],
+        schedule: [],
+        form: [],
+        stats: [],
+        lastUpdated: new Date().toISOString(),
+      }, { status: 200 });
     }
 
     const cacheKey = `${CACHE_PREFIX}-${id}-${leagueCode}`;

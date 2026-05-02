@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Loader2, Trophy, RefreshCw, AlertCircle, Globe, Users, Calendar, Info, MapPin, Flag, ChevronDown, ChevronUp, Clock, Dribbble, Award, Target } from 'lucide-react';
+import { Loader2, Trophy, RefreshCw, AlertCircle, Globe, Users, Calendar, Info, MapPin, Flag, ChevronDown, ChevronUp, Clock, Dribbble, Award, Target, Swords, Flame, Gauge, Car, Grid3x3, Volleyball, Shield, Radar, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TeamDetailDialog from '@/components/team-detail-dialog';
 import { useAppStore } from '@/lib/store';
@@ -26,10 +26,14 @@ interface StandingTeam {
   points: number;
   note: string | null;
   noteColor: string | null;
-  // NBA-specific fields
+  // NBA/MLB-specific fields
   winPct?: number;
   gamesBehind?: number;
   conference?: string;
+  // NHL-specific fields
+  otLosses?: number;
+  // NFL-specific fields
+  ties?: number;
 }
 
 interface UpcomingEvent {
@@ -74,7 +78,10 @@ interface TopScorer {
 
 // ─── Category definitions ────────────────────────────────────────────────────
 
-type Category = 'championnats' | 'basketball' | 'coupes' | 'nationales' | 'feminines';
+type Category = 'championnats' | 'basketball' | 'coupes' | 'nationales' | 'feminines' | 'mlb' | 'nhl' | 'cricket' | 'motorSport' | 'mma' | 'boxing' | 'motorsports' | 'other' | 'rugby';
+
+// Categories that don't support top scorers
+const NO_SCORERS_CATEGORIES: Category[] = ['basketball', 'mlb', 'nhl', 'cricket', 'motorSport', 'mma', 'boxing', 'motorsports', 'other', 'rugby'];
 
 // Category keys for i18n lookup
 const CATEGORY_KEYS: Record<Category, string> = {
@@ -83,6 +90,15 @@ const CATEGORY_KEYS: Record<Category, string> = {
   coupes: 'standings.clubCups',
   nationales: 'standings.nationalTeams',
   feminines: 'standings.women',
+  mlb: 'standings.mlb',
+  nhl: 'standings.nhl',
+  cricket: 'standings.cricket',
+  motorSport: 'standings.motorSport',
+  mma: 'standings.mma',
+  boxing: 'standings.boxing',
+  motorsports: 'standings.motorsports',
+  other: 'standings.other',
+  rugby: 'standings.rugby',
 };
 
 const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
@@ -91,9 +107,18 @@ const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
   coupes: <Award className="h-3.5 w-3.5" />,
   nationales: <Globe className="h-3.5 w-3.5" />,
   feminines: <Users className="h-3.5 w-3.5" />,
+  mlb: <Volleyball className="h-3.5 w-3.5" />,
+  nhl: <Shield className="h-3.5 w-3.5" />,
+  cricket: <Activity className="h-3.5 w-3.5" />,
+  motorSport: <Gauge className="h-3.5 w-3.5" />,
+  mma: <Swords className="h-3.5 w-3.5" />,
+  boxing: <Flame className="h-3.5 w-3.5" />,
+  motorsports: <Car className="h-3.5 w-3.5" />,
+  other: <Grid3x3 className="h-3.5 w-3.5" />,
+  rugby: <Radar className="h-3.5 w-3.5" />,
 };
 
-const CATEGORIES: Category[] = ['championnats', 'basketball', 'coupes', 'nationales', 'feminines'];
+const CATEGORIES: Category[] = ['championnats', 'basketball', 'coupes', 'nationales', 'feminines', 'mlb', 'nhl', 'motorSport', 'motorsports', 'cricket', 'rugby', 'mma', 'boxing', 'other'];
 
 // League tabs per category
 const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: string }>> = {
@@ -155,6 +180,46 @@ const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: st
     { code: 'afc.w.asian.cup', name: 'W. Asian Cup', flag: '🌏' },
     { code: 'caf.w.nations', name: 'W. AFCON', flag: '🌍' },
     { code: 'fifa.friendly.w', name: 'W. Friendly', flag: '🌍' },
+  ],
+  mlb: [
+    { code: 'mlb', name: 'MLB', flag: '⚾' },
+  ],
+  nhl: [
+    { code: 'nhl', name: 'NHL', flag: '🏒' },
+  ],
+  cricket: [
+    { code: 'ipl', name: 'IPL', flag: '🇮🇳' },
+    { code: 'bbl', name: 'Big Bash', flag: '🇦🇺' },
+    { code: 'psl', name: 'PSL', flag: '🇵🇰' },
+    { code: 'sa20', name: 'SA20', flag: '🇿🇦' },
+    { code: 'cpl', name: 'CPL', flag: '🌎' },
+    { code: 'icc.wc', name: 'ICC World Cup', flag: '🏆' },
+  ],
+  motorSport: [
+    { code: 'f1', name: 'Formula 1', flag: '🏎️' },
+  ],
+  mma: [
+    { code: 'ufc.rankings', name: 'UFC Rankings', flag: '🥊' },
+  ],
+  boxing: [
+    { code: 'boxing.rankings', name: 'Boxing Rankings', flag: '🥊' },
+  ],
+  motorsports: [
+    { code: 'nascar-cup', name: 'NASCAR Cup', flag: '🏁' },
+    { code: 'indycar', name: 'IndyCar', flag: '🇺🇸' },
+    { code: 'moto-gp', name: 'MotoGP', flag: '🏍️' },
+  ],
+  other: [
+    { code: 'nfl', name: 'NFL', flag: '🏈' },
+    { code: 'college-football', name: 'NCAA Football', flag: '🏈' },
+  ],
+  rugby: [
+    { code: '6nations', name: 'Six Nations', flag: '🇪🇺' },
+    { code: 'prem.rugby', name: 'Premiership', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+    { code: 'urc', name: 'URC', flag: '🇪🇺' },
+    { code: 'sr', name: 'Super Rugby', flag: '🌏' },
+    { code: 'trc', name: 'The Rugby Champ.', flag: '🌎' },
+    { code: 'nrl', name: 'NRL', flag: '🇦🇺' },
   ],
 };
 
@@ -298,6 +363,10 @@ function StandingsTable({
   isFIFARankings,
   isCoupesCategory,
   isNBA,
+  isMLB,
+  isNHL,
+  isNFL,
+  isF1,
   activeCategory,
   onTeamClick,
   language,
@@ -306,6 +375,10 @@ function StandingsTable({
   isFIFARankings: boolean;
   isCoupesCategory: boolean;
   isNBA: boolean;
+  isMLB: boolean;
+  isNHL: boolean;
+  isNFL: boolean;
+  isF1: boolean;
   activeCategory: Category;
   onTeamClick: (team: StandingTeam) => void;
   language: string;
@@ -317,15 +390,21 @@ function StandingsTable({
 
   const isFIFARank = isFIFARankings && league.leagueCode === 'fifa.rankings';
   const isNBATable = isNBA && league.leagueCode === 'nba';
+  const isMLBTable = isMLB && league.leagueCode === 'mlb';
+  const isNHLTable = isNHL && league.leagueCode === 'nhl';
+  const isNFLTable = isNFL && (league.leagueCode === 'nfl' || league.leagueCode === 'college-football');
+  const isF1Table = isF1 && league.leagueCode === 'f1';
 
   // Grid columns for different table types
   const getGridCols = () => {
-    if (isFIFARank) return 'grid-cols-[28px_1fr_60px]';
-    if (isNBATable) return 'grid-cols-[28px_1fr_32px_32px_48px_40px]';
+    if (isFIFARank || isF1Table) return 'grid-cols-[28px_1fr_60px]';
+    if (isNBATable || isMLBTable) return 'grid-cols-[28px_1fr_32px_32px_48px_40px]';
+    if (isNHLTable) return 'grid-cols-[28px_1fr_28px_28px_32px_40px_36px]';
+    if (isNFLTable) return 'grid-cols-[28px_1fr_28px_28px_28px_44px_36px]';
     return 'grid-cols-[28px_1fr_32px_32px_32px_32px_40px]';
   };
 
-  // Format NBA win percentage (e.g., 0.806 → .806)
+  // Format NBA/MLB win percentage (e.g., 0.806 → .806)
   const formatWinPct = (pct: number | undefined) => {
     if (pct === undefined || pct === 0) return '.000';
     return pct < 1 ? `.${String(pct.toFixed(3)).split('.')[1]}` : '1.000';
@@ -359,12 +438,28 @@ function StandingsTable({
         <div className={`grid gap-0 px-2.5 py-2 bg-muted/30 border-b border-border/20 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider ${getGridCols()}`}>
           <span className="text-center">#</span>
           <span>{t(language, 'standings.team')}</span>
-          {isFIFARank ? (
+          {isFIFARank || isF1Table ? (
             <span className="text-center">{t(language, 'standings.points')}</span>
-          ) : isNBATable ? (
+          ) : isNBATable || isMLBTable ? (
             <>
               <span className="text-center">{t(language, 'standings.wins')}</span>
               <span className="text-center">{t(language, 'standings.losses')}</span>
+              <span className="text-center">{t(language, 'standings.winPct')}</span>
+              <span className="text-center">{t(language, 'standings.gamesBehind')}</span>
+            </>
+          ) : isNHLTable ? (
+            <>
+              <span className="text-center">{t(language, 'standings.wins')}</span>
+              <span className="text-center">{t(language, 'standings.losses')}</span>
+              <span className="text-center">OTL</span>
+              <span className="text-center font-bold">{t(language, 'standings.points')}</span>
+              <span className="text-center">{t(language, 'standings.gamesBehind')}</span>
+            </>
+          ) : isNFLTable ? (
+            <>
+              <span className="text-center">{t(language, 'standings.wins')}</span>
+              <span className="text-center">{t(language, 'standings.losses')}</span>
+              <span className="text-center">T</span>
               <span className="text-center">{t(language, 'standings.winPct')}</span>
               <span className="text-center">{t(language, 'standings.gamesBehind')}</span>
             </>
@@ -424,12 +519,28 @@ function StandingsTable({
               </div>
 
               {/* Stats */}
-              {isFIFARank ? (
+              {isFIFARank || isF1Table ? (
                 <span className="text-center font-black text-foreground tabular-nums">{team.points}</span>
-              ) : isNBATable ? (
+              ) : isNBATable || isMLBTable ? (
                 <>
                   <span className="text-center text-green-400/80 tabular-nums">{team.wins}</span>
                   <span className="text-center text-red-400/60 tabular-nums">{team.losses}</span>
+                  <span className="text-center font-bold text-foreground tabular-nums">{formatWinPct(team.winPct)}</span>
+                  <span className="text-center text-muted-foreground tabular-nums">{formatGamesBehind(team.gamesBehind)}</span>
+                </>
+              ) : isNHLTable ? (
+                <>
+                  <span className="text-center text-green-400/80 tabular-nums">{team.wins}</span>
+                  <span className="text-center text-red-400/60 tabular-nums">{team.losses}</span>
+                  <span className="text-center text-orange-400/70 tabular-nums">{team.otLosses || 0}</span>
+                  <span className="text-center font-black text-foreground tabular-nums">{team.points}</span>
+                  <span className="text-center text-muted-foreground tabular-nums">{formatGamesBehind(team.gamesBehind)}</span>
+                </>
+              ) : isNFLTable ? (
+                <>
+                  <span className="text-center text-green-400/80 tabular-nums">{team.wins}</span>
+                  <span className="text-center text-red-400/60 tabular-nums">{team.losses}</span>
+                  <span className="text-center text-muted-foreground/60 tabular-nums">{team.ties || 0}</span>
                   <span className="text-center font-bold text-foreground tabular-nums">{formatWinPct(team.winPct)}</span>
                   <span className="text-center text-muted-foreground tabular-nums">{formatGamesBehind(team.gamesBehind)}</span>
                 </>
@@ -495,7 +606,7 @@ function StandingsTable({
             </div>
           </div>
         )}
-        {isNBATable && (
+        {(isNBATable || isMLBTable) && (
           <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-green-500/40" />
@@ -504,6 +615,38 @@ function StandingsTable({
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-blue-500/40" />
               <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.playIn')}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-500/40" />
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.eliminated')}</span>
+            </div>
+          </div>
+        )}
+        {isNHLTable && (
+          <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-green-500/40" />
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.playoffs')}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500/40" />
+              <span className="text-[9px] text-muted-foreground/50">Wild Card</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-500/40" />
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.eliminated')}</span>
+            </div>
+          </div>
+        )}
+        {isNFLTable && (
+          <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-green-500/40" />
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.playoffs')}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500/40" />
+              <span className="text-[9px] text-muted-foreground/50">Draft Pick</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-red-500/40" />
@@ -642,8 +785,8 @@ function EmptyLeagueState({
   retrying: boolean;
   language: string;
 }) {
-  // Placeholder competitions
-  const PLACEHOLDER_CODES = ['fifa.world', 'conmebol.america', 'afc.asian', 'concacaf.gold', 'fifa.friendly.w'];
+  // Placeholder competitions (including new sport league codes)
+  const PLACEHOLDER_CODES = ['fifa.world', 'conmebol.america', 'afc.asian', 'concacaf.gold', 'fifa.friendly.w', 'ipl', 'bbl', 'psl', 'sa20', 'cpl', 'icc.wc', 'ufc.rankings', 'boxing.rankings', 'nascar-cup', 'indycar', 'moto-gp', '6nations', 'prem.rugby', 'urc', 'sr', 'trc', 'nrl', 'college-football'];
   if (PLACEHOLDER_CODES.includes(leagueCode)) {
     const compMessages: Record<string, string> = {
       'fifa.world': t(language, 'standings.worldCupMessage'),
@@ -707,25 +850,23 @@ function EmptyLeagueState({
   );
 }
 
+// ─── Utility: generate initial state from categories ──────────────────────────
+
+const ALL_CATEGORIES_INITIAL = Object.fromEntries(
+  CATEGORIES.map((cat) => [cat, null])
+) as Record<Category, StandingsData | null>;
+
+const ALL_CATEGORIES_LOADING = Object.fromEntries(
+  CATEGORIES.map((cat) => [cat, false])
+) as Record<Category, boolean>;
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function StandingsView() {
   const { language } = useAppStore();
   const [activeCategory, setActiveCategory] = useState<Category>('championnats');
-  const [data, setData] = useState<Record<Category, StandingsData | null>>({
-    championnats: null,
-    basketball: null,
-    coupes: null,
-    nationales: null,
-    feminines: null,
-  });
-  const [loading, setLoading] = useState<Record<Category, boolean>>({
-    championnats: false,
-    basketball: false,
-    coupes: false,
-    nationales: false,
-    feminines: false,
-  });
+  const [data, setData] = useState<Record<Category, StandingsData | null>>(ALL_CATEGORIES_INITIAL);
+  const [loading, setLoading] = useState<Record<Category, boolean>>(ALL_CATEGORIES_LOADING);
   const [selectedLeague, setSelectedLeague] = useState<string>('fra.1');
   const [selectedTeam, setSelectedTeam] = useState<{
     teamId: string;
@@ -858,7 +999,7 @@ export default function StandingsView() {
   // Fetch top scorers when sub-tab or selected league changes
   useEffect(() => {
     if (activeSubTab !== 'scorers') return;
-    if (activeCategory === 'basketball') return; // No top scorers for basketball
+    if (NO_SCORERS_CATEGORIES.includes(activeCategory)) return;
 
     const fetchTopScorers = async () => {
       setTopScorersLoading(true);
@@ -881,9 +1022,9 @@ export default function StandingsView() {
     fetchTopScorers();
   }, [activeSubTab, selectedLeague, language]);
 
-  // Reset sub-tab when category changes to basketball
+  // Reset sub-tab when category changes to one that doesn't support scorers
   useEffect(() => {
-    if (activeCategory === 'basketball') {
+    if (NO_SCORERS_CATEGORIES.includes(activeCategory)) {
       setActiveSubTab('standings');
     }
   }, [activeCategory]);
@@ -905,6 +1046,13 @@ export default function StandingsView() {
   const isFIFARankings = activeCategory === 'nationales';
   const isCoupesCategory = activeCategory === 'coupes';
   const isNBA = activeCategory === 'basketball';
+  const isMLB = activeCategory === 'mlb';
+  const isNHL = activeCategory === 'nhl';
+  const isNFL = activeCategory === 'other' && (selectedLeague === 'nfl' || selectedLeague === 'college-football');
+  const isF1 = activeCategory === 'motorSport';
+
+  // Whether scorers are available for current category
+  const hasScorers = !NO_SCORERS_CATEGORIES.includes(activeCategory);
 
   // Get standings for the currently selected league
   const selectedStandings = standings.filter((s) => s.leagueCode === selectedLeague);
@@ -959,8 +1107,8 @@ export default function StandingsView() {
         </Button>
       </div>
 
-      {/* Category tabs */}
-      <div className="flex gap-1 bg-muted/40 rounded-xl p-1">
+      {/* Category tabs - scrollable for 14 categories */}
+      <div className="flex gap-1 bg-muted/40 rounded-xl p-1 overflow-x-auto flex-nowrap scrollbar-none">
         {CATEGORIES.map((catKey) => {
           const isActive = activeCategory === catKey;
           const catData = data[catKey];
@@ -970,7 +1118,7 @@ export default function StandingsView() {
             <button
               key={catKey}
               onClick={() => handleCategoryChange(catKey)}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center justify-center gap-1 px-2.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                 isActive
                   ? 'bg-green-500/15 text-green-400 shadow-sm'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
@@ -1027,8 +1175,8 @@ export default function StandingsView() {
         })}
       </div>
 
-      {/* Standings / Top Scorers sub-tab toggle — only for non-basketball categories */}
-      {activeCategory !== 'basketball' && (
+      {/* Standings / Top Scorers sub-tab toggle — only for categories with scorers */}
+      {hasScorers && (
         <div className="flex gap-1 bg-muted/30 rounded-lg p-0.5">
           <button
             onClick={() => setActiveSubTab('standings')}
@@ -1092,7 +1240,7 @@ export default function StandingsView() {
       )}
 
       {/* Standings / Top Scorers content */}
-      {activeSubTab === 'scorers' && activeCategory !== 'basketball' ? (
+      {activeSubTab === 'scorers' && hasScorers ? (
         /* Top Scorers view */
         topScorersLoading ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -1131,6 +1279,10 @@ export default function StandingsView() {
               isFIFARankings={isFIFARankings}
               isCoupesCategory={isCoupesCategory}
               isNBA={isNBA}
+              isMLB={isMLB}
+              isNHL={isNHL}
+              isNFL={isNFL}
+              isF1={isF1}
               activeCategory={activeCategory}
               onTeamClick={handleTeamClick}
               language={language}

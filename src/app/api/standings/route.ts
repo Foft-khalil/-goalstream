@@ -63,6 +63,40 @@ const FEMININES = [
   { code: 'fifa.friendly.w', name: "Women's Friendly", flag: '🌍' },
 ];
 
+// New sports league definitions
+const MOTOR_SPORT = [
+  { code: 'f1', name: 'Formule 1', flag: '🏎️' },
+];
+
+const MOTORSPORTS = [
+  { code: 'nascar-cup', name: 'NASCAR Cup', flag: '🏁' },
+  { code: 'indycar', name: 'IndyCar', flag: '🇺🇸' },
+  { code: 'moto-gp', name: 'MotoGP', flag: '🏍️' },
+];
+
+const CRICKET = [
+  { code: 'ipl', name: 'IPL', flag: '🇮🇳' },
+  { code: 'bbl', name: 'Big Bash', flag: '🇦🇺' },
+  { code: 'psl', name: 'PSL', flag: '🇵🇰' },
+  { code: 'sa20', name: 'SA20', flag: '🇿🇦' },
+  { code: 'cpl', name: 'CPL', flag: '🌎' },
+  { code: 'icc.wc', name: 'ICC World Cup', flag: '🏆' },
+];
+
+const RUGBY = [
+  { code: '6nations', name: 'Six Nations', flag: '🇪🇺' },
+  { code: 'prem.rugby', name: 'Premiership', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  { code: 'urc', name: 'URC', flag: '🇪🇺' },
+  { code: 'sr', name: 'Super Rugby', flag: '🌏' },
+  { code: 'trc', name: 'The Rugby Champ.', flag: '🌎' },
+  { code: 'nrl', name: 'NRL', flag: '🇦🇺' },
+];
+
+const OTHER = [
+  { code: 'nfl', name: 'NFL', flag: '🏈' },
+  { code: 'college-football', name: 'NCAA Football', flag: '🏈' },
+];
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface StandingEntry {
@@ -122,10 +156,16 @@ interface ParsedTeam {
   points: number;
   note: string | null;
   noteColor: string | null;
-  // NBA-specific fields
-  winPct?: number;       // NBA win percentage (e.g., 0.750)
-  gamesBehind?: number;  // NBA games behind conference leader (e.g., 3.5)
-  conference?: string;   // 'Eastern' or 'Western' for NBA
+  // NBA/MLB-specific fields
+  winPct?: number;       // Win percentage (e.g., 0.750)
+  gamesBehind?: number;  // Games behind conference leader (e.g., 3.5)
+  conference?: string;   // Conference name
+  // NHL-specific fields
+  otLosses?: number;     // NHL overtime losses
+  // NFL-specific fields
+  ties?: number;          // NFL ties
+  // General
+  streak?: string;        // Win/loss streak display
 }
 
 // ─── Fetch from ESPN API ─────────────────────────────────────────────────────
@@ -135,6 +175,18 @@ const ESPN_FALLBACK_BASE = 'https://site.api.espn.com/apis/v2/sports/soccer';
 const ESPN_NBA_PRIMARY = 'https://site.web.api.espn.com/apis/v2/sports/basketball/nba/standings';
 const ESPN_NBA_FALLBACK = 'https://site.api.espn.com/apis/v2/sports/basketball/nba/standings';
 
+// New sport ESPN API URLs
+const ESPN_MLB_PRIMARY = 'https://site.web.api.espn.com/apis/v2/sports/baseball/mlb/standings';
+const ESPN_MLB_FALLBACK = 'https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings';
+const ESPN_NHL_PRIMARY = 'https://site.web.api.espn.com/apis/v2/sports/hockey/nhl/standings';
+const ESPN_NHL_FALLBACK = 'https://site.api.espn.com/apis/v2/sports/hockey/nhl/standings';
+const ESPN_NFL_PRIMARY = 'https://site.web.api.espn.com/apis/v2/sports/football/nfl/standings';
+const ESPN_NFL_FALLBACK = 'https://site.api.espn.com/apis/v2/sports/football/nfl/standings';
+const ESPN_CFB_PRIMARY = 'https://site.web.api.espn.com/apis/v2/sports/football/college-football/standings';
+const ESPN_CFB_FALLBACK = 'https://site.api.espn.com/apis/v2/sports/football/college-football/standings';
+const ESPN_F1_PRIMARY = 'https://site.web.api.espn.com/apis/v2/sports/racing/f1/standings';
+const ESPN_F1_FALLBACK = 'https://site.api.espn.com/apis/v2/sports/racing/f1/standings';
+
 async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
   const res = await fetch(url, {
     headers: { Accept: 'application/json' },
@@ -143,37 +195,69 @@ async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Respons
   return res;
 }
 
+// Generic ESPN fetch with primary/fallback pattern
+async function fetchESPNData(primaryUrl: string, fallbackUrl: string, label: string): Promise<any> {
+  const timeout = 12000;
+
+  async function safeParseJson(res: Response): Promise<any> {
+    const contentLength = res.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > 1_000_000) {
+      console.warn(`[Standings API] Response too large for ${label}: ${contentLength} bytes, skipping`);
+      return null;
+    }
+    return await res.json();
+  }
+
+  let data: any = null;
+
+  try {
+    const res = await fetchWithTimeout(primaryUrl, timeout);
+    if (res.ok) {
+      data = await safeParseJson(res);
+    }
+  } catch (err: any) {
+    console.warn(`[Standings API] ${label} primary URL failed: ${err.message}, trying fallback...`);
+  }
+
+  if (!data) {
+    try {
+      const res = await fetchWithTimeout(fallbackUrl, timeout);
+      if (res.ok) {
+        data = await safeParseJson(res);
+      }
+    } catch (err: any) {
+      console.warn(`[Standings API] ${label} fallback URL failed: ${err.message}`);
+    }
+  }
+
+  return data;
+}
+
 async function fetchStandingsForLeague(code: string) {
   const primaryUrl = `${ESPN_PRIMARY_BASE}/${code}/standings`;
   const fallbackUrl = `${ESPN_FALLBACK_BASE}/${code}/standings`;
-  const timeout = 12000; // Reduced from 20s to 12s to reduce memory pressure
+  const timeout = 12000;
 
-  // Helper to safely parse JSON with size limit
   async function safeParseJson(res: Response): Promise<any> {
-    // Clone and check content-length to avoid parsing huge responses
     const contentLength = res.headers.get('content-length');
     if (contentLength && parseInt(contentLength, 10) > 1_000_000) {
-      // Response too large (>1MB) — skip to avoid memory issues
       console.warn(`[Standings API] Response too large for ${code}: ${contentLength} bytes, skipping`);
       return null;
     }
     return await res.json();
   }
 
-  // Try primary URL first
   try {
     const res = await fetchWithTimeout(primaryUrl, timeout);
     if (res.ok) {
       const data = await safeParseJson(res);
       if (data) return data;
     }
-    // If primary returns non-200 or data too large, try fallback
     console.warn(`[Standings API] Primary URL failed for ${code}, trying fallback...`);
   } catch (err: any) {
     console.warn(`[Standings API] Primary URL failed for ${code}: ${err.message}, trying fallback...`);
   }
 
-  // Try fallback URL
   try {
     const res = await fetchWithTimeout(fallbackUrl, timeout);
     if (res.ok) {
@@ -190,20 +274,16 @@ async function fetchStandingsForLeague(code: string) {
 
 // ─── Parse standings data ────────────────────────────────────────────────────
 
-const MAX_TEAMS_PER_GROUP = 36; // UEFA league phase has 36 teams in single table
+const MAX_TEAMS_PER_GROUP = 36;
 
 function parseStandings(data: any, leagueName: string, leagueFlag: string, code: string): ParsedStanding[] {
   try {
     const children = data.children || [];
-
-    if (children.length === 0) {
-      return [];
-    }
+    if (children.length === 0) return [];
 
     const results: ParsedStanding[] = [];
-
-    // Limit number of groups to prevent memory issues with large competitions
     const MAX_GROUPS = 12;
+
     for (const child of children.slice(0, MAX_GROUPS)) {
       if (!child.standings?.entries) continue;
 
@@ -237,12 +317,9 @@ function parseStandings(data: any, leagueName: string, leagueFlag: string, code:
         };
       });
 
-      // Sort by points desc, then goal diff
       teams.sort((a, b) => b.points - a.points || b.goalDiff - a.goalDiff);
-      // Re-rank
       teams.forEach((t, i) => { t.rank = i + 1; });
 
-      // For national leagues with single child, use league name directly
       const isMultiGroup = children.length > 1;
       results.push({
         league: isMultiGroup ? `${leagueName} — ${groupName}` : leagueName,
@@ -261,7 +338,7 @@ function parseStandings(data: any, leagueName: string, leagueFlag: string, code:
   }
 }
 
-// ─── FIFA Rankings (fallback only — web search removed to save memory) ──────
+// ─── FIFA Rankings ────────────────────────────────────────────────────────────
 
 function getFIFARankings(): ParsedStanding {
   const rankings = [
@@ -329,7 +406,6 @@ function getFIFARankings(): ParsedStanding {
 // ─── World Cup 2026 Placeholder ──────────────────────────────────────────────
 
 function getWorldCupPlaceholder(): ParsedStanding {
-  // Key qualified teams for World Cup 2026
   const qualifiedTeams = [
     { name: '🇺🇸 États-Unis', region: 'Concacaf' },
     { name: '🇨🇦 Canada', region: 'Concacaf' },
@@ -363,7 +439,6 @@ function getWorldCupPlaceholder(): ParsedStanding {
     { name: '🇦🇺 Australie', region: 'AFC' },
   ];
 
-  // Upcoming key matches / milestones
   const upcomingEvents = [
     { date: 'Mars 2026', event: 'Tirage au sort des groupes' },
     { date: '11 juin 2026', event: 'Match d\'ouverture — Mexico' },
@@ -373,7 +448,6 @@ function getWorldCupPlaceholder(): ParsedStanding {
     { date: '11-19 juil.', event: 'Quarts → Finale' },
   ];
 
-  // Build qualified teams as pseudo-standings
   const teams: ParsedTeam[] = qualifiedTeams.map((t, i) => ({
     teamId: `wc2026_${i}`,
     leagueCode: 'fifa.world',
@@ -381,14 +455,7 @@ function getWorldCupPlaceholder(): ParsedStanding {
     team: t.name,
     shortName: t.name,
     logo: null,
-    played: 0,
-    wins: 0,
-    draws: 0,
-    losses: 0,
-    goalsFor: 0,
-    goalsAgainst: 0,
-    goalDiff: 0,
-    points: 0,
+    played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0,
     note: t.region,
     noteColor: null,
   }));
@@ -510,113 +577,6 @@ function getGoldCupPlaceholder(): ParsedStanding {
   };
 }
 
-// ─── NBA Standings ────────────────────────────────────────────────────────────
-
-async function fetchNBAStandings(): Promise<ParsedStanding[]> {
-  const timeout = 12000;
-
-  async function safeParseJson(res: Response): Promise<any> {
-    const contentLength = res.headers.get('content-length');
-    if (contentLength && parseInt(contentLength, 10) > 1_000_000) {
-      console.warn('[Standings API] Response too large for NBA: ${contentLength} bytes, skipping');
-      return null;
-    }
-    return await res.json();
-  }
-
-  let data: any = null;
-
-  // Try primary URL first
-  try {
-    const res = await fetchWithTimeout(ESPN_NBA_PRIMARY, timeout);
-    if (res.ok) {
-      data = await safeParseJson(res);
-    }
-  } catch (err: any) {
-    console.warn(`[Standings API] NBA primary URL failed: ${err.message}, trying fallback...`);
-  }
-
-  // Try fallback URL if primary failed
-  if (!data) {
-    try {
-      const res = await fetchWithTimeout(ESPN_NBA_FALLBACK, timeout);
-      if (res.ok) {
-        data = await safeParseJson(res);
-      }
-    } catch (err: any) {
-      console.warn(`[Standings API] NBA fallback URL failed: ${err.message}`);
-    }
-  }
-
-  if (!data) {
-    throw new Error('Impossible de charger les classements NBA');
-  }
-
-  const children = data.children || [];
-  if (children.length === 0) {
-    return [];
-  }
-
-  const results: ParsedStanding[] = [];
-
-  for (const child of children) {
-    if (!child.standings?.entries) continue;
-
-    const conferenceName = child.name || 'Conference';
-    const entries: StandingEntry[] = child.standings.entries;
-
-    const teams: ParsedTeam[] = entries.slice(0, 16).map((entry) => {
-      const statMap: Record<string, string | number> = {};
-      for (const stat of entry.stats) {
-        statMap[stat.name] = stat.value;
-        statMap[stat.shortDisplayName] = stat.displayValue;
-      }
-
-      const winPct = Number(statMap['winPercent'] || 0);
-      const gamesBehind = Number(statMap['gamesBehind'] || 0);
-
-      return {
-        teamId: entry.team.id,
-        leagueCode: 'nba',
-        rank: entry.note?.rank ?? 0,
-        team: entry.team.displayName,
-        shortName: entry.team.shortDisplayName || entry.team.abbreviation,
-        logo: entry.team.logos?.[0]?.href || null,
-        played: Number(statMap['gamesPlayed'] || 0),
-        wins: Number(statMap['wins'] || 0),
-        draws: 0, // NBA doesn't have draws
-        losses: Number(statMap['losses'] || 0),
-        goalsFor: Number(statMap['pointsFor'] || 0),
-        goalsAgainst: Number(statMap['pointsAgainst'] || 0),
-        goalDiff: Number(statMap['pointDifferential'] || 0),
-        points: Math.round(winPct * 1000), // Use points field to sort by winPct
-        note: entry.note?.description || null,
-        noteColor: entry.note?.color || null,
-        winPct,
-        gamesBehind,
-        conference: conferenceName.includes('Eastern') ? 'Eastern' : 'Western',
-      };
-    });
-
-    // Sort by winPct desc (points field = winPct * 1000)
-    teams.sort((a, b) => b.points - a.points);
-    // Re-rank within conference
-    teams.forEach((t, i) => { t.rank = i + 1; });
-
-    results.push({
-      league: `NBA — ${conferenceName}`,
-      flag: '🏀',
-      season: conferenceName,
-      leagueCode: 'nba',
-      teams,
-      isGroup: true,
-      groupName: conferenceName,
-    });
-  }
-
-  return results;
-}
-
 // ─── Women's Friendlies Placeholder ──────────────────────────────────────────
 
 function getWomenFriendliesPlaceholder(): ParsedStanding {
@@ -648,18 +608,844 @@ function getWomenFriendliesPlaceholder(): ParsedStanding {
   };
 }
 
-// ─── Friendly error messages for specific competitions ───────────────────────
+// ─── NBA Standings ────────────────────────────────────────────────────────────
+
+async function fetchNBAStandings(): Promise<ParsedStanding[]> {
+  const data = await fetchESPNData(ESPN_NBA_PRIMARY, ESPN_NBA_FALLBACK, 'NBA');
+  if (!data) throw new Error('Impossible de charger les classements NBA');
+
+  const children = data.children || [];
+  if (children.length === 0) return [];
+
+  const results: ParsedStanding[] = [];
+
+  for (const child of children) {
+    if (!child.standings?.entries) continue;
+
+    const conferenceName = child.name || 'Conference';
+    const entries: StandingEntry[] = child.standings.entries;
+
+    const teams: ParsedTeam[] = entries.slice(0, 16).map((entry: StandingEntry) => {
+      const statMap: Record<string, string | number> = {};
+      for (const stat of entry.stats) {
+        statMap[stat.name] = stat.value;
+        statMap[stat.shortDisplayName] = stat.displayValue;
+      }
+
+      const winPct = Number(statMap['winPercent'] || 0);
+      const gamesBehind = Number(statMap['gamesBehind'] || 0);
+
+      return {
+        teamId: entry.team.id,
+        leagueCode: 'nba',
+        rank: entry.note?.rank ?? 0,
+        team: entry.team.displayName,
+        shortName: entry.team.shortDisplayName || entry.team.abbreviation,
+        logo: entry.team.logos?.[0]?.href || null,
+        played: Number(statMap['gamesPlayed'] || 0),
+        wins: Number(statMap['wins'] || 0),
+        draws: 0,
+        losses: Number(statMap['losses'] || 0),
+        goalsFor: Number(statMap['pointsFor'] || 0),
+        goalsAgainst: Number(statMap['pointsAgainst'] || 0),
+        goalDiff: Number(statMap['pointDifferential'] || 0),
+        points: Math.round(winPct * 1000),
+        note: entry.note?.description || null,
+        noteColor: entry.note?.color || null,
+        winPct,
+        gamesBehind,
+        conference: conferenceName.includes('Eastern') ? 'Eastern' : 'Western',
+      };
+    });
+
+    teams.sort((a, b) => b.points - a.points);
+    teams.forEach((t, i) => { t.rank = i + 1; });
+
+    results.push({
+      league: `NBA — ${conferenceName}`,
+      flag: '🏀',
+      season: conferenceName,
+      leagueCode: 'nba',
+      teams,
+      isGroup: true,
+      groupName: conferenceName,
+    });
+  }
+
+  return results;
+}
+
+// ─── MLB Standings ────────────────────────────────────────────────────────────
+
+async function fetchMLBStandings(): Promise<ParsedStanding[]> {
+  const data = await fetchESPNData(ESPN_MLB_PRIMARY, ESPN_MLB_FALLBACK, 'MLB');
+  if (!data) throw new Error('Impossible de charger les classements MLB');
+
+  const children = data.children || [];
+  if (children.length === 0) return [];
+
+  const results: ParsedStanding[] = [];
+
+  for (const child of children) {
+    if (!child.standings?.entries) continue;
+
+    const leagueName = child.name || 'League';
+    const entries: StandingEntry[] = child.standings.entries;
+
+    const teams: ParsedTeam[] = entries.slice(0, 16).map((entry: StandingEntry) => {
+      const statMap: Record<string, string | number> = {};
+      for (const stat of entry.stats) {
+        statMap[stat.name] = stat.value;
+        statMap[stat.shortDisplayName] = stat.displayValue;
+      }
+
+      const winPct = Number(statMap['winPercent'] || 0);
+      const gamesBehind = Number(statMap['gamesBehind'] || 0);
+
+      return {
+        teamId: entry.team.id,
+        leagueCode: 'mlb',
+        rank: entry.note?.rank ?? 0,
+        team: entry.team.displayName,
+        shortName: entry.team.shortDisplayName || entry.team.abbreviation,
+        logo: entry.team.logos?.[0]?.href || null,
+        played: Number(statMap['gamesPlayed'] || 0),
+        wins: Number(statMap['wins'] || 0),
+        draws: 0,
+        losses: Number(statMap['losses'] || 0),
+        goalsFor: Number(statMap['pointsFor'] || 0),
+        goalsAgainst: Number(statMap['pointsAgainst'] || 0),
+        goalDiff: Number(statMap['pointDifferential'] || 0),
+        points: Math.round(winPct * 1000),
+        note: entry.note?.description || null,
+        noteColor: entry.note?.color || null,
+        winPct,
+        gamesBehind,
+        conference: leagueName.includes('American') ? 'AL' : 'NL',
+      };
+    });
+
+    teams.sort((a, b) => b.points - a.points);
+    teams.forEach((t, i) => { t.rank = i + 1; });
+
+    results.push({
+      league: `MLB — ${leagueName}`,
+      flag: '⚾',
+      season: leagueName,
+      leagueCode: 'mlb',
+      teams,
+      isGroup: true,
+      groupName: leagueName,
+    });
+  }
+
+  return results;
+}
+
+// ─── NHL Standings ────────────────────────────────────────────────────────────
+
+async function fetchNHLStandings(): Promise<ParsedStanding[]> {
+  const data = await fetchESPNData(ESPN_NHL_PRIMARY, ESPN_NHL_FALLBACK, 'NHL');
+  if (!data) throw new Error('Impossible de charger les classements NHL');
+
+  const children = data.children || [];
+  if (children.length === 0) return [];
+
+  const results: ParsedStanding[] = [];
+
+  for (const child of children) {
+    if (!child.standings?.entries) continue;
+
+    const conferenceName = child.name || 'Conference';
+    const entries: StandingEntry[] = child.standings.entries;
+
+    const teams: ParsedTeam[] = entries.slice(0, 16).map((entry: StandingEntry) => {
+      const statMap: Record<string, string | number> = {};
+      for (const stat of entry.stats) {
+        statMap[stat.name] = stat.value;
+        statMap[stat.shortDisplayName] = stat.displayValue;
+      }
+
+      const otLosses = Number(statMap['otLosses'] || 0);
+      const points = Number(statMap['points'] || 0);
+      const gamesBehind = Number(statMap['gamesBehind'] || 0);
+
+      return {
+        teamId: entry.team.id,
+        leagueCode: 'nhl',
+        rank: entry.note?.rank ?? 0,
+        team: entry.team.displayName,
+        shortName: entry.team.shortDisplayName || entry.team.abbreviation,
+        logo: entry.team.logos?.[0]?.href || null,
+        played: Number(statMap['gamesPlayed'] || 0),
+        wins: Number(statMap['wins'] || 0),
+        draws: otLosses,
+        losses: Number(statMap['losses'] || 0),
+        goalsFor: Number(statMap['pointsFor'] || 0),
+        goalsAgainst: Number(statMap['pointsAgainst'] || 0),
+        goalDiff: Number(statMap['pointDifferential'] || 0),
+        points,
+        note: entry.note?.description || null,
+        noteColor: entry.note?.color || null,
+        otLosses,
+        gamesBehind,
+        conference: conferenceName.includes('Eastern') ? 'Eastern' : 'Western',
+      };
+    });
+
+    teams.sort((a, b) => b.points - a.points);
+    teams.forEach((t, i) => { t.rank = i + 1; });
+
+    results.push({
+      league: `NHL — ${conferenceName}`,
+      flag: '🏒',
+      season: conferenceName,
+      leagueCode: 'nhl',
+      teams,
+      isGroup: true,
+      groupName: conferenceName,
+    });
+  }
+
+  return results;
+}
+
+// ─── NFL Standings ────────────────────────────────────────────────────────────
+
+async function fetchNFLStandings(): Promise<ParsedStanding[]> {
+  const data = await fetchESPNData(ESPN_NFL_PRIMARY, ESPN_NFL_FALLBACK, 'NFL');
+  if (!data) throw new Error('Impossible de charger les classements NFL');
+
+  const children = data.children || [];
+  if (children.length === 0) return [];
+
+  const results: ParsedStanding[] = [];
+
+  for (const child of children) {
+    if (!child.standings?.entries) continue;
+
+    const conferenceName = child.name || 'Conference';
+    const entries: StandingEntry[] = child.standings.entries;
+
+    const teams: ParsedTeam[] = entries.slice(0, 16).map((entry: StandingEntry) => {
+      const statMap: Record<string, string | number> = {};
+      for (const stat of entry.stats) {
+        statMap[stat.name] = stat.value;
+        statMap[stat.shortDisplayName] = stat.displayValue;
+      }
+
+      const winPct = Number(statMap['winPercent'] || 0);
+      const gamesBehind = Number(statMap['gamesBehind'] || 0);
+      const ties = Number(statMap['ties'] || 0);
+      const gamesPlayed = Number(statMap['gamesPlayed'] || 0);
+
+      return {
+        teamId: entry.team.id,
+        leagueCode: 'nfl',
+        rank: entry.note?.rank ?? 0,
+        team: entry.team.displayName,
+        shortName: entry.team.shortDisplayName || entry.team.abbreviation,
+        logo: entry.team.logos?.[0]?.href || null,
+        played: gamesPlayed,
+        wins: Number(statMap['wins'] || 0),
+        draws: ties,
+        losses: Number(statMap['losses'] || 0),
+        goalsFor: Number(statMap['pointsFor'] || 0),
+        goalsAgainst: Number(statMap['pointsAgainst'] || 0),
+        goalDiff: Number(statMap['pointDifferential'] || 0),
+        points: Math.round(winPct * 1000),
+        note: entry.note?.description || null,
+        noteColor: entry.note?.color || null,
+        winPct,
+        gamesBehind,
+        ties,
+        conference: conferenceName.includes('AFC') ? 'AFC' : 'NFC',
+      };
+    });
+
+    teams.sort((a, b) => b.points - a.points);
+    teams.forEach((t, i) => { t.rank = i + 1; });
+
+    results.push({
+      league: `NFL — ${conferenceName}`,
+      flag: '🏈',
+      season: conferenceName,
+      leagueCode: 'nfl',
+      teams,
+      isGroup: true,
+      groupName: conferenceName,
+    });
+  }
+
+  return results;
+}
+
+// ─── College Football Standings ───────────────────────────────────────────────
+
+async function fetchCollegeFootballStandings(): Promise<ParsedStanding[]> {
+  const data = await fetchESPNData(ESPN_CFB_PRIMARY, ESPN_CFB_FALLBACK, 'CFB');
+  if (!data) throw new Error('Impossible de charger les classements NCAA Football');
+
+  const children = data.children || [];
+  if (children.length === 0) return [];
+
+  const results: ParsedStanding[] = [];
+  const MAX_GROUPS = 12;
+
+  for (const child of children.slice(0, MAX_GROUPS)) {
+    if (!child.standings?.entries) continue;
+
+    const conferenceName = child.name || 'Conference';
+    const entries: StandingEntry[] = child.standings.entries;
+
+    const teams: ParsedTeam[] = entries.slice(0, 16).map((entry: StandingEntry) => {
+      const statMap: Record<string, string | number> = {};
+      for (const stat of entry.stats) {
+        statMap[stat.name] = stat.value;
+        statMap[stat.shortDisplayName] = stat.displayValue;
+      }
+
+      const winPct = Number(statMap['winPercent'] || 0);
+      const gamesBehind = Number(statMap['gamesBehind'] || 0);
+      const ties = Number(statMap['ties'] || 0);
+
+      return {
+        teamId: entry.team.id,
+        leagueCode: 'college-football',
+        rank: entry.note?.rank ?? 0,
+        team: entry.team.displayName,
+        shortName: entry.team.shortDisplayName || entry.team.abbreviation,
+        logo: entry.team.logos?.[0]?.href || null,
+        played: Number(statMap['gamesPlayed'] || 0),
+        wins: Number(statMap['wins'] || 0),
+        draws: ties,
+        losses: Number(statMap['losses'] || 0),
+        goalsFor: Number(statMap['pointsFor'] || 0),
+        goalsAgainst: Number(statMap['pointsAgainst'] || 0),
+        goalDiff: Number(statMap['pointDifferential'] || 0),
+        points: Math.round(winPct * 1000),
+        note: entry.note?.description || null,
+        noteColor: entry.note?.color || null,
+        winPct,
+        gamesBehind,
+        ties,
+      };
+    });
+
+    teams.sort((a, b) => b.points - a.points);
+    teams.forEach((t, i) => { t.rank = i + 1; });
+
+    results.push({
+      league: `NCAA Football — ${conferenceName}`,
+      flag: '🏈',
+      season: conferenceName,
+      leagueCode: 'college-football',
+      teams,
+      isGroup: true,
+      groupName: conferenceName,
+    });
+  }
+
+  return results;
+}
+
+// ─── F1 Standings ─────────────────────────────────────────────────────────────
+
+async function fetchF1Standings(): Promise<ParsedStanding[]> {
+  const data = await fetchESPNData(ESPN_F1_PRIMARY, ESPN_F1_FALLBACK, 'F1');
+  if (!data) throw new Error('Impossible de charger les classements F1');
+
+  const children = data.children || [];
+  if (children.length === 0) return [];
+
+  const results: ParsedStanding[] = [];
+
+  for (const child of children) {
+    if (!child.standings?.entries) continue;
+
+    const standingType = child.name || 'Standings';
+    const entries = child.standings.entries;
+
+    const teams: ParsedTeam[] = entries.slice(0, 25).map((entry: any) => {
+      // F1 driver entries use `athlete` field, constructor entries use `team` field
+      const isDriver = !!entry.athlete;
+      const entity = isDriver ? entry.athlete : entry.team;
+
+      const statMap: Record<string, string | number> = {};
+      for (const stat of entry.stats) {
+        statMap[stat.name] = stat.value;
+        statMap[stat.shortDisplayName] = stat.displayValue;
+      }
+
+      const pts = Number(statMap['championshipPts'] || statMap['points'] || 0);
+      const rank = Number(statMap['rank'] || entry.note?.rank || 0);
+
+      return {
+        teamId: entity?.id || `f1_${rank}`,
+        leagueCode: 'f1',
+        rank,
+        team: entity?.displayName || 'Unknown',
+        shortName: isDriver
+          ? (entity?.shortName || entity?.displayName || '???')
+          : (entity?.shortDisplayName || entity?.displayName || '???'),
+        logo: isDriver
+          ? (entity?.flag?.href || entity?.headshot?.href || null)
+          : (entity?.logos?.[0]?.href || null),
+        played: 0,
+        wins: Number(statMap['wins'] || 0),
+        draws: 0,
+        losses: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        goalDiff: 0,
+        points: pts,
+        note: isDriver ? 'Driver' : 'Constructor',
+        noteColor: isDriver ? '7ec8e3' : '81d6ac',
+      };
+    });
+
+    teams.sort((a, b) => a.rank - b.rank || b.points - a.points);
+
+    results.push({
+      league: `F1 — ${standingType}`,
+      flag: '🏎️',
+      season: standingType,
+      leagueCode: 'f1',
+      teams,
+      isGroup: true,
+      groupName: standingType,
+    });
+  }
+
+  return results;
+}
+
+// ─── NASCAR Cup Placeholder ──────────────────────────────────────────────────
+
+function getNASCARPlaceholder(): ParsedStanding {
+  const drivers = [
+    { name: 'Ryan Blaney', shortName: '🇺🇸 Blaney' },
+    { name: 'William Byron', shortName: '🇺🇸 Byron' },
+    { name: 'Kyle Larson', shortName: '🇺🇸 Larson' },
+    { name: 'Denny Hamlin', shortName: '🇺🇸 Hamlin' },
+    { name: 'Chase Elliott', shortName: '🇺🇸 Elliott' },
+    { name: 'Martin Truex Jr.', shortName: '🇺🇸 Truex Jr.' },
+    { name: 'Ross Chastain', shortName: '🇺🇸 Chastain' },
+    { name: 'Christopher Bell', shortName: '🇺🇸 Bell' },
+    { name: 'Tyler Reddick', shortName: '🇺🇸 Reddick' },
+    { name: 'Joey Logano', shortName: '🇺🇸 Logano' },
+  ];
+
+  const teams: ParsedTeam[] = drivers.map((d, i) => ({
+    teamId: `nascar_${i}`,
+    leagueCode: 'nascar-cup',
+    rank: i + 1,
+    team: d.name,
+    shortName: d.shortName,
+    logo: null,
+    played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0,
+    note: null, noteColor: null,
+  }));
+
+  return {
+    league: 'NASCAR Cup Series',
+    flag: '🏁',
+    season: 'Hors saison',
+    leagueCode: 'nascar-cup',
+    teams,
+    isGroup: false,
+    placeholder: true,
+    placeholderMessage: 'Les classements NASCAR Cup ne sont pas disponibles actuellement — hors saison.',
+    placeholderInfo: {
+      'Champion en titre': 'Ryan Blaney 🇺🇸',
+      'Prochaine saison': '2026',
+      'Format': '36 courses — Playoffs Chase',
+      'Statut': 'Hors saison — classements disponibles en février',
+    },
+  };
+}
+
+// ─── IndyCar Placeholder ─────────────────────────────────────────────────────
+
+function getIndyCarPlaceholder(): ParsedStanding {
+  const drivers = [
+    { name: 'Álex Palou', shortName: '🇪🇸 Palou' },
+    { name: 'Scott Dixon', shortName: '🇳🇿 Dixon' },
+    { name: 'Josef Newgarden', shortName: '🇺🇸 Newgarden' },
+    { name: 'Patricio O\'Ward', shortName: '🇲🇽 O\'Ward' },
+    { name: 'Will Power', shortName: '🇦🇺 Power' },
+    { name: 'Colton Herta', shortName: '🇺🇸 Herta' },
+  ];
+
+  const teams: ParsedTeam[] = drivers.map((d, i) => ({
+    teamId: `indy_${i}`,
+    leagueCode: 'indycar',
+    rank: i + 1,
+    team: d.name,
+    shortName: d.shortName,
+    logo: null,
+    played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0,
+    note: null, noteColor: null,
+  }));
+
+  return {
+    league: 'IndyCar Series',
+    flag: '🇺🇸',
+    season: 'Hors saison',
+    leagueCode: 'indycar',
+    teams,
+    isGroup: false,
+    placeholder: true,
+    placeholderMessage: 'Les classements IndyCar ne sont pas disponibles actuellement — hors saison.',
+    placeholderInfo: {
+      'Champion en titre': 'Álex Palou 🇪🇸',
+      'Prochaine saison': '2026',
+      'Format': '17 courses — incl. Indianapolis 500',
+      'Statut': 'Hors saison — classements disponibles en mars',
+    },
+  };
+}
+
+// ─── MotoGP Placeholder ──────────────────────────────────────────────────────
+
+function getMotoGPPlaceholder(): ParsedStanding {
+  const riders = [
+    { name: 'Jorge Martín', shortName: '🇪🇸 Martín' },
+    { name: 'Francesco Bagnaia', shortName: '🇮🇹 Bagnaia' },
+    { name: 'Marc Márquez', shortName: '🇪🇸 Márquez' },
+    { name: 'Enea Bastianini', shortName: '🇮🇹 Bastianini' },
+    { name: 'Brad Binder', shortName: '🇿🇦 Binder' },
+    { name: 'Pedro Acosta', shortName: '🇪🇸 Acosta' },
+  ];
+
+  const teams: ParsedTeam[] = riders.map((r, i) => ({
+    teamId: `motogp_${i}`,
+    leagueCode: 'moto-gp',
+    rank: i + 1,
+    team: r.name,
+    shortName: r.shortName,
+    logo: null,
+    played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0,
+    note: null, noteColor: null,
+  }));
+
+  return {
+    league: 'MotoGP',
+    flag: '🏍️',
+    season: 'Hors saison',
+    leagueCode: 'moto-gp',
+    teams,
+    isGroup: false,
+    placeholder: true,
+    placeholderMessage: 'Les classements MotoGP ne sont pas disponibles actuellement — hors saison.',
+    placeholderInfo: {
+      'Champion en titre': 'Jorge Martín 🇪🇸',
+      'Prochaine saison': '2026',
+      'Format': '20+ Grand Prix — Sprint + Course',
+      'Statut': 'Hors saison — classements disponibles en mars',
+    },
+  };
+}
+
+// ─── IPL Placeholder ──────────────────────────────────────────────────────────
+
+function getIPLPlaceholder(): ParsedStanding {
+  const teams: ParsedTeam[] = [
+    { rank: 1, team: 'Kolkata Knight Riders', shortName: '🇮🇳 KKR', logo: null, teamId: 'ipl_kkr', leagueCode: 'ipl', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: 'Tenant du titre', noteColor: '81d6ac' },
+    { rank: 2, team: 'Chennai Super Kings', shortName: '🇮🇳 CSK', logo: null, teamId: 'ipl_csk', leagueCode: 'ipl', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 3, team: 'Mumbai Indians', shortName: '🇮🇳 MI', logo: null, teamId: 'ipl_mi', leagueCode: 'ipl', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 4, team: 'Royal Challengers Bengaluru', shortName: '🇮🇳 RCB', logo: null, teamId: 'ipl_rcb', leagueCode: 'ipl', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 5, team: 'Rajasthan Royals', shortName: '🇮🇳 RR', logo: null, teamId: 'ipl_rr', leagueCode: 'ipl', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 6, team: 'Sunrisers Hyderabad', shortName: '🇮🇳 SRH', logo: null, teamId: 'ipl_srh', leagueCode: 'ipl', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 7, team: 'Delhi Capitals', shortName: '🇮🇳 DC', logo: null, teamId: 'ipl_dc', leagueCode: 'ipl', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 8, team: 'Punjab Kings', shortName: '🇮🇳 PBKS', logo: null, teamId: 'ipl_pbks', leagueCode: 'ipl', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 9, team: 'Lucknow Super Giants', shortName: '🇮🇳 LSG', logo: null, teamId: 'ipl_lsg', leagueCode: 'ipl', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 10, team: 'Gujarat Titans', shortName: '🇮🇳 GT', logo: null, teamId: 'ipl_gt', leagueCode: 'ipl', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+  ];
+
+  return {
+    league: 'IPL — Indian Premier League',
+    flag: '🇮🇳',
+    season: 'Hors saison',
+    leagueCode: 'ipl',
+    teams,
+    isGroup: false,
+    placeholder: true,
+    placeholderMessage: 'Les classements IPL ne sont pas disponibles actuellement — hors saison.',
+    placeholderInfo: {
+      'Champion en titre': 'Kolkata Knight Riders 🇮🇳',
+      'Prochaine saison': 'IPL 2026 (mars-mai)',
+      'Format': '10 équipes — Phase de groupes + Playoffs',
+      'Statut': 'Hors saison — classements disponibles en mars',
+    },
+  };
+}
+
+// ─── Six Nations Placeholder ─────────────────────────────────────────────────
+
+function getSixNationsPlaceholder(): ParsedStanding {
+  const teams: ParsedTeam[] = [
+    { rank: 1, team: 'France', shortName: '🇫🇷 France', logo: null, teamId: '6n_fra', leagueCode: '6nations', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 2, team: 'Ireland', shortName: '🇮🇪 Ireland', logo: null, teamId: '6n_ire', leagueCode: '6nations', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 3, team: 'England', shortName: '🏴󠁧󠁢󠁥󠁮󠁧󠁿 England', logo: null, teamId: '6n_eng', leagueCode: '6nations', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 4, team: 'Scotland', shortName: '🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scotland', logo: null, teamId: '6n_sco', leagueCode: '6nations', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 5, team: 'Wales', shortName: '🏴󠁧󠁢󠁷󠁬󠁳󠁿 Wales', logo: null, teamId: '6n_wal', leagueCode: '6nations', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 6, team: 'Italy', shortName: '🇮🇹 Italy', logo: null, teamId: '6n_ita', leagueCode: '6nations', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+  ];
+
+  return {
+    league: 'Six Nations',
+    flag: '🇪🇺',
+    season: 'Prochaine édition — 2026',
+    leagueCode: '6nations',
+    teams,
+    isGroup: false,
+    placeholder: true,
+    placeholderMessage: 'Les classements du Tournoi des Six Nations ne sont pas disponibles actuellement.',
+    placeholderInfo: {
+      'Prochaine édition': 'Février-Mars 2026',
+      'Format': '6 équipes — Tournoi toutes rondes',
+      'Statut': 'Hors saison — classements disponibles en février',
+    },
+  };
+}
+
+// ─── UFC Rankings Placeholder ────────────────────────────────────────────────
+
+function getUFCRankingsPlaceholder(): ParsedStanding[] {
+  const weightClasses = [
+    {
+      name: "Women's Bantamweight",
+      code: 'w-bw',
+      fighters: [
+        { name: 'Julianna Peña', shortName: '🇺🇸 Peña' },
+        { name: 'Raquel Pennington', shortName: '🇺🇸 Pennington' },
+        { name: 'Kayla Harrison', shortName: '🇺🇸 Harrison' },
+        { name: 'Holly Holm', shortName: '🇺🇸 Holm' },
+        { name: 'Ketlen Vieira', shortName: '🇧🇷 Vieira' },
+      ],
+    },
+    {
+      name: "Women's Flyweight",
+      code: 'w-flw',
+      fighters: [
+        { name: 'Valentina Shevchenko', shortName: '🇰🇬 Shevchenko' },
+        { name: 'Manon Fiorot', shortName: '🇫🇷 Fiorot' },
+        { name: 'Erin Blanchfield', shortName: '🇺🇸 Blanchfield' },
+        { name: 'Maycee Barber', shortName: '🇺🇸 Barber' },
+        { name: 'Natália Silva', shortName: '🇧🇷 Silva' },
+      ],
+    },
+    {
+      name: 'Heavyweight',
+      code: 'hw',
+      fighters: [
+        { name: 'Jon Jones', shortName: '🇺🇸 Jones' },
+        { name: 'Tom Aspinall', shortName: '🇬🇧 Aspinall' },
+        { name: 'Stipe Miocic', shortName: '🇺🇸 Miocic' },
+        { name: 'Ciryl Gane', shortName: '🇫🇷 Gane' },
+        { name: 'Alexander Volkov', shortName: '🇷🇺 Volkov' },
+      ],
+    },
+    {
+      name: 'Light Heavyweight',
+      code: 'lhw',
+      fighters: [
+        { name: 'Alex Pereira', shortName: '🇧🇷 Pereira' },
+        { name: 'Magomed Ankalaev', shortName: '🇷🇺 Ankalaev' },
+        { name: 'Jiri Prochazka', shortName: '🇨🇿 Prochazka' },
+        { name: 'Jamahal Hill', shortName: '🇺🇸 Hill' },
+        { name: 'Jan Błachowicz', shortName: '🇵🇱 Błachowicz' },
+      ],
+    },
+    {
+      name: 'Middleweight',
+      code: 'mw',
+      fighters: [
+        { name: 'Dricus du Plessis', shortName: '🇿🇦 du Plessis' },
+        { name: 'Sean Strickland', shortName: '🇺🇸 Strickland' },
+        { name: 'Israel Adesanya', shortName: '🇳🇿 Adesanya' },
+        { name: 'Robert Whittaker', shortName: '🇦🇺 Whittaker' },
+        { name: 'Khamzat Chimaev', shortName: '🇸🇪 Chimaev' },
+      ],
+    },
+    {
+      name: 'Welterweight',
+      code: 'ww',
+      fighters: [
+        { name: 'Belal Muhammad', shortName: '🇺🇸 Muhammad' },
+        { name: 'Shavkat Rakhmonov', shortName: '🇰🇿 Rakhmonov' },
+        { name: 'Kamaru Usman', shortName: '🇳🇬 Usman' },
+        { name: 'Leon Edwards', shortName: '🇬🇧 Edwards' },
+        { name: 'Jack Della Maddalena', shortName: '🇦🇺 Maddalena' },
+      ],
+    },
+    {
+      name: 'Lightweight',
+      code: 'lw',
+      fighters: [
+        { name: 'Islam Makhachev', shortName: '🇷🇺 Makhachev' },
+        { name: 'Arman Tsarukyan', shortName: '🇦🇲 Tsarukyan' },
+        { name: 'Dustin Poirier', shortName: '🇺🇸 Poirier' },
+        { name: 'Justin Gaethje', shortName: '🇺🇸 Gaethje' },
+        { name: 'Charles Oliveira', shortName: '🇧🇷 Oliveira' },
+      ],
+    },
+    {
+      name: 'Featherweight',
+      code: 'fw',
+      fighters: [
+        { name: 'Ilia Topuria', shortName: '🇬🇪 Topuria' },
+        { name: 'Alexander Volkanovski', shortName: '🇦🇺 Volkanovski' },
+        { name: 'Brian Ortega', shortName: '🇺🇸 Ortega' },
+        { name: 'Yair Rodríguez', shortName: '🇲🇽 Rodríguez' },
+        { name: 'Movsar Evloev', shortName: '🇷🇺 Evloev' },
+      ],
+    },
+    {
+      name: 'Bantamweight',
+      code: 'bw',
+      fighters: [
+        { name: 'Merab Dvalishvili', shortName: '🇬🇪 Dvalishvili' },
+        { name: 'Sean O\'Malley', shortName: '🇺🇸 O\'Malley' },
+        { name: 'Umar Nurmagomedov', shortName: '🇷🇺 Nurmagomedov' },
+        { name: 'Petr Yan', shortName: '🇷🇺 Yan' },
+        { name: 'Deiveson Figueiredo', shortName: '🇧🇷 Figueiredo' },
+      ],
+    },
+    {
+      name: 'Flyweight',
+      code: 'flw',
+      fighters: [
+        { name: 'Alexandre Pantoja', shortName: '🇧🇷 Pantoja' },
+        { name: 'Kai Kara-France', shortName: '🇳🇿 Kara-France' },
+        { name: 'Amir Albazi', shortName: '🇮🇶 Albazi' },
+        { name: 'Brandon Moreno', shortName: '🇲🇽 Moreno' },
+        { name: 'Tatsuro Taira', shortName: '🇯🇵 Taira' },
+      ],
+    },
+  ];
+
+  return weightClasses.map((wc) => ({
+    league: `UFC — ${wc.name}`,
+    flag: '🥊',
+    season: wc.name,
+    leagueCode: 'ufc.rankings',
+    teams: wc.fighters.map((f, i) => ({
+      teamId: `ufc_${wc.code}_${i}`,
+      leagueCode: 'ufc.rankings',
+      rank: i + 1,
+      team: f.name,
+      shortName: f.shortName,
+      logo: null,
+      played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0,
+      note: i === 0 ? 'Champion' : null,
+      noteColor: i === 0 ? '81d6ac' : null,
+    })),
+    isGroup: true,
+    groupName: wc.name,
+    placeholder: true,
+    placeholderMessage: `Classement UFC ${wc.name} — données non disponibles en temps réel.`,
+    placeholderInfo: {
+      'Organisation': 'UFC (Ultimate Fighting Championship)',
+      'Catégorie': wc.name,
+      'Statut': 'Classements indicatifs — mis à jour après chaque événement',
+    },
+  }));
+}
+
+// ─── Boxing Rankings Placeholder ─────────────────────────────────────────────
+
+function getBoxingRankingsPlaceholder(): ParsedStanding[] {
+  const weightClasses = [
+    {
+      name: 'Heavyweight (+200 lbs)',
+      code: 'hw',
+      fighters: [
+        { name: 'Oleksandr Usyk', shortName: '🇺🇦 Usyk' },
+        { name: 'Tyson Fury', shortName: '🇬🇧 Fury' },
+        { name: 'Anthony Joshua', shortName: '🇬🇧 Joshua' },
+        { name: 'Zhilei Zhang', shortName: '🇨🇳 Zhang' },
+        { name: 'Joseph Parker', shortName: '🇳🇿 Parker' },
+      ],
+    },
+    {
+      name: 'Light Heavyweight (175 lbs)',
+      code: 'lhw',
+      fighters: [
+        { name: 'Dmitry Bivol', shortName: '🇷🇺 Bivol' },
+        { name: 'Artur Beterbiev', shortName: '🇷🇺 Beterbiev' },
+        { name: 'David Benavídez', shortName: '🇺🇸 Benavídez' },
+      ],
+    },
+    {
+      name: 'Super Middleweight (168 lbs)',
+      code: 'smw',
+      fighters: [
+        { name: 'Canelo Álvarez', shortName: '🇲🇽 Canelo' },
+        { name: 'David Benavídez', shortName: '🇺🇸 Benavídez' },
+        { name: 'Jermall Charlo', shortName: '🇺🇸 Charlo' },
+      ],
+    },
+    {
+      name: 'Welterweight (147 lbs)',
+      code: 'ww',
+      fighters: [
+        { name: 'Terence Crawford', shortName: '🇺🇸 Crawford' },
+        { name: 'Errol Spence Jr.', shortName: '🇺🇸 Spence Jr.' },
+        { name: 'Jaron Ennis', shortName: '🇺🇸 Ennis' },
+      ],
+    },
+    {
+      name: 'Lightweight (135 lbs)',
+      code: 'lw',
+      fighters: [
+        { name: 'Gervonta Davis', shortName: '🇺🇸 Davis' },
+        { name: 'Vasiliy Lomachenko', shortName: '🇺🇦 Lomachenko' },
+        { name: 'Devin Haney', shortName: '🇺🇸 Haney' },
+        { name: 'Shakur Stevenson', shortName: '🇺🇸 Stevenson' },
+      ],
+    },
+  ];
+
+  return weightClasses.map((wc) => ({
+    league: `Boxing — ${wc.name}`,
+    flag: '🥊',
+    season: wc.name,
+    leagueCode: 'boxing.rankings',
+    teams: wc.fighters.map((f, i) => ({
+      teamId: `boxing_${wc.code}_${i}`,
+      leagueCode: 'boxing.rankings',
+      rank: i + 1,
+      team: f.name,
+      shortName: f.shortName,
+      logo: null,
+      played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0,
+      note: i === 0 ? 'Champion' : null,
+      noteColor: i === 0 ? '81d6ac' : null,
+    })),
+    isGroup: true,
+    groupName: wc.name,
+    placeholder: true,
+    placeholderMessage: `Classement boxing ${wc.name} — données indicatives.`,
+    placeholderInfo: {
+      'Organisation': 'WBA / WBC / IBF / WBO',
+      'Catégorie': wc.name,
+      'Statut': 'Classements indicatifs — multiples organismes de sanction',
+    },
+  }));
+}
+
+// ─── Friendly error messages ─────────────────────────────────────────────────
 
 function getFriendlyErrorMessage(code: string, leagueName: string, originalError: string): string {
   switch (code) {
-    // Men's national team competitions
     case 'uefa.euro':
       return `${leagueName}: Les données de l'Euro ne sont pas encore disponibles pour le prochain tournoi`;
     case 'uefa.nations':
       return `${leagueName}: Les données de la Ligue des Nations ne sont pas disponibles — la compétition est peut-être entre deux éditions`;
     case 'caf.nations':
       return `${leagueName}: Les données de la CAN ne sont pas disponibles actuellement`;
-    // Men's club cups
     case 'uefa.champions':
       return `${leagueName}: Les données ne sont pas disponibles — la compétition est peut-être en pause`;
     case 'uefa.europa':
@@ -674,7 +1460,6 @@ function getFriendlyErrorMessage(code: string, leagueName: string, originalError
       return `${leagueName}: Les données ne sont pas disponibles actuellement — la compétition est peut-être en pause entre les phases`;
     case 'caf.champions':
       return `${leagueName}: Les données ne sont pas disponibles actuellement — la compétition est peut-être en pause entre les phases`;
-    // Men's placeholders
     case 'conmebol.america':
       return `${leagueName}: La Copa América n'a pas de classement en cours — le prochain tournoi sera en 2028`;
     case 'concacaf.gold':
@@ -683,7 +1468,6 @@ function getFriendlyErrorMessage(code: string, leagueName: string, originalError
       return `${leagueName}: La Coupe d'Asie n'a pas de classement en cours — le prochain tournoi sera en 2027`;
     case 'ksa.1':
       return `${leagueName}: Les données ne sont pas disponibles actuellement`;
-    // Women's competitions
     case 'fifa.friendly.w':
       return `${leagueName}: Les matchs amicaux n'ont pas de classement — consultez les résultats dans l'onglet Matchs`;
     case 'fifa.wwc':
@@ -715,10 +1499,8 @@ export async function GET(request: Request) {
     const category = searchParams.get('category') || 'championnats';
     const league = searchParams.get('league');
 
-    // Build cache key
     const cacheKey = league ? `standings-${league}` : `standings-${category}`;
 
-    // Check cache
     const cached = getCached<any>(cacheKey);
     if (cached) {
       const age = getCacheAge(cacheKey);
@@ -735,16 +1517,21 @@ export async function GET(request: Request) {
     let includeGoldCupPlaceholder = false;
     let includeWomenFriendliesPlaceholder = false;
 
-    // Competitions that are placeholders (not available from ESPN API)
+    // Competitions that are placeholders (not available from ESPN API or handled separately)
     const PLACEHOLDER_CODES = new Set([
       'fifa.rankings', 'fifa.world', 'conmebol.america', 'afc.asian', 'concacaf.gold', 'fifa.friendly.w',
+      // New placeholder codes
+      'nascar-cup', 'indycar', 'moto-gp',
+      'ipl', 'bbl', 'psl', 'sa20', 'cpl', 'icc.wc',
+      '6nations', 'prem.rugby', 'urc', 'sr', 'trc', 'nrl',
+      'ufc.rankings', 'boxing.rankings',
     ]);
 
+    // Specific league routing
     if (league === 'fifa.rankings') {
       includeFIFARankings = true;
       leaguesToFetch = [];
     } else if (league === 'fifa.friendly.w') {
-      // Women's Friendlies — no standings exist for friendlies
       includeWomenFriendliesPlaceholder = true;
       leaguesToFetch = [];
     } else if (league === 'fifa.world') {
@@ -761,8 +1548,31 @@ export async function GET(request: Request) {
       leaguesToFetch = [];
     } else if (league === 'nba') {
       leaguesToFetch = [];
+    } else if (league === 'mlb') {
+      leaguesToFetch = [];
+    } else if (league === 'nhl') {
+      leaguesToFetch = [];
+    } else if (league === 'nfl') {
+      leaguesToFetch = [];
+    } else if (league === 'college-football') {
+      leaguesToFetch = [];
+    } else if (league === 'f1') {
+      leaguesToFetch = [];
+    } else if (league === 'nascar-cup') {
+      leaguesToFetch = [];
+    } else if (league === 'indycar') {
+      leaguesToFetch = [];
+    } else if (league === 'moto-gp') {
+      leaguesToFetch = [];
+    } else if (league === 'ipl') {
+      leaguesToFetch = [];
+    } else if (league === '6nations') {
+      leaguesToFetch = [];
+    } else if (league === 'ufc.rankings') {
+      leaguesToFetch = [];
+    } else if (league === 'boxing.rankings') {
+      leaguesToFetch = [];
     } else if (league) {
-      // Specific league requested
       if (PLACEHOLDER_CODES.has(league)) {
         leaguesToFetch = [];
       } else {
@@ -779,6 +1589,33 @@ export async function GET(request: Request) {
       // Category-based
       switch (category) {
         case 'basketball':
+          leaguesToFetch = [];
+          break;
+        case 'mlb':
+          leaguesToFetch = [];
+          break;
+        case 'nhl':
+          leaguesToFetch = [];
+          break;
+        case 'motorSport':
+          leaguesToFetch = [];
+          break;
+        case 'motorsports':
+          leaguesToFetch = [];
+          break;
+        case 'cricket':
+          leaguesToFetch = [];
+          break;
+        case 'rugby':
+          leaguesToFetch = [];
+          break;
+        case 'mma':
+          leaguesToFetch = [];
+          break;
+        case 'boxing':
+          leaguesToFetch = [];
+          break;
+        case 'other':
           leaguesToFetch = [];
           break;
         case 'coupes':
@@ -805,7 +1642,7 @@ export async function GET(request: Request) {
     const standings: ParsedStanding[] = [];
     const errors: string[] = [];
 
-    // Handle NBA standings separately
+    // ── NBA ──
     if (league === 'nba' || category === 'basketball') {
       try {
         const nbaData = await fetchNBAStandings();
@@ -819,9 +1656,113 @@ export async function GET(request: Request) {
       }
     }
 
-    // Fetch leagues SEQUENTIALLY to avoid OOM (instead of Promise.allSettled)
+    // ── MLB ──
+    if (league === 'mlb' || category === 'mlb') {
+      try {
+        const mlbData = await fetchMLBStandings();
+        if (mlbData.length > 0) {
+          standings.push(...mlbData);
+        } else {
+          errors.push('MLB: Classements non disponibles');
+        }
+      } catch (err: any) {
+        errors.push(`MLB: ${err.message || 'Échec du chargement'}`);
+      }
+    }
+
+    // ── NHL ──
+    if (league === 'nhl' || category === 'nhl') {
+      try {
+        const nhlData = await fetchNHLStandings();
+        if (nhlData.length > 0) {
+          standings.push(...nhlData);
+        } else {
+          errors.push('NHL: Classements non disponibles');
+        }
+      } catch (err: any) {
+        errors.push(`NHL: ${err.message || 'Échec du chargement'}`);
+      }
+    }
+
+    // ── NFL ──
+    if (league === 'nfl' || category === 'other') {
+      try {
+        const nflData = await fetchNFLStandings();
+        if (nflData.length > 0) {
+          standings.push(...nflData);
+        } else {
+          errors.push('NFL: Classements non disponibles');
+        }
+      } catch (err: any) {
+        errors.push(`NFL: ${err.message || 'Échec du chargement'}`);
+      }
+    }
+
+    // ── College Football ──
+    if (league === 'college-football' || category === 'other') {
+      try {
+        const cfbData = await fetchCollegeFootballStandings();
+        if (cfbData.length > 0) {
+          standings.push(...cfbData);
+        } else {
+          errors.push('NCAA Football: Classements non disponibles');
+        }
+      } catch (err: any) {
+        errors.push(`NCAA Football: ${err.message || 'Échec du chargement'}`);
+      }
+    }
+
+    // ── F1 ──
+    if (league === 'f1' || category === 'motorSport') {
+      try {
+        const f1Data = await fetchF1Standings();
+        if (f1Data.length > 0) {
+          standings.push(...f1Data);
+        } else {
+          errors.push('F1: Classements non disponibles');
+        }
+      } catch (err: any) {
+        errors.push(`F1: ${err.message || 'Échec du chargement'}`);
+      }
+    }
+
+    // ── NASCAR Cup ──
+    if (league === 'nascar-cup' || category === 'motorsports') {
+      standings.push(getNASCARPlaceholder());
+    }
+
+    // ── IndyCar ──
+    if (league === 'indycar' || category === 'motorsports') {
+      standings.push(getIndyCarPlaceholder());
+    }
+
+    // ── MotoGP ──
+    if (league === 'moto-gp' || category === 'motorsports') {
+      standings.push(getMotoGPPlaceholder());
+    }
+
+    // ── Cricket: IPL ──
+    if (league === 'ipl' || category === 'cricket') {
+      standings.push(getIPLPlaceholder());
+    }
+
+    // ── Rugby: Six Nations ──
+    if (league === '6nations' || category === 'rugby') {
+      standings.push(getSixNationsPlaceholder());
+    }
+
+    // ── UFC Rankings ──
+    if (league === 'ufc.rankings' || category === 'mma') {
+      standings.push(...getUFCRankingsPlaceholder());
+    }
+
+    // ── Boxing Rankings ──
+    if (league === 'boxing.rankings' || category === 'boxing') {
+      standings.push(...getBoxingRankingsPlaceholder());
+    }
+
+    // Fetch soccer leagues SEQUENTIALLY to avoid OOM
     for (const l of leaguesToFetch) {
-      // Skip non-ESPN leagues in the fetch loop — handled by static data
       if (PLACEHOLDER_CODES.has(l.code)) {
         continue;
       }
@@ -841,14 +1782,12 @@ export async function GET(request: Request) {
 
     // Include FIFA Rankings for national teams category
     if (includeFIFARankings) {
-      const fifaData = getFIFARankings();
-      standings.unshift(fifaData);
+      standings.unshift(getFIFARankings());
     }
 
     // Include World Cup placeholder
     if (includeWorldCupPlaceholder) {
       const wcData = getWorldCupPlaceholder();
-      // Insert after FIFA rankings if present, otherwise at the beginning
       if (includeFIFARankings) {
         standings.splice(1, 0, wcData);
       } else {
@@ -856,37 +1795,34 @@ export async function GET(request: Request) {
       }
     }
 
-    // Include Copa América placeholder
     if (includeCopaAmericaPlaceholder) {
       standings.push(getCopaAmericaPlaceholder());
     }
 
-    // Include Asian Cup placeholder
     if (includeAsianCupPlaceholder) {
       standings.push(getAsianCupPlaceholder());
     }
 
-    // Include Gold Cup placeholder
     if (includeGoldCupPlaceholder) {
       standings.push(getGoldCupPlaceholder());
     }
 
-    // Include Women's Friendlies placeholder
     if (includeWomenFriendliesPlaceholder) {
       standings.push(getWomenFriendliesPlaceholder());
     }
 
     const response: Record<string, any> = {
       standings,
-      category,
-      lastUpdated: new Date().toISOString(),
+      cached: false,
+      generatedAt: new Date().toISOString(),
     };
+
     if (errors.length > 0) {
       response.errors = errors;
       response.errorCount = errors.length;
     }
 
-    // Cache with longer TTL for standings (10 min — they don't change fast)
+    // Cache with longer TTL for standings (10 min)
     setCache(cacheKey, response);
 
     return NextResponse.json(response, { headers: { 'X-Cache': 'MISS' } });
