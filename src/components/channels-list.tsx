@@ -18,24 +18,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const COUNTRIES_BASE: Array<{ code: string; labelFr: string; labelEn: string; labelAr: string; labelEs: string }> = [
-  { code: '', labelFr: 'Tous les pays', labelEn: 'All countries', labelAr: 'جميع البلدان', labelEs: 'Todos los países' },
-  { code: 'fr', labelFr: '🇫🇷 France', labelEn: '🇫🇷 France', labelAr: '🇫🇷 فرنسا', labelEs: '🇫🇷 Francia' },
-  { code: 'ma', labelFr: '🇲🇦 Maroc', labelEn: '🇲🇦 Morocco', labelAr: '🇲🇦 المغرب', labelEs: '🇲🇦 Marruecos' },
-  { code: 'dz', labelFr: '🇩🇿 Algérie', labelEn: '🇩🇿 Algeria', labelAr: '🇩🇿 الجزائر', labelEs: '🇩🇿 Argelia' },
-  { code: 'sn', labelFr: '🇸🇳 Sénégal', labelEn: '🇸🇳 Senegal', labelAr: '🇸🇳 السنغال', labelEs: '🇸🇳 Senegal' },
-  { code: 'tn', labelFr: '🇹🇳 Tunisie', labelEn: '🇹🇳 Tunisia', labelAr: '🇹🇳 تونس', labelEs: '🇹🇳 Túnez' },
-  { code: 'eg', labelFr: '🇪🇬 Égypte', labelEn: '🇪🇬 Egypt', labelAr: '🇪🇬 مصر', labelEs: '🇪🇬 Egipto' },
-  { code: 'uk', labelFr: '🇬🇧 Royaume-Uni', labelEn: '🇬🇧 United Kingdom', labelAr: '🇬🇧 المملكة المتحدة', labelEs: '🇬🇧 Reino Unido' },
-  { code: 'us', labelFr: '🇺🇸 États-Unis', labelEn: '🇺🇸 United States', labelAr: '🇺🇸 الولايات المتحدة', labelEs: '🇺🇸 Estados Unidos' },
-  { code: 'es', labelFr: '🇪🇸 Espagne', labelEn: '🇪🇸 Spain', labelAr: '🇪🇸 إسبانيا', labelEs: '🇪🇸 España' },
-  { code: 'de', labelFr: '🇩🇪 Allemagne', labelEn: '🇩🇪 Germany', labelAr: '🇩🇪 ألمانيا', labelEs: '🇩🇪 Alemania' },
-  { code: 'it', labelFr: '🇮🇹 Italie', labelEn: '🇮🇹 Italy', labelAr: '🇮🇹 إيطاليا', labelEs: '🇮🇹 Italia' },
-  { code: 'br', labelFr: '🇧🇷 Brésil', labelEn: '🇧🇷 Brazil', labelAr: '🇧🇷 البرازيل', labelEs: '🇧🇷 Brasil' },
-  { code: 'ar', labelFr: '🇦🇷 Argentine', labelEn: '🇦🇷 Argentina', labelAr: '🇦🇷 الأرجنتين', labelEs: '🇦🇷 Argentina' },
-  { code: 'sa', labelFr: '🇸🇦 Arabie Saoudite', labelEn: '🇸🇦 Saudi Arabia', labelAr: '🇸🇦 السعودية', labelEs: '🇸🇦 Arabia Saudita' },
-  { code: 'tr', labelFr: '🇹🇷 Turquie', labelEn: '🇹🇷 Turkey', labelAr: '🇹🇷 تركيا', labelEs: '🇹🇷 Turquía' },
-  { code: 'ir', labelFr: '🇮🇷 Iran', labelEn: '🇮🇷 Iran', labelAr: '🇮🇷 إيران', labelEs: '🇮🇷 Irán' },
+const COUNTRIES_BASE: Array<{ code: string; labelFr: string; labelEn: string; labelAr: string; labelEs: string; labelPt: string }> = [
+  { code: '', labelFr: 'Tous les pays', labelEn: 'All countries', labelAr: 'جميع البلدان', labelEs: 'Todos los países', labelPt: 'Todos os países' },
+  { code: 'fr', labelFr: '🇫🇷 France', labelEn: '🇫🇷 France', labelAr: '🇫🇷 فرنسا', labelEs: '🇫🇷 Francia', labelPt: '🇫🇷 França' },
+  { code: 'ma', labelFr: '🇲🇦 Maroc', labelEn: '🇲🇦 Morocco', labelAr: '🇲🇦 المغرب', labelEs: '🇲🇦 Marruecos', labelPt: '🇲🇦 Marrocos' },
+  { code: 'dz', labelFr: '🇩🇿 Algérie', labelEn: '🇩🇿 Algeria', labelAr: '🇩🇿 الجزائر', labelEs: '🇩🇿 Argelia', labelPt: '🇩🇿 Argélia' },
+  { code: 'sn', labelFr: '🇸🇳 Sénégal', labelEn: '🇸🇳 Senegal', labelAr: '🇸🇳 السنغال', labelEs: '🇸🇳 Senegal', labelPt: '🇸🇳 Senegal' },
+  { code: 'tn', labelFr: '🇹🇳 Tunisie', labelEn: '🇹🇳 Tunisia', labelAr: '🇹🇳 تونس', labelEs: '🇹🇳 Túnez', labelPt: '🇹🇳 Tunísia' },
+  { code: 'eg', labelFr: '🇪🇬 Égypte', labelEn: '🇪🇬 Egypt', labelAr: '🇪🇬 مصر', labelEs: '🇪🇬 Egipto', labelPt: '🇪🇬 Egito' },
+  { code: 'uk', labelFr: '🇬🇧 Royaume-Uni', labelEn: '🇬🇧 United Kingdom', labelAr: '🇬🇧 المملكة المتحدة', labelEs: '🇬🇧 Reino Unido', labelPt: '🇬🇧 Reino Unido' },
+  { code: 'us', labelFr: '🇺🇸 États-Unis', labelEn: '🇺🇸 United States', labelAr: '🇺🇸 الولايات المتحدة', labelEs: '🇺🇸 Estados Unidos', labelPt: '🇺🇸 Estados Unidos' },
+  { code: 'es', labelFr: '🇪🇸 Espagne', labelEn: '🇪🇸 Spain', labelAr: '🇪🇸 إسبانيا', labelEs: '🇪🇸 España', labelPt: '🇪🇸 Espanha' },
+  { code: 'de', labelFr: '🇩🇪 Allemagne', labelEn: '🇩🇪 Germany', labelAr: '🇩🇪 ألمانيا', labelEs: '🇩🇪 Alemania', labelPt: '🇩🇪 Alemanha' },
+  { code: 'it', labelFr: '🇮🇹 Italie', labelEn: '🇮🇹 Italy', labelAr: '🇮🇹 إيطاليا', labelEs: '🇮🇹 Italia', labelPt: '🇮🇹 Itália' },
+  { code: 'br', labelFr: '🇧🇷 Brésil', labelEn: '🇧🇷 Brazil', labelAr: '🇧🇷 البرازيل', labelEs: '🇧🇷 Brasil', labelPt: '🇧🇷 Brasil' },
+  { code: 'ar', labelFr: '🇦🇷 Argentine', labelEn: '🇦🇷 Argentina', labelAr: '🇦🇷 الأرجنتين', labelEs: '🇦🇷 Argentina', labelPt: '🇦🇷 Argentina' },
+  { code: 'sa', labelFr: '🇸🇦 Arabie Saoudite', labelEn: '🇸🇦 Saudi Arabia', labelAr: '🇸🇦 السعودية', labelEs: '🇸🇦 Arabia Saudita', labelPt: '🇸🇦 Arábia Saudita' },
+  { code: 'tr', labelFr: '🇹🇷 Turquie', labelEn: '🇹🇷 Turkey', labelAr: '🇹🇷 تركيا', labelEs: '🇹🇷 Turquía', labelPt: '🇹🇷 Turquia' },
+  { code: 'ir', labelFr: '🇮🇷 Iran', labelEn: '🇮🇷 Iran', labelAr: '🇮🇷 إيران', labelEs: '🇮🇷 Irán', labelPt: '🇮🇷 Irã' },
 ];
 
 export default function ChannelsList() {
@@ -154,7 +154,7 @@ export default function ChannelsList() {
             <SelectContent>
               {COUNTRIES_BASE.map((c) => (
                 <SelectItem key={c.code || 'all'} value={c.code || 'all'}>
-                  {language === 'ar' ? c.labelAr : language === 'es' ? c.labelEs : language === 'en' ? c.labelEn : c.labelFr}
+                  {language === 'ar' ? c.labelAr : language === 'es' ? c.labelEs : language === 'pt' ? c.labelPt : language === 'en' ? c.labelEn : c.labelFr}
                 </SelectItem>
               ))}
             </SelectContent>

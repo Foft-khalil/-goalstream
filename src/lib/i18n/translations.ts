@@ -256,6 +256,8 @@ export interface Translations {
     retry: string;
     otherChannelsLabel: string;
     back: string;
+    live: string;
+    liveStream: string;
   };
   footer: {
     description: string;
@@ -528,6 +530,8 @@ export const translations: Record<Language, Translations> = {
       retry: 'Réessayer',
       otherChannelsLabel: 'Autres chaînes :',
       back: 'Retour',
+      live: 'DIRECT',
+      liveStream: 'Diffusion en direct',
     },
     footer: {
       description: 'Streaming sportif gratuit via IPTV',
@@ -798,6 +802,8 @@ export const translations: Record<Language, Translations> = {
       retry: 'Retry',
       otherChannelsLabel: 'Other channels:',
       back: 'Back',
+      live: 'LIVE',
+      liveStream: 'Live stream',
     },
     footer: {
       description: 'Free sports streaming via IPTV',
@@ -1068,6 +1074,8 @@ export const translations: Record<Language, Translations> = {
       retry: 'إعادة المحاولة',
       otherChannelsLabel: 'قنوات أخرى:',
       back: 'رجوع',
+      live: 'مباشر',
+      liveStream: 'بث مباشر',
     },
     footer: {
       description: 'بث رياضي مجاني عبر IPTV',
@@ -1338,6 +1346,8 @@ export const translations: Record<Language, Translations> = {
       retry: 'Reintentar',
       otherChannelsLabel: 'Otros canales:',
       back: 'Volver',
+      live: 'EN VIVO',
+      liveStream: 'Transmisión en vivo',
     },
     footer: {
       description: 'Streaming deportivo gratuito vía IPTV',
@@ -1608,6 +1618,8 @@ export const translations: Record<Language, Translations> = {
       retry: 'Tentar novamente',
       otherChannelsLabel: 'Outros canais:',
       back: 'Voltar',
+      live: 'AO VIVO',
+      liveStream: 'Transmissão ao vivo',
     },
     footer: {
       description: 'Streaming esportivo gratuito via IPTV',

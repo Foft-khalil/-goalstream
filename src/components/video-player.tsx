@@ -18,6 +18,7 @@ function isHlsUrl(url: string): boolean {
 }
 
 export default function VideoPlayer() {
+  // language is used for i18n throughout this component
   const { playerVisible, playerStreamUrl, playerChannelName, playerChannelLogo, playerAlternatives, closePlayer, openPlayer, language } =
     useAppStore();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -250,7 +251,7 @@ export default function VideoPlayer() {
           {isIframe && (
             <span className="text-green-400/80 text-xs ml-2 flex items-center gap-1">
               <ExternalLink className="h-3 w-3" />
-              DIRECT
+              {t(language, 'player.live')}
             </span>
           )}
           {playerAlternatives && playerAlternatives.length > 0 && (
@@ -275,7 +276,7 @@ export default function VideoPlayer() {
             className="w-full h-full border-0"
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
-            title={`Diffusion en direct: ${playerChannelName}`}
+            title={`${t(language, 'player.liveStream')}: ${playerChannelName}`}
             sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
           />
         ) : (
