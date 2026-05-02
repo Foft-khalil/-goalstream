@@ -11,18 +11,35 @@ const CHAMPIONNATS = [
   { code: 'ger.1', name: 'Bundesliga', flag: '🇩🇪' },
   { code: 'por.1', name: 'Liga Portugal', flag: '🇵🇹' },
   { code: 'ned.1', name: 'Eredivisie', flag: '🇳🇱' },
+  { code: 'ksa.1', name: 'Saudi Pro League', flag: '🇸🇦' },
+  { code: 'tur.1', name: 'Süper Lig', flag: '🇹🇷' },
+  { code: 'usa.1', name: 'MLS', flag: '🇺🇸' },
+  { code: 'bra.1', name: 'Brasileirão', flag: '🇧🇷' },
+  { code: 'arg.1', name: 'Liga Profesional', flag: '🇦🇷' },
+  { code: 'mex.1', name: 'Liga MX', flag: '🇲🇽' },
+  { code: 'sco.1', name: 'Scottish Premiership', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
+  { code: 'bel.1', name: 'Jupiler Pro League', flag: '🇧🇪' },
+  { code: 'gre.1', name: 'Super League', flag: '🇬🇷' },
 ];
 
 const COUPES_CLUBS = [
   { code: 'uefa.champions', name: 'Ligue des Champions', flag: '🏆' },
   { code: 'uefa.europa', name: 'Europa League', flag: '🏆' },
   { code: 'uefa.europa.conf', name: 'Conference League', flag: '🏆' },
+  { code: 'conmebol.libertadores', name: 'Copa Libertadores', flag: '🌎' },
+  { code: 'conmebol.sudamericana', name: 'Copa Sudamericana', flag: '🌎' },
+  { code: 'afc.champions', name: 'AFC Champions League', flag: '🌏' },
+  { code: 'caf.champions', name: 'CAF Champions League', flag: '🌍' },
 ];
 
 const NATIONALES = [
   { code: 'fifa.rankings', name: 'Classement FIFA', flag: '🌍' },
   { code: 'fifa.world', name: 'Coupe du Monde', flag: '🏆' },
   { code: 'uefa.euro', name: 'Euro', flag: '🇪🇺' },
+  { code: 'uefa.nations', name: 'Ligue des Nations', flag: '🇪🇺' },
+  { code: 'conmebol.america', name: 'Copa América', flag: '🌎' },
+  { code: 'concacaf.gold', name: 'Gold Cup', flag: '🇺🇸' },
+  { code: 'afc.asian', name: 'Coupe d\'Asie', flag: '🌏' },
   { code: 'caf.nations', name: 'CAN', flag: '🌍' },
 ];
 
@@ -378,6 +395,101 @@ function getWorldCupPlaceholder(): ParsedStanding {
   };
 }
 
+// ─── Copa América Placeholder ────────────────────────────────────────────────
+
+function getCopaAmericaPlaceholder(): ParsedStanding {
+  const teams: ParsedTeam[] = [
+    { rank: 1, team: 'Argentine', shortName: '🇦🇷 Argentine', logo: null, teamId: 'ca_arg', leagueCode: 'conmebol.america', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: 'Tenant du titre', noteColor: '81d6ac' },
+    { rank: 2, team: 'Brésil', shortName: '🇧🇷 Brésil', logo: null, teamId: 'ca_bra', leagueCode: 'conmebol.america', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 3, team: 'Colombie', shortName: '🇨🇴 Colombie', logo: null, teamId: 'ca_col', leagueCode: 'conmebol.america', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 4, team: 'Uruguay', shortName: '🇺🇾 Uruguay', logo: null, teamId: 'ca_uru', leagueCode: 'conmebol.america', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 5, team: 'Équateur', shortName: '🇪🇨 Équateur', logo: null, teamId: 'ca_ecu', leagueCode: 'conmebol.america', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 6, team: 'Paraguay', shortName: '🇵🇾 Paraguay', logo: null, teamId: 'ca_par', leagueCode: 'conmebol.america', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 7, team: 'Chili', shortName: '🇨🇱 Chili', logo: null, teamId: 'ca_chi', leagueCode: 'conmebol.america', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 8, team: 'Pérou', shortName: '🇵🇪 Pérou', logo: null, teamId: 'ca_per', leagueCode: 'conmebol.america', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 9, team: 'Venezuela', shortName: '🇻🇪 Venezuela', logo: null, teamId: 'ca_ven', leagueCode: 'conmebol.america', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 10, team: 'Bolivie', shortName: '🇧🇴 Bolivie', logo: null, teamId: 'ca_bol', leagueCode: 'conmebol.america', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+  ];
+  return {
+    league: 'Copa América',
+    flag: '🌎',
+    season: 'Prochaine édition — 2028',
+    leagueCode: 'conmebol.america',
+    teams,
+    isGroup: false,
+    placeholder: true,
+    placeholderMessage: 'La prochaine Copa América aura lieu en 2028. Les groupes et le calendrier seront communiqués ultérieurement.',
+    placeholderInfo: {
+      'Dernière édition': '2024 — Vainqueur: Argentine 🇦🇷',
+      'Prochaine édition': '2028',
+      'Format': '16 équipes — Phase de groupes puis élimination directe',
+      'Participants': '10 CONMEBOL + 6 invités CONCACAF',
+    },
+  };
+}
+
+// ─── Asian Cup Placeholder ───────────────────────────────────────────────────
+
+function getAsianCupPlaceholder(): ParsedStanding {
+  const teams: ParsedTeam[] = [
+    { rank: 1, team: 'Qatar', shortName: '🇶🇦 Qatar', logo: null, teamId: 'ac_qat', leagueCode: 'afc.asian', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: 'Tenant du titre', noteColor: '81d6ac' },
+    { rank: 2, team: 'Japon', shortName: '🇯🇵 Japon', logo: null, teamId: 'ac_jpn', leagueCode: 'afc.asian', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 3, team: 'Corée du Sud', shortName: '🇰🇷 Corée du Sud', logo: null, teamId: 'ac_kor', leagueCode: 'afc.asian', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 4, team: 'Iran', shortName: '🇮🇷 Iran', logo: null, teamId: 'ac_irn', leagueCode: 'afc.asian', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 5, team: 'Arabie Saoudite', shortName: '🇸🇦 Arabie Saoudite', logo: null, teamId: 'ac_ksa', leagueCode: 'afc.asian', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 6, team: 'Australie', shortName: '🇦🇺 Australie', logo: null, teamId: 'ac_aus', leagueCode: 'afc.asian', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 7, team: 'Ouzbékistan', shortName: '🇺🇿 Ouzbékistan', logo: null, teamId: 'ac_uzb', leagueCode: 'afc.asian', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 8, team: 'Iraq', shortName: '🇮🇶 Iraq', logo: null, teamId: 'ac_irq', leagueCode: 'afc.asian', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+  ];
+  return {
+    league: 'Coupe d\'Asie AFC',
+    flag: '🌏',
+    season: 'Prochaine édition — 2027',
+    leagueCode: 'afc.asian',
+    teams,
+    isGroup: false,
+    placeholder: true,
+    placeholderMessage: 'La prochaine Coupe d\'Asie aura lieu en 2027 en Arabie Saoudite. Les qualifications sont en cours.',
+    placeholderInfo: {
+      'Dernière édition': '2023 — Vainqueur: Qatar 🇶🇦',
+      'Prochaine édition': '2027 — Arabie Saoudite 🇸🇦',
+      'Format': '24 équipes — Phase de groupes puis élimination directe',
+      'Statut': 'Qualifications en cours',
+    },
+  };
+}
+
+// ─── Gold Cup Placeholder ────────────────────────────────────────────────────
+
+function getGoldCupPlaceholder(): ParsedStanding {
+  const teams: ParsedTeam[] = [
+    { rank: 1, team: 'États-Unis', shortName: '🇺🇸 États-Unis', logo: null, teamId: 'gc_usa', leagueCode: 'concacaf.gold', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: 'Tenant du titre', noteColor: '81d6ac' },
+    { rank: 2, team: 'Mexique', shortName: '🇲🇽 Mexique', logo: null, teamId: 'gc_mex', leagueCode: 'concacaf.gold', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 3, team: 'Canada', shortName: '🇨🇦 Canada', logo: null, teamId: 'gc_can', leagueCode: 'concacaf.gold', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 4, team: 'Costa Rica', shortName: '🇨🇷 Costa Rica', logo: null, teamId: 'gc_crc', leagueCode: 'concacaf.gold', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 5, team: 'Jamaïque', shortName: '🇯🇲 Jamaïque', logo: null, teamId: 'gc_jam', leagueCode: 'concacaf.gold', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 6, team: 'Honduras', shortName: '🇭🇳 Honduras', logo: null, teamId: 'gc_hon', leagueCode: 'concacaf.gold', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 7, team: 'Panama', shortName: '🇵🇦 Panama', logo: null, teamId: 'gc_pan', leagueCode: 'concacaf.gold', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 8, team: 'Trinité-et-Tobago', shortName: '🇹🇹 Trinité-et-Tobago', logo: null, teamId: 'gc_tto', leagueCode: 'concacaf.gold', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+  ];
+  return {
+    league: 'Gold Cup CONCACAF',
+    flag: '🇺🇸',
+    season: 'Prochaine édition — 2027',
+    leagueCode: 'concacaf.gold',
+    teams,
+    isGroup: false,
+    placeholder: true,
+    placeholderMessage: 'La prochaine Gold Cup aura lieu en 2027. Les détails seront communiqués ultérieurement.',
+    placeholderInfo: {
+      'Dernière édition': '2025 — Vainqueur: États-Unis 🇺🇸',
+      'Prochaine édition': '2027',
+      'Format': '16 équipes — Phase de groupes puis élimination directe',
+      'Participants': 'Équipes CONCACAF + invités',
+    },
+  };
+}
+
 // ─── NBA Standings ────────────────────────────────────────────────────────────
 
 async function fetchNBAStandings(): Promise<ParsedStanding[]> {
@@ -491,6 +603,8 @@ function getFriendlyErrorMessage(code: string, leagueName: string, originalError
   switch (code) {
     case 'uefa.euro':
       return `${leagueName}: Les données de l'Euro ne sont pas encore disponibles pour le prochain tournoi`;
+    case 'uefa.nations':
+      return `${leagueName}: Les données de la Ligue des Nations ne sont pas disponibles — la compétition est peut-être entre deux éditions`;
     case 'caf.nations':
       return `${leagueName}: Les données de la CAN ne sont pas disponibles actuellement`;
     case 'uefa.champions':
@@ -499,6 +613,22 @@ function getFriendlyErrorMessage(code: string, leagueName: string, originalError
       return `${leagueName}: Les données ne sont pas disponibles — la compétition est peut-être en pause`;
     case 'uefa.europa.conf':
       return `${leagueName}: Les données ne sont pas disponibles — la compétition est peut-être en pause`;
+    case 'conmebol.libertadores':
+      return `${leagueName}: Les données ne sont pas disponibles actuellement — la compétition est peut-être en pause entre les phases`;
+    case 'conmebol.sudamericana':
+      return `${leagueName}: Les données ne sont pas disponibles actuellement — la compétition est peut-être en pause entre les phases`;
+    case 'afc.champions':
+      return `${leagueName}: Les données ne sont pas disponibles actuellement — la compétition est peut-être en pause entre les phases`;
+    case 'caf.champions':
+      return `${leagueName}: Les données ne sont pas disponibles actuellement — la compétition est peut-être en pause entre les phases`;
+    case 'conmebol.america':
+      return `${leagueName}: La Copa América n'a pas de classement en cours — le prochain tournoi sera en 2028`;
+    case 'concacaf.gold':
+      return `${leagueName}: La Gold Cup n'a pas de classement en cours — le prochain tournoi sera en 2027`;
+    case 'afc.asian':
+      return `${leagueName}: La Coupe d'Asie n'a pas de classement en cours — le prochain tournoi sera en 2027`;
+    case 'ksa.1':
+      return `${leagueName}: Les données ne sont pas disponibles actuellement`;
     default:
       return `${leagueName}: ${originalError || 'Données non disponibles'}`;
   }
@@ -527,33 +657,51 @@ export async function GET(request: Request) {
     let leaguesToFetch: Array<{ code: string; name: string; flag: string }>;
     let includeFIFARankings = false;
     let includeWorldCupPlaceholder = false;
+    let includeCopaAmericaPlaceholder = false;
+    let includeAsianCupPlaceholder = false;
+    let includeGoldCupPlaceholder = false;
+
+    // Competitions that are placeholders (not available from ESPN API)
+    const PLACEHOLDER_CODES = new Set([
+      'fifa.rankings', 'fifa.world', 'conmebol.america', 'afc.asian', 'concacaf.gold',
+    ]);
 
     if (league === 'fifa.rankings') {
-      // Special case: FIFA rankings is not an ESPN league
       includeFIFARankings = true;
       leaguesToFetch = [];
     } else if (league === 'fifa.world') {
-      // Special case: World Cup placeholder (groups not formed yet)
       includeWorldCupPlaceholder = true;
       leaguesToFetch = [];
+    } else if (league === 'conmebol.america') {
+      includeCopaAmericaPlaceholder = true;
+      leaguesToFetch = [];
+    } else if (league === 'afc.asian') {
+      includeAsianCupPlaceholder = true;
+      leaguesToFetch = [];
+    } else if (league === 'concacaf.gold') {
+      includeGoldCupPlaceholder = true;
+      leaguesToFetch = [];
     } else if (league === 'nba') {
-      // Special case: NBA standings from basketball ESPN API
-      leaguesToFetch = []; // Handled separately below
+      leaguesToFetch = [];
     } else if (league) {
       // Specific league requested
-      const allLeagues = [...CHAMPIONNATS, ...COUPES_CLUBS, ...NATIONALES];
-      leaguesToFetch = allLeagues.filter((l) => l.code === league);
-      if (leaguesToFetch.length === 0) {
-        return NextResponse.json(
-          { standings: [], error: 'Compétition non trouvée' },
-          { status: 200 }
-        );
+      if (PLACEHOLDER_CODES.has(league)) {
+        leaguesToFetch = [];
+      } else {
+        const allLeagues = [...CHAMPIONNATS, ...COUPES_CLUBS, ...NATIONALES];
+        leaguesToFetch = allLeagues.filter((l) => l.code === league);
+        if (leaguesToFetch.length === 0) {
+          return NextResponse.json(
+            { standings: [], error: 'Compétition non trouvée' },
+            { status: 200 }
+          );
+        }
       }
     } else {
       // Category-based
       switch (category) {
         case 'basketball':
-          leaguesToFetch = []; // NBA handled separately
+          leaguesToFetch = [];
           break;
         case 'coupes':
           leaguesToFetch = COUPES_CLUBS;
@@ -562,6 +710,9 @@ export async function GET(request: Request) {
           leaguesToFetch = NATIONALES;
           includeFIFARankings = true;
           includeWorldCupPlaceholder = true;
+          includeCopaAmericaPlaceholder = true;
+          includeAsianCupPlaceholder = true;
+          includeGoldCupPlaceholder = true;
           break;
         case 'championnats':
         default:
@@ -590,7 +741,7 @@ export async function GET(request: Request) {
     // Fetch leagues SEQUENTIALLY to avoid OOM (instead of Promise.allSettled)
     for (const l of leaguesToFetch) {
       // Skip non-ESPN leagues in the fetch loop — handled by static data
-      if (l.code === 'fifa.world' || l.code === 'fifa.rankings') {
+      if (PLACEHOLDER_CODES.has(l.code)) {
         continue;
       }
 
@@ -622,6 +773,21 @@ export async function GET(request: Request) {
       } else {
         standings.unshift(wcData);
       }
+    }
+
+    // Include Copa América placeholder
+    if (includeCopaAmericaPlaceholder) {
+      standings.push(getCopaAmericaPlaceholder());
+    }
+
+    // Include Asian Cup placeholder
+    if (includeAsianCupPlaceholder) {
+      standings.push(getAsianCupPlaceholder());
+    }
+
+    // Include Gold Cup placeholder
+    if (includeGoldCupPlaceholder) {
+      standings.push(getGoldCupPlaceholder());
     }
 
     const response: Record<string, any> = {

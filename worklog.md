@@ -386,3 +386,39 @@ Stage Summary:
 - Soccer, FIFA, and international competition teams continue to work properly
 - Basketball-specific stats and position labels are now displayed for NBA teams
 
+---
+Task ID: 9
+Agent: Main Agent
+Task: Fix Turbopack HMR module factory error and expand standings to include Saudi Pro League, international clubs, national teams, and complete competitions
+
+Work Log:
+- Fixed Turbopack HMR "module factory not available" error by clearing .next cache and restarting dev server
+- Fixed incorrect ESPN code for Saudi Pro League: changed `saudi.1` to `ksa.1` (the correct ESPN API code)
+- Updated `saudi.1` → `ksa.1` in all files: standings API route, standings-view.tsx, match-tracker.tsx, football API route
+- Replaced `Shield` icon import from lucide-react with `Award` icon in standings-view.tsx (Shield was causing HMR issues)
+- Expanded CHAMPIONNATS category in standings API and frontend from 7 to 16 leagues:
+  - Added: Saudi Pro League (🇸🇦), Süper Lig (🇹🇷), MLS (🇺🇸), Brasileirão (🇧🇷), Liga Profesional (🇦🇷), Liga MX (🇲🇽), Scottish Premiership (🏴󠁧󠁢󠁳󠁣󠁴󠁿), Jupiler Pro League (🇧🇪), Super League (🇬🇷)
+- Expanded COUPES_CLUBS category from 3 to 7 competitions:
+  - Added: Copa Libertadores (🌎), Copa Sudamericana (🌎), AFC Champions League (🌏), CAF Champions League (🌍)
+- Expanded NATIONALES category from 4 to 8 competitions:
+  - Added: Ligue des Nations (🇪🇺), Copa América (🌎), Gold Cup (🇺🇸), Coupe d'Asie (🌏)
+- Added placeholder data functions for national team competitions without live ESPN standings:
+  - `getCopaAmericaPlaceholder()` — 10 CONMEBOL teams with last/next edition info
+  - `getAsianCupPlaceholder()` — 8 AFC teams with Qatar 2023/2027 info
+  - `getGoldCupPlaceholder()` — 8 CONCACAF teams with USA 2025/2027 info
+- Updated WorldCupInfoCard to be generic CompetitionInfoCard — now uses placeholder.flag and placeholder.league name dynamically
+- Added friendly error messages for all new competition codes
+- Updated EmptyLeagueState component to handle all placeholder competition codes
+- Verified all new ESPN API endpoints return data: ksa.1, tur.1, usa.1, bra.1, arg.1, mex.1, sco.1, bel.1, gre.1, conmebol.libertadores, conmebol.sudamericana, afc.champions, caf.champions, uefa.nations
+- Lint passed with zero errors
+- Deployed to Vercel production
+
+Stage Summary:
+- Saudi Pro League now shows full standings with Al Nassr, Al Hilal, Al Ahli, etc.
+- International club competitions now include Copa Libertadores, AFC/CAF Champions League with real ESPN data
+- National team competitions now include Copa América, Asian Cup, Gold Cup, UEFA Nations League
+- Total: 16 championnats + 7 cup competitions + 8 national team competitions + NBA = 32 competitions
+- Shield icon HMR issue fixed by switching to Award icon
+- Turbopack HMR cache issue resolved by clearing .next directory
+- All changes deployed to Vercel
+

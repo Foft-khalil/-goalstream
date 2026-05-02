@@ -14,7 +14,7 @@ const ESPN_LEAGUES_PRIMARY = [
   { code: 'uefa.europa', name: 'Europa League' },
   { code: 'uefa.europa.conf', name: 'Conference League' },
   { code: 'usa.1', name: 'MLS' },
-  { code: 'saudi.1', name: 'Saudi Pro League' },
+  { code: 'ksa.1', name: 'Saudi Pro League' },
 ];
 
 // Extended leagues: fetched on demand (leagues=extended or leagues=all)

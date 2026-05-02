@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Loader2, Trophy, RefreshCw, AlertCircle, Globe, Shield, Users, Calendar, Info, MapPin, Flag, ChevronDown, ChevronUp, Clock, Dribbble } from 'lucide-react';
+import { Loader2, Trophy, RefreshCw, AlertCircle, Globe, Users, Calendar, Info, MapPin, Flag, ChevronDown, ChevronUp, Clock, Dribbble, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TeamDetailDialog from '@/components/team-detail-dialog';
 
@@ -65,7 +65,7 @@ type Category = 'championnats' | 'basketball' | 'coupes' | 'nationales';
 const CATEGORIES: { key: Category; label: string; icon: React.ReactNode }[] = [
   { key: 'championnats', label: 'Championnats', icon: <Trophy className="h-3.5 w-3.5" /> },
   { key: 'basketball', label: 'Basketball', icon: <Dribbble className="h-3.5 w-3.5" /> },
-  { key: 'coupes', label: 'Coupes Clubs', icon: <Shield className="h-3.5 w-3.5" /> },
+  { key: 'coupes', label: 'Coupes Clubs', icon: <Award className="h-3.5 w-3.5" /> },
   { key: 'nationales', label: 'Éq. Nationales', icon: <Globe className="h-3.5 w-3.5" /> },
 ];
 
@@ -79,6 +79,15 @@ const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: st
     { code: 'ger.1', name: 'Bundesliga', flag: '🇩🇪' },
     { code: 'por.1', name: 'Liga Portugal', flag: '🇵🇹' },
     { code: 'ned.1', name: 'Eredivisie', flag: '🇳🇱' },
+    { code: 'ksa.1', name: 'Saudi Pro League', flag: '🇸🇦' },
+    { code: 'tur.1', name: 'Süper Lig', flag: '🇹🇷' },
+    { code: 'usa.1', name: 'MLS', flag: '🇺🇸' },
+    { code: 'bra.1', name: 'Brasileirão', flag: '🇧🇷' },
+    { code: 'arg.1', name: 'Liga Profesional', flag: '🇦🇷' },
+    { code: 'mex.1', name: 'Liga MX', flag: '🇲🇽' },
+    { code: 'sco.1', name: 'Scottish Prem.', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
+    { code: 'bel.1', name: 'Jupiler Pro League', flag: '🇧🇪' },
+    { code: 'gre.1', name: 'Super League', flag: '🇬🇷' },
   ],
   basketball: [
     { code: 'nba', name: 'NBA', flag: '🏀' },
@@ -87,11 +96,19 @@ const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: st
     { code: 'uefa.champions', name: 'Ligue des Champions', flag: '🏆' },
     { code: 'uefa.europa', name: 'Europa League', flag: '🏆' },
     { code: 'uefa.europa.conf', name: 'Conference League', flag: '🏆' },
+    { code: 'conmebol.libertadores', name: 'Copa Libertadores', flag: '🌎' },
+    { code: 'conmebol.sudamericana', name: 'Copa Sudamericana', flag: '🌎' },
+    { code: 'afc.champions', name: 'AFC Champions League', flag: '🌏' },
+    { code: 'caf.champions', name: 'CAF Champions League', flag: '🌍' },
   ],
   nationales: [
     { code: 'fifa.rankings', name: 'Classement FIFA', flag: '🌍' },
     { code: 'fifa.world', name: 'Coupe du Monde', flag: '🏆' },
     { code: 'uefa.euro', name: 'Euro', flag: '🇪🇺' },
+    { code: 'uefa.nations', name: 'Ligue des Nations', flag: '🇪🇺' },
+    { code: 'conmebol.america', name: 'Copa América', flag: '🌎' },
+    { code: 'concacaf.gold', name: 'Gold Cup', flag: '🇺🇸' },
+    { code: 'afc.asian', name: 'Coupe d\'Asie', flag: '🌏' },
     { code: 'caf.nations', name: 'CAN', flag: '🌍' },
   ],
 };
@@ -123,7 +140,7 @@ function getNoteStyle(note: string | null, noteColor: string | null) {
   return 'bg-muted/30 text-muted-foreground border-border/30';
 }
 
-// ─── World Cup Info Card ─────────────────────────────────────────────────────
+// ─── Competition Info Card (for placeholders like World Cup, Copa América, etc.) ──
 
 function WorldCupInfoCard({ placeholder }: { placeholder: LeagueStanding }) {
   const info = placeholder.placeholderInfo || {};
@@ -137,11 +154,11 @@ function WorldCupInfoCard({ placeholder }: { placeholder: LeagueStanding }) {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/10 border-b border-amber-500/15">
         <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center text-xl">
-          🏆
+          {placeholder.flag || '🏆'}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-bold text-amber-200">Coupe du Monde FIFA 2026</h3>
-          <p className="text-[10px] text-amber-300/60">Prochaine édition · 48 équipes · 3 pays hôtes</p>
+          <h3 className="text-sm font-bold text-amber-200">{placeholder.league}</h3>
+          <p className="text-[10px] text-amber-300/60">{placeholder.season}</p>
         </div>
       </div>
 
@@ -477,14 +494,27 @@ function EmptyLeagueState({
   onRetry: () => void;
   retrying: boolean;
 }) {
-  // World Cup is handled by the placeholder card, not this component
-  if (leagueCode === 'fifa.world') {
+  // Placeholder competitions are handled by the WorldCupInfoCard, not this component
+  const PLACEHOLDER_CODES = ['fifa.world', 'conmebol.america', 'afc.asian', 'concacaf.gold'];
+  if (PLACEHOLDER_CODES.includes(leagueCode)) {
+    const compNames: Record<string, string> = {
+      'fifa.world': 'Coupe du Monde 2026',
+      'conmebol.america': 'Copa América 2028',
+      'afc.asian': 'Coupe d\'Asie 2027',
+      'concacaf.gold': 'Gold Cup 2027',
+    };
+    const compMessages: Record<string, string> = {
+      'fifa.world': 'Les groupes et le calendrier ne sont pas encore formés. Consultez le classement FIFA pour voir les meilleures équipes du monde.',
+      'conmebol.america': 'La prochaine Copa América aura lieu en 2028. Les groupes seront communiqués ultérieurement.',
+      'afc.asian': 'La prochaine Coupe d\'Asie aura lieu en 2027 en Arabie Saoudite. Les qualifications sont en cours.',
+      'concacaf.gold': 'La prochaine Gold Cup aura lieu en 2027. Les détails seront communiqués ultérieurement.',
+    };
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Trophy className="h-12 w-12 text-amber-500/30 mb-3" />
-        <p className="text-sm font-semibold mb-1">Coupe du Monde 2026</p>
+        <p className="text-sm font-semibold mb-1">{compNames[leagueCode] || leagueName}</p>
         <p className="text-xs text-muted-foreground/60 max-w-xs">
-          Les groupes et le calendrier ne sont pas encore formés. Consultez le classement FIFA pour voir les meilleures équipes du monde.
+          {compMessages[leagueCode] || 'Les données ne sont pas encore disponibles pour cette compétition.'}
         </p>
       </div>
     );
@@ -501,8 +531,26 @@ function EmptyLeagueState({
         return 'Les données de la Conference League ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
       case 'uefa.euro':
         return 'Les groupes de l\'Euro ne sont pas encore formés pour la prochaine édition. Consultez le classement FIFA pour suivre les équipes.';
+      case 'uefa.nations':
+        return 'Les données de la Ligue des Nations ne sont pas disponibles actuellement. La compétition est peut-être entre deux éditions.';
       case 'caf.nations':
         return 'Les données de la CAN ne sont pas disponibles actuellement. Les phases de qualification sont peut-être en cours.';
+      case 'conmebol.libertadores':
+        return 'Les données de la Copa Libertadores ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
+      case 'conmebol.sudamericana':
+        return 'Les données de la Copa Sudamericana ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
+      case 'afc.champions':
+        return 'Les données de l\'AFC Champions League ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
+      case 'caf.champions':
+        return 'Les données de la CAF Champions League ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
+      case 'conmebol.america':
+        return 'La Copa América n\'a pas de classement en cours — le prochain tournoi sera en 2028.';
+      case 'concacaf.gold':
+        return 'La Gold Cup n\'a pas de classement en cours — le prochain tournoi sera en 2027.';
+      case 'afc.asian':
+        return 'La Coupe d\'Asie n\'a pas de classement en cours — le prochain tournoi sera en 2027 en Arabie Saoudite.';
+      case 'ksa.1':
+        return 'Les données de la Saudi Pro League ne sont pas disponibles actuellement. Réessayez dans quelques minutes.';
       default:
         return 'Les données ne sont pas encore disponibles pour cette compétition. Réessayez dans quelques minutes.';
     }

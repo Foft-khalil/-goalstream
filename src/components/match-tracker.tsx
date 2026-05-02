@@ -167,7 +167,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
     if (c.includes('liga profesional')) return 'arg.1';
     if (c.includes('liga mx')) return 'mex.1';
     if (c.includes('mls')) return 'usa.1';
-    if (c.includes('saudi')) return 'saudi.1';
+    if (c.includes('saudi')) return 'ksa.1';
     if (c.includes('afc champions')) return 'afc.champions';
     if (c.includes('caf champions')) return 'caf.champions';
     return 'eng.1';
