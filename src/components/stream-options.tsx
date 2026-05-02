@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, ExternalLink, Globe, Radio, Tv, Loader2, Zap, Shield } from 'lucide-react';
+import { X, ExternalLink, Globe, Radio, Loader2, Zap, Shield } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,6 @@ export default function StreamOptions({
 
   // Build external streaming site URLs
   const matchQuery = encodeURIComponent(`${homeTeam} vs ${awayTeam} ${competition || ''} live stream`);
-  const matchQueryShort = encodeURIComponent(`${homeTeam} vs ${awayTeam} live`);
 
   const externalSources: StreamSource[] = [
     {
@@ -71,16 +70,6 @@ export default function StreamOptions({
       borderColor: 'border-red-500/30',
       description: t(language, 'stream.rojaDirectaDesc'),
       priority: 2,
-    },
-    {
-      name: 'YouTube Live',
-      url: `https://www.youtube.com/results?search_query=${matchQueryShort}`,
-      icon: <Tv className="h-4 w-4" />,
-      color: 'text-amber-400',
-      bgColor: 'bg-amber-500/10 hover:bg-amber-500/20',
-      borderColor: 'border-amber-500/30',
-      description: t(language, 'stream.youtubeDesc'),
-      priority: 3,
     },
   ];
 
