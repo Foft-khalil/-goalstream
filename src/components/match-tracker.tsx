@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { X, RefreshCw, Loader2, Circle, Square, ArrowRightLeft, AlertTriangle, Eye, Tv, MapPin, Users, Clock, Trophy, BarChart3, Star, ExternalLink } from 'lucide-react';
+import { X, RefreshCw, Loader2, Circle, Square, ArrowRightLeft, AlertTriangle, Eye, Tv, MapPin, Users, Clock, Trophy, BarChart3, Star, ExternalLink, Shirt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
@@ -38,6 +38,26 @@ interface FootballTopPerformer {
   category: string;
 }
 
+interface LineupPlayer {
+  id: string;
+  name: string;
+  shortName: string;
+  jersey: string;
+  position: string;
+  positionFull: string;
+  formationPlace: number;
+  subbedIn: boolean;
+  subbedOut: boolean;
+}
+
+interface TeamLineup {
+  teamAbbr: string;
+  teamName: string;
+  formation: string | null;
+  starters: LineupPlayer[];
+  substitutes: LineupPlayer[];
+}
+
 interface FootballMatchSummary {
   homeScore: number;
   awayScore: number;
@@ -51,6 +71,8 @@ interface FootballMatchSummary {
   awayForm: string | null;
   teamStats: FootballTeamStat[];
   topPerformers: FootballTopPerformer[];
+  homeLineup: TeamLineup | null;
+  awayLineup: TeamLineup | null;
   venue: string | null;
   attendance: string | null;
   officials: string[];
@@ -138,6 +160,149 @@ function FormGuide({ form }: { form: string | null }) {
   );
 }
 
+// ─── Position color helper ──────────────────────────────────────────────────
+function positionColor(pos: string): string {
+  const p = pos.toUpperCase();
+  if (p === 'G' || p === 'GK') return 'bg-amber-500/15 text-amber-600 border-amber-500/20';
+  if (p === 'D' || p === 'DF' || p === 'DEF') return 'bg-sky-500/15 text-sky-600 border-sky-500/20';
+  if (p === 'M' || p === 'MF' || p === 'MID') return 'bg-green-500/15 text-green-600 border-green-500/20';
+  if (p === 'F' || p === 'FW' || p === 'FWD') return 'bg-red-500/15 text-red-500 border-red-500/20';
+  return 'bg-muted/30 text-muted-foreground border-border/20';
+}
+
+function positionLabel(pos: string, language: string): string {
+  const p = pos.toUpperCase();
+  if (p === 'G' || p === 'GK') return t(language, 'tracker.posGK');
+  if (p === 'D' || p === 'DF' || p === 'DEF') return t(language, 'tracker.posDEF');
+  if (p === 'M' || p === 'MF' || p === 'MID') return t(language, 'tracker.posMID');
+  if (p === 'F' || p === 'FW' || p === 'FWD') return t(language, 'tracker.posFWD');
+  return pos;
+}
+
+// ─── Team Lineup Card ──────────────────────────────────────────────────────
+function TeamLineupCard({ lineup, teamLogo, isHome, language }: {
+  lineup: TeamLineup;
+  teamLogo: string | null;
+  isHome: boolean;
+  language: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border/20 bg-muted/10 overflow-hidden">
+      {/* Team header */}
+      <div className={`px-4 py-3 flex items-center justify-between ${isHome ? 'bg-green-500/5' : 'bg-sky-500/5'}`}>
+        <div className="flex items-center gap-2.5">
+          {teamLogo ? (
+            <img src={teamLogo} alt="" className="w-7 h-7 rounded-lg object-contain bg-muted/40 p-0.5" />
+          ) : (
+            <div className="w-7 h-7 rounded-lg bg-muted/60 flex items-center justify-center text-[10px] font-bold">
+              {lineup.teamAbbr.slice(0, 2)}
+            </div>
+          )}
+          <div>
+            <span className="text-sm font-bold">{lineup.teamName}</span>
+          </div>
+        </div>
+        {lineup.formation && (
+          <div className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${
+            isHome ? 'bg-green-500/10 border-green-500/20 text-green-600' : 'bg-sky-500/10 border-sky-500/20 text-sky-600'
+          }`}>
+            {lineup.formation}
+          </div>
+        )}
+      </div>
+
+      {/* Starting XI */}
+      <div className="px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2 mb-2.5">
+          <span className="text-sm">⚽</span>
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            {t(language, 'tracker.startingXI')}
+          </span>
+          <span className="text-[10px] text-muted-foreground/50 ml-auto">{lineup.starters.length}</span>
+        </div>
+        <div className="space-y-1">
+          {lineup.starters.map((player, idx) => (
+            <div
+              key={player.id}
+              className={`flex items-center gap-2.5 py-1.5 px-2.5 rounded-lg transition-colors ${
+                idx === 0 ? '' : 'hover:bg-muted/20'
+              }`}
+            >
+              {/* Jersey number */}
+              <div className="w-7 h-7 rounded-lg bg-muted/40 flex items-center justify-center flex-shrink-0">
+                <span className="text-[11px] font-bold text-muted-foreground">{player.jersey || '-'}</span>
+              </div>
+
+              {/* Player name */}
+              <div className="flex-1 min-w-0">
+                <span className={`text-sm font-medium truncate block ${player.subbedOut ? 'line-through text-muted-foreground/50' : ''}`}>
+                  {player.name}
+                </span>
+              </div>
+
+              {/* Position badge */}
+              <div className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${positionColor(player.position)}`}>
+                {player.position || '?'}
+              </div>
+
+              {/* Sub indicator */}
+              {player.subbedOut && (
+                <span className="text-[10px] text-red-400/70 font-medium">↘</span>
+              )}
+              {player.subbedIn && (
+                <span className="text-[10px] text-green-500/70 font-medium">↗</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Substitutes */}
+      {lineup.substitutes.length > 0 && (
+        <div className="px-4 pt-2 pb-3 border-t border-border/10">
+          <div className="flex items-center gap-2 mb-2.5">
+            <span className="text-sm">🔄</span>
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              {t(language, 'tracker.substitutes')}
+            </span>
+            <span className="text-[10px] text-muted-foreground/50 ml-auto">{lineup.substitutes.length}</span>
+          </div>
+          <div className="space-y-1">
+            {lineup.substitutes.map((player) => (
+              <div
+                key={player.id}
+                className="flex items-center gap-2.5 py-1.5 px-2.5 rounded-lg hover:bg-muted/20 transition-colors"
+              >
+                {/* Jersey number */}
+                <div className="w-7 h-7 rounded-lg bg-muted/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-[11px] font-bold text-muted-foreground/50">{player.jersey || '-'}</span>
+                </div>
+
+                {/* Player name */}
+                <div className="flex-1 min-w-0">
+                  <span className={`text-sm font-medium truncate block ${player.subbedIn ? '' : 'text-muted-foreground/70'}`}>
+                    {player.name}
+                  </span>
+                </div>
+
+                {/* Position badge */}
+                <div className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${positionColor(player.position)} opacity-70`}>
+                  {player.position || '?'}
+                </div>
+
+                {/* Sub indicator */}
+                {player.subbedIn && (
+                  <span className="text-[10px] text-green-500/70 font-medium">↗</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerProps) {
   const [events, setEvents] = useState<MatchEvent[]>([]);
   const [loading, setLoading] = useState(false);
@@ -145,7 +310,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [possession, setPossession] = useState<'home' | 'away' | null>(null);
   const [summary, setSummary] = useState<FootballMatchSummary | null>(null);
-  const [activeTab, setActiveTab] = useState<'timeline' | 'stats' | 'players'>('timeline');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'stats' | 'players' | 'lineups'>('timeline');
   const { openPlayer, language } = useAppStore();
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -463,6 +628,16 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
             }`}
           >
             ⭐ {t(language, 'tracker.keyPlayers')}
+          </button>
+          <button
+            onClick={() => setActiveTab('lineups')}
+            className={`flex-1 py-2.5 text-xs font-semibold text-center border-b-2 transition-colors ${
+              activeTab === 'lineups'
+                ? 'border-green-500 text-green-500'
+                : 'border-transparent text-muted-foreground/60 hover:text-foreground'
+            }`}
+          >
+            🏟️ {t(language, 'tracker.lineups')}
           </button>
         </div>
       </div>
@@ -823,6 +998,55 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                   </p>
                 </div>
               )}
+            </>
+          )}
+
+          {/* ── LINEUPS TAB ──────────────────────────────────────────────────── */}
+          {activeTab === 'lineups' && (
+            <>
+              {loading && !summary?.homeLineup && (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-green-500 mb-3" />
+                  <p className="text-sm text-muted-foreground">{t(language, 'tracker.loadingLineups')}</p>
+                </div>
+              )}
+
+              {summary?.homeLineup && summary?.awayLineup ? (
+                <div className="mt-4 space-y-5">
+                  {/* Home Team Lineup */}
+                  <TeamLineupCard
+                    lineup={summary.homeLineup}
+                    teamLogo={match.homeLogo}
+                    isHome
+                    language={language}
+                  />
+
+                  {/* Divider */}
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-border/30" />
+                    <span className="text-[10px] text-muted-foreground/40 font-semibold uppercase">VS</span>
+                    <div className="h-px flex-1 bg-border/30" />
+                  </div>
+
+                  {/* Away Team Lineup */}
+                  <TeamLineupCard
+                    lineup={summary.awayLineup}
+                    teamLogo={match.awayLogo}
+                    isHome={false}
+                    language={language}
+                  />
+                </div>
+              ) : !loading ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Shirt className="h-8 w-8 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground">{t(language, 'tracker.noLineups')}</p>
+                  {match.status === 'upcoming' && (
+                    <p className="text-xs text-muted-foreground/50 mt-1">
+                      {t(language, 'tracker.liveAtKickoff')}
+                    </p>
+                  )}
+                </div>
+              ) : null}
             </>
           )}
 

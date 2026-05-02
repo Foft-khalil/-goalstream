@@ -52,6 +52,28 @@ export interface FootballMatchSummary {
   matchDate: string | null;
   halfTimeHome: number | null;
   halfTimeAway: number | null;
+  homeLineup: TeamLineup | null;
+  awayLineup: TeamLineup | null;
+}
+
+export interface LineupPlayer {
+  id: string;
+  name: string;
+  shortName: string;
+  jersey: string;
+  position: string;     // abbreviation: G, D, M, F, etc.
+  positionFull: string; // full name: Goalkeeper, Defender, etc.
+  formationPlace: number;
+  subbedIn: boolean;
+  subbedOut: boolean;
+}
+
+export interface TeamLineup {
+  teamAbbr: string;
+  teamName: string;
+  formation: string | null;
+  starters: LineupPlayer[];
+  substitutes: LineupPlayer[];
 }
 
 export interface MatchEventsResponse {
@@ -192,6 +214,40 @@ interface ESPNTeamLeaders {
   leaders?: ESPNLeaderCategory[];
 }
 
+interface ESPNRosterAthlete {
+  id?: string;
+  displayName?: string;
+  shortName?: string;
+  fullName?: string;
+}
+
+interface ESPNRosterPlayer {
+  active?: boolean;
+  starter?: boolean;
+  jersey?: string;
+  athlete?: ESPNRosterAthlete;
+  position?: {
+    name?: string;
+    displayName?: string;
+    abbreviation?: string;
+  };
+  formationPlace?: string | number;
+  subbedIn?: boolean;
+  subbedOut?: boolean;
+  didNotPlay?: boolean;
+}
+
+interface ESPNTeamRoster {
+  homeAway?: 'home' | 'away';
+  team?: {
+    id?: string;
+    abbreviation?: string;
+    displayName?: string;
+  };
+  formation?: string;
+  roster?: ESPNRosterPlayer[];
+}
+
 interface ESPNSummary {
   commentary?: ESPNCommentary | ESPNCommentaryItem[];
   header?: {
@@ -208,6 +264,7 @@ interface ESPNSummary {
     [key: string]: unknown;
   };
   leaders?: ESPNTeamLeaders[];
+  rosters?: ESPNTeamRoster[];
   gameInfo?: {
     venue?: {
       fullName?: string;
@@ -522,6 +579,58 @@ function parseMatchSummary(data: ESPNSummary): FootballMatchSummary | null {
       }
     }
 
+    // Lineups from rosters
+    let homeLineup: TeamLineup | null = null;
+    let awayLineup: TeamLineup | null = null;
+
+    const rostersData = data.rosters || [];
+    for (const rosterTeam of rostersData) {
+      const isHome = rosterTeam.homeAway === 'home';
+      const teamAbbr = rosterTeam.team?.abbreviation || (isHome ? homeAbbr : awayAbbr);
+      const teamName = rosterTeam.team?.displayName || (isHome ? homeTeam : awayTeam);
+      const formation = rosterTeam.formation || null;
+
+      const starters: LineupPlayer[] = [];
+      const substitutes: LineupPlayer[] = [];
+
+      for (const p of rosterTeam.roster || []) {
+        const player: LineupPlayer = {
+          id: p.athlete?.id || `p-${Math.random().toString(36).slice(2)}`,
+          name: p.athlete?.displayName || p.athlete?.fullName || '',
+          shortName: p.athlete?.shortName || p.athlete?.displayName?.split(' ').map((n, i, arr) => i === arr.length - 1 ? n : n[0] + '.').join(' ') || '',
+          jersey: p.jersey || '',
+          position: p.position?.abbreviation || '',
+          positionFull: p.position?.displayName || p.position?.name || '',
+          formationPlace: typeof p.formationPlace === 'number' ? p.formationPlace : parseInt(String(p.formationPlace || '0'), 10) || 0,
+          subbedIn: p.subbedIn || false,
+          subbedOut: p.subbedOut || false,
+        };
+
+        if (p.starter) {
+          starters.push(player);
+        } else {
+          substitutes.push(player);
+        }
+      }
+
+      // Sort starters by formationPlace
+      starters.sort((a, b) => a.formationPlace - b.formationPlace);
+
+      const lineup: TeamLineup = {
+        teamAbbr,
+        teamName,
+        formation,
+        starters,
+        substitutes,
+      };
+
+      if (isHome) {
+        homeLineup = lineup;
+      } else {
+        awayLineup = lineup;
+      }
+    }
+
     // Game info
     const venue = data.gameInfo?.venue?.fullName || null;
     const attendance = data.gameInfo?.attendance ? String(data.gameInfo.attendance) : null;
@@ -547,6 +656,8 @@ function parseMatchSummary(data: ESPNSummary): FootballMatchSummary | null {
       matchDate,
       halfTimeHome,
       halfTimeAway,
+      homeLineup,
+      awayLineup,
     };
   } catch (err) {
     console.error('[Match Events API] Error parsing match summary:', err);

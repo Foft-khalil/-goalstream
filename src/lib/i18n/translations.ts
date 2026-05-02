@@ -302,6 +302,16 @@ export interface Translations {
     timelineMatch: string;
     statistics: string;
     keyPlayers: string;
+    lineups: string;
+    startingXI: string;
+    substitutes: string;
+    formation: string;
+    noLineups: string;
+    loadingLineups: string;
+    posGK: string;
+    posDEF: string;
+    posMID: string;
+    posFWD: string;
     loadingEvents: string;
     loadingStats: string;
     loadingPlayers: string;
@@ -695,6 +705,16 @@ export const translations: Record<Language, Translations> = {
       timelineMatch: 'Chronologie du match',
       statistics: 'Statistiques',
       keyPlayers: 'Joueurs clés',
+      lineups: 'Alignements',
+      startingXI: 'Composition de départ',
+      substitutes: 'Remplaçants',
+      formation: 'Formation',
+      noLineups: 'Alignements non disponibles',
+      loadingLineups: 'Chargement des alignements...',
+      posGK: 'Gardien',
+      posDEF: 'Défenseur',
+      posMID: 'Milieu',
+      posFWD: 'Attaquant',
       loadingEvents: 'Chargement des événements...',
       loadingStats: 'Chargement des statistiques...',
       loadingPlayers: 'Chargement des joueurs clés...',
@@ -1086,6 +1106,16 @@ export const translations: Record<Language, Translations> = {
       timelineMatch: 'Match timeline',
       statistics: 'Statistics',
       keyPlayers: 'Key players',
+      lineups: 'Lineups',
+      startingXI: 'Starting XI',
+      substitutes: 'Substitutes',
+      formation: 'Formation',
+      noLineups: 'Lineups unavailable',
+      loadingLineups: 'Loading lineups...',
+      posGK: 'Goalkeeper',
+      posDEF: 'Defender',
+      posMID: 'Midfielder',
+      posFWD: 'Forward',
       loadingEvents: 'Loading events...',
       loadingStats: 'Loading statistics...',
       loadingPlayers: 'Loading key players...',
@@ -1477,6 +1507,16 @@ export const translations: Record<Language, Translations> = {
       timelineMatch: 'الجدول الزمني للمباراة',
       statistics: 'الإحصائيات',
       keyPlayers: 'اللاعبون الرئيسيون',
+      lineups: 'التشكيلة',
+      startingXI: 'التشكيلة الأساسية',
+      substitutes: 'البدلاء',
+      formation: 'التشكيل',
+      noLineups: 'التشكيلة غير متاحة',
+      loadingLineups: 'تحميل التشكيلة...',
+      posGK: 'حارس مرمى',
+      posDEF: 'مدافع',
+      posMID: 'لاعب وسط',
+      posFWD: 'مهاجم',
       loadingEvents: 'تحميل الأحداث...',
       loadingStats: 'تحميل الإحصائيات...',
       loadingPlayers: 'تحميل اللاعبين الرئيسيين...',
@@ -1868,6 +1908,16 @@ export const translations: Record<Language, Translations> = {
       timelineMatch: 'Cronología del partido',
       statistics: 'Estadísticas',
       keyPlayers: 'Jugadores clave',
+      lineups: 'Alineaciones',
+      startingXI: 'Once inicial',
+      substitutes: 'Suplentes',
+      formation: 'Formación',
+      noLineups: 'Alineaciones no disponibles',
+      loadingLineups: 'Cargando alineaciones...',
+      posGK: 'Portero',
+      posDEF: 'Defensa',
+      posMID: 'Centrocampista',
+      posFWD: 'Delantero',
       loadingEvents: 'Cargando eventos...',
       loadingStats: 'Cargando estadísticas...',
       loadingPlayers: 'Cargando jugadores clave...',
@@ -2259,6 +2309,16 @@ export const translations: Record<Language, Translations> = {
       timelineMatch: 'Cronologia do jogo',
       statistics: 'Estatísticas',
       keyPlayers: 'Jogadores-chave',
+      lineups: 'Escalações',
+      startingXI: 'Titulares',
+      substitutes: 'Reservas',
+      formation: 'Formação',
+      noLineups: 'Escalações indisponíveis',
+      loadingLineups: 'Carregando escalações...',
+      posGK: 'Goleiro',
+      posDEF: 'Zagueiro',
+      posMID: 'Meio-campo',
+      posFWD: 'Atacante',
       loadingEvents: 'Carregando eventos...',
       loadingStats: 'Carregando estatísticas...',
       loadingPlayers: 'Carregando jogadores-chave...',
