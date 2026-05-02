@@ -265,6 +265,16 @@ export interface Translations {
     tryDirectStream: string;
     watchElsewhere: string;
   };
+  stream: {
+    watchLive: string;
+    streamingSites: string;
+    directStreams: string;
+    searchingStreams: string;
+    sportStreamDesc: string;
+    rojaDirectaDesc: string;
+    youtubeDesc: string;
+    disclaimer: string;
+  };
   footer: {
     description: string;
     streamsFrom: string;
@@ -545,6 +555,16 @@ export const translations: Record<Language, Translations> = {
       tryDirectStream: 'Essayer le flux direct',
       watchElsewhere: 'Regarder ailleurs :',
     },
+    stream: {
+      watchLive: 'Regarder en direct',
+      streamingSites: 'Sites de streaming',
+      directStreams: 'Flux directs',
+      searchingStreams: 'Recherche de flux...',
+      sportStreamDesc: 'Recherche de matchs en direct avec liens de streaming',
+      rojaDirectaDesc: 'Streaming en direct de football et plus',
+      youtubeDesc: 'Rechercher des diffusions en direct sur YouTube',
+      disclaimer: 'Les liens redirigent vers des sites tiers. GoalStream ne héberge aucun contenu.',
+    },
     footer: {
       description: 'Streaming sportif gratuit via IPTV',
       streamsFrom: 'Flux issus de',
@@ -822,6 +842,16 @@ export const translations: Record<Language, Translations> = {
       iframeLoadTimeout: 'Stream is taking too long to load',
       tryDirectStream: 'Try direct stream',
       watchElsewhere: 'Watch elsewhere:',
+    },
+    stream: {
+      watchLive: 'Watch Live',
+      streamingSites: 'Streaming Sites',
+      directStreams: 'Direct Streams',
+      searchingStreams: 'Searching for streams...',
+      sportStreamDesc: 'Search live matches with streaming links',
+      rojaDirectaDesc: 'Live football streaming and more',
+      youtubeDesc: 'Search for live broadcasts on YouTube',
+      disclaimer: 'Links redirect to third-party sites. GoalStream does not host any content.',
     },
     footer: {
       description: 'Free sports streaming via IPTV',
@@ -1101,6 +1131,16 @@ export const translations: Record<Language, Translations> = {
       tryDirectStream: 'تجربة البث المباشر',
       watchElsewhere: 'شاهد في مكان آخر:',
     },
+    stream: {
+      watchLive: 'شاهد مباشر',
+      streamingSites: 'مواقع البث',
+      directStreams: 'بث مباشر',
+      searchingStreams: 'جاري البحث عن بث...',
+      sportStreamDesc: 'البحث عن مباريات مباشرة مع روابط بث',
+      rojaDirectaDesc: 'بث مباشر لكرة القدم والمزيد',
+      youtubeDesc: 'البحث عن بث مباشر على يوتيوب',
+      disclaimer: 'الروابط تعيد التوجيه إلى مواقع خارجية. GoalStream لا يستضيف أي محتوى.',
+    },
     footer: {
       description: 'بث رياضي مجاني عبر IPTV',
       streamsFrom: 'البث من',
@@ -1379,6 +1419,16 @@ export const translations: Record<Language, Translations> = {
       tryDirectStream: 'Probar stream directo',
       watchElsewhere: 'Ver en otro sitio:',
     },
+    stream: {
+      watchLive: 'Ver en vivo',
+      streamingSites: 'Sitios de streaming',
+      directStreams: 'Streams directos',
+      searchingStreams: 'Buscando streams...',
+      sportStreamDesc: 'Buscar partidos en vivo con enlaces de streaming',
+      rojaDirectaDesc: 'Streaming en vivo de fútbol y más',
+      youtubeDesc: 'Buscar transmisiones en vivo en YouTube',
+      disclaimer: 'Los enlaces redirigen a sitios de terceros. GoalStream no aloja ningún contenido.',
+    },
     footer: {
       description: 'Streaming deportivo gratuito vía IPTV',
       streamsFrom: 'Transmisiones de',
@@ -1656,6 +1706,16 @@ export const translations: Record<Language, Translations> = {
       iframeLoadTimeout: 'O stream está demorando muito para carregar',
       tryDirectStream: 'Tentar stream direto',
       watchElsewhere: 'Assistir em outro site:',
+    },
+    stream: {
+      watchLive: 'Assistir ao vivo',
+      streamingSites: 'Sites de streaming',
+      directStreams: 'Streams diretos',
+      searchingStreams: 'Procurando streams...',
+      sportStreamDesc: 'Pesquisar jogos ao vivo com links de streaming',
+      rojaDirectaDesc: 'Streaming ao vivo de futebol e mais',
+      youtubeDesc: 'Pesquisar transmissões ao vivo no YouTube',
+      disclaimer: 'Os links redirecionam para sites de terceiros. GoalStream não hospeda nenhum conteúdo.',
     },
     footer: {
       description: 'Streaming esportivo gratuito via IPTV',

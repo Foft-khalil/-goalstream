@@ -177,3 +177,36 @@ Stage Summary:
 - Added iframe error handling with timeout and external site fallbacks
 - Rojadirecta API provides streams with real TV channel names (ESPN, Disney+, Fox Sports, etc.)
 - IPTV fallback shortened to 10s timeout (was 45s) since it rarely works for live sports
+
+---
+Task ID: stream-redesign
+Agent: Main Agent
+Task: Redesign streaming to use external redirect approach instead of broken embedded streams
+
+Work Log:
+- Identified root cause: embedded streaming approach (kora-api/IPTV → iframe/proxy → m3u8) consistently fails because streams require specific referrers/tokens that can't be reliably proxied
+- User sees "Le flux met trop de temps à se charger" error every time they try to watch a match
+- New approach: instead of trying to embed streams, redirect users to external streaming sites that actually work (same method as us-sport.eu and tarjetarojaenvivo.cx)
+- Created new StreamOptions component (/src/components/stream-options.tsx):
+  1. Shows modal panel with external streaming site links as PRIMARY option
+  2. SportStream (us-sport.eu) with match search query
+  3. RojaDirecta (tarjetarojaenvivo.cx) 
+  4. YouTube Live search
+  5. Kora-api streams as SECONDARY option (if m3u8 available, try embedding; otherwise open in new tab)
+  6. Disclaimer about third-party content
+- Updated match-card.tsx: removed old findAndShowChannels/handleQuickPlay, now opens StreamOptions panel on "Watch Live" click
+- Updated basketball-match-card.tsx: same simplified approach, uses StreamOptions
+- Updated favorites-view.tsx: same simplified approach, uses StreamOptions
+- Added stream.* i18n keys for all 5 languages (fr, en, ar, es, pt):
+  watchLive, streamingSites, directStreams, searchingStreams, sportStreamDesc, rojaDirectaDesc, youtubeDesc, disclaimer
+- Quick-access Globe button still available on match cards for instant SportStream redirect
+- Video player retained for direct m3u8 streams (IPTV channels from Channels view, favorite channels)
+- All changes pass lint cleanly
+
+Stage Summary:
+- Streaming completely redesigned: primary action now redirects to external sites instead of trying to embed broken streams
+- New StreamOptions component provides clean UI with SportStream, RojaDirecta, YouTube Live as primary options
+- Kora-api streams available as secondary option (open in new tab if not m3u8)
+- Eliminated the "Le flux met trop de temps à secharger" error by not trying to embed unreliable streams
+- Same method as competitor sites (us-sport.eu, tarjetarojaenvivo.cx): redirect to streaming sites that work
+- Video player still available for IPTV channels and direct m3u8 streams

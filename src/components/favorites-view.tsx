@@ -5,22 +5,14 @@ import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Play, Tv, Heart, Star, Clock, Radio, Loader2, Trash2, WifiOff, X, ChevronRight, Zap, Users, Globe } from 'lucide-react';
+import { Play, Tv, Heart, Star, Clock, Radio, Trash2, WifiOff, X, Zap, Users, Globe } from 'lucide-react';
 import { useState } from 'react';
-
-interface FoundChannel {
-  name: string;
-  url: string;
-  logo: string;
-  group: string;
-  relevance: number;
-}
+import StreamOptions from '@/components/stream-options';
 
 function FavoriteMatchCard({ match }: { match: FootballMatch }) {
-  const { openPlayer, language } = useAppStore();
+  const { language } = useAppStore();
   const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
-  const [findingStream, setFindingStream] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showStreamOptions, setShowStreamOptions] = useState(false);
 
   const isLive = match.status === 'live';
   const matchDate = match.matchDate ? new Date(match.matchDate) : null;
@@ -45,236 +37,145 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
   const isBasketballSport = match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') || match.competition?.toLowerCase().includes('euroleague');
   const sportType = isBasketballSport ? 'basketball' : 'football';
 
-  const handleQuickPlay = async () => {
-    if (findingStream) return;
-    setFindingStream(true);
-    setError(null);
-    try {
-      // ── Step 1: Try kora-api first (fast, direct streams) ──
-      try {
-        const koraRes = await fetch('/api/streams', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            homeTeam: match.homeTeam,
-            awayTeam: match.awayTeam,
-            competition: match.competition,
-            sport: sportType,
-          }),
-          signal: AbortSignal.timeout(8000),
-        });
-
-        if (koraRes.ok) {
-          const koraData = await koraRes.json();
-          if (koraData.streams && koraData.streams.length > 0) {
-            const first = koraData.streams[0];
-            const alternatives = koraData.streams.slice(1).map((s: any) => ({
-              name: `${s.langFlag} ${s.name}`,
-              url: s.url,
-              logo: '',
-            }));
-            openPlayer(first.url, `${first.langFlag} ${first.name}`, undefined, alternatives);
-            setFindingStream(false);
-            return;
-          }
-        }
-      } catch {
-        // kora-api failed, fall through to IPTV
-      }
-
-      // ── Step 2: IPTV fallback (short timeout) ──
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-
-      const res = await fetch('/api/match-stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          homeTeam: match.homeTeam,
-          awayTeam: match.awayTeam,
-          competition: match.competition,
-          sport: sportType,
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (!res.ok) throw new Error('Failed to find channels');
-      const data = await res.json();
-      const channels: FoundChannel[] = data.channels || [];
-      if (channels.length > 0) {
-        const first = channels[0];
-        openPlayer(first.url, first.name, first.logo || undefined, channels.slice(1));
-      } else {
-        setError(t(language, 'match.noChannelFound'));
-      }
-    } catch {
-      setError(t(language, 'match.noChannelRetry'));
-    } finally {
-      setFindingStream(false);
-    }
-  };
-
   const homeFav = isTeamFavorite(match.homeTeam);
   const awayFav = isTeamFavorite(match.awayTeam);
 
   return (
-    <div
-      className={`group relative rounded-xl overflow-hidden transition-all duration-200 ${
-        isLive
-          ? 'bg-gradient-to-r from-red-950/30 via-card to-red-950/20 border border-red-500/20 shadow-lg shadow-red-500/5'
-          : 'bg-card/80 border border-border/40 hover:border-border/70 hover:bg-card'
-      }`}
-    >
-      <div className="px-4 py-3.5">
-        {/* Competition + status */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[11px] text-muted-foreground/60 font-medium">
-            {match.competition || t(language, 'match.friendly')}
-          </span>
-          {isLive ? (
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[11px] font-bold text-red-500 tracking-wide">
-                {match.minute != null ? `${match.minute}'` : 'LIVE'}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <Clock className="h-3 w-3 text-muted-foreground/40" />
-              <span className="text-[11px] font-semibold text-muted-foreground">
-                {dateLabel ? `${dateLabel} ` : ''}{timeStr}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Teams */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            {match.homeLogo ? (
-              <img
-                src={match.homeLogo}
-                alt={match.homeTeam}
-                className="w-9 h-9 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            ) : (
-              <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center text-[11px] font-bold shrink-0">
-                {match.homeTeam.slice(0, 2).toUpperCase()}
-              </div>
-            )}
-            <span className={`font-semibold text-sm truncate ${homeFav ? 'text-green-500' : ''}`}>
-              {match.homeTeam}
+    <>
+      <div
+        className={`group relative rounded-xl overflow-hidden transition-all duration-200 ${
+          isLive
+            ? 'bg-gradient-to-r from-red-950/30 via-card to-red-950/20 border border-red-500/20 shadow-lg shadow-red-500/5'
+            : 'bg-card/80 border border-border/40 hover:border-border/70 hover:bg-card'
+        }`}
+      >
+        <div className="px-4 py-3.5">
+          {/* Competition + status */}
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] text-muted-foreground/60 font-medium">
+              {match.competition || t(language, 'match.friendly')}
             </span>
-            <button
-              onClick={() => toggleTeamFavorite(match.homeTeam, match.homeLogo)}
-              className="shrink-0 ml-auto"
-              title={homeFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
-            >
-              <Heart className={`h-3.5 w-3.5 transition-colors ${homeFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
-            </button>
-          </div>
-
-          <div className="flex flex-col items-center shrink-0 px-1">
             {isLive ? (
               <div className="flex items-center gap-1.5">
-                <span className="text-lg font-black tabular-nums text-red-400">{match.homeScore ?? 0}</span>
-                <span className="text-xs text-muted-foreground/40 font-medium">-</span>
-                <span className="text-lg font-black tabular-nums text-red-400">{match.awayScore ?? 0}</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-[11px] font-bold text-red-500 tracking-wide">
+                  {match.minute != null ? `${match.minute}'` : 'LIVE'}
+                </span>
               </div>
             ) : (
-              <div className="px-3 py-1 rounded-md bg-muted/40 border border-border/20">
-                <span className="text-xs font-bold text-muted-foreground/60 tracking-wider">VS</span>
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-3 w-3 text-muted-foreground/40" />
+                <span className="text-[11px] font-semibold text-muted-foreground">
+                  {dateLabel ? `${dateLabel} ` : ''}{timeStr}
+                </span>
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-2.5 flex-1 min-w-0 justify-end">
-            <button
-              onClick={() => toggleTeamFavorite(match.awayTeam, match.awayLogo)}
-              className="shrink-0"
-              title={awayFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
-            >
-              <Heart className={`h-3.5 w-3.5 transition-colors ${awayFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
-            </button>
-            <span className={`font-semibold text-sm truncate text-right ${awayFav ? 'text-green-500' : ''}`}>
-              {match.awayTeam}
-            </span>
-            {match.awayLogo ? (
-              <img
-                src={match.awayLogo}
-                alt={match.awayTeam}
-                className="w-9 h-9 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            ) : (
-              <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center text-[11px] font-bold shrink-0">
-                {match.awayTeam.slice(0, 2).toUpperCase()}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Watch button */}
-        <div className="mt-3 pt-2.5 border-t border-border/20">
-          <Button
-            size="sm"
-            onClick={handleQuickPlay}
-            disabled={findingStream}
-            className={`w-full h-8 gap-2 text-xs font-semibold rounded-lg transition-all ${
-              isLive
-                ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-600/20'
-                : 'bg-green-600 hover:bg-green-700 text-white shadow-sm shadow-green-600/20'
-            }`}
-          >
-            {findingStream ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                {t(language, 'match.searching')}
-              </>
-            ) : isLive ? (
-              <>
-                <Radio className="h-3.5 w-3.5 fill-current" />
-                {t(language, 'match.watchLive')}
-              </>
-            ) : (
-              <>
-                <Play className="h-3.5 w-3.5 fill-current" />
-                {t(language, 'match.watch')}
-              </>
-            )}
-          </Button>
-          {error && !findingStream && (
-            <div className="mt-2 space-y-2">
-              <p className="text-[11px] text-red-400/80 text-center">{error}</p>
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => {
-                    const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || ''} live stream`);
-                    window.open(`https://us-sport.eu/?s=${query}`, '_blank', 'noopener,noreferrer');
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition-colors text-[10px] font-medium text-blue-400"
-                >
-                  <Globe className="h-3 w-3" />
-                  SportStream
-                </button>
-                <button
-                  onClick={() => {
-                    window.open('https://tarjetarojaenvivo.cx', '_blank', 'noopener,noreferrer');
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-colors text-[10px] font-medium text-red-400"
-                >
-                  <Globe className="h-3 w-3" />
-                  RojaDirecta
-                </button>
-              </div>
+          {/* Teams */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              {match.homeLogo ? (
+                <img
+                  src={match.homeLogo}
+                  alt={match.homeTeam}
+                  className="w-9 h-9 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center text-[11px] font-bold shrink-0">
+                  {match.homeTeam.slice(0, 2).toUpperCase()}
+                </div>
+              )}
+              <span className={`font-semibold text-sm truncate ${homeFav ? 'text-green-500' : ''}`}>
+                {match.homeTeam}
+              </span>
+              <button
+                onClick={() => toggleTeamFavorite(match.homeTeam, match.homeLogo)}
+                className="shrink-0 ml-auto"
+                title={homeFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
+              >
+                <Heart className={`h-3.5 w-3.5 transition-colors ${homeFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
+              </button>
             </div>
-          )}
+
+            <div className="flex flex-col items-center shrink-0 px-1">
+              {isLive ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-lg font-black tabular-nums text-red-400">{match.homeScore ?? 0}</span>
+                  <span className="text-xs text-muted-foreground/40 font-medium">-</span>
+                  <span className="text-lg font-black tabular-nums text-red-400">{match.awayScore ?? 0}</span>
+                </div>
+              ) : (
+                <div className="px-3 py-1 rounded-md bg-muted/40 border border-border/20">
+                  <span className="text-xs font-bold text-muted-foreground/60 tracking-wider">VS</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2.5 flex-1 min-w-0 justify-end">
+              <button
+                onClick={() => toggleTeamFavorite(match.awayTeam, match.awayLogo)}
+                className="shrink-0"
+                title={awayFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
+              >
+                <Heart className={`h-3.5 w-3.5 transition-colors ${awayFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
+              </button>
+              <span className={`font-semibold text-sm truncate text-right ${awayFav ? 'text-green-500' : ''}`}>
+                {match.awayTeam}
+              </span>
+              {match.awayLogo ? (
+                <img
+                  src={match.awayLogo}
+                  alt={match.awayTeam}
+                  className="w-9 h-9 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center text-[11px] font-bold shrink-0">
+                  {match.awayTeam.slice(0, 2).toUpperCase()}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Watch button */}
+          <div className="mt-3 pt-2.5 border-t border-border/20">
+            <Button
+              size="sm"
+              onClick={() => setShowStreamOptions(true)}
+              className={`w-full h-8 gap-2 text-xs font-semibold rounded-lg transition-all ${
+                isLive
+                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-600/20'
+                  : 'bg-green-600 hover:bg-green-700 text-white shadow-sm shadow-green-600/20'
+              }`}
+            >
+              {isLive ? (
+                <>
+                  <Radio className="h-3.5 w-3.5 fill-current" />
+                  {t(language, 'match.watchLive')}
+                </>
+              ) : (
+                <>
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                  {t(language, 'match.watch')}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Stream Options Panel */}
+      <StreamOptions
+        isOpen={showStreamOptions}
+        onClose={() => setShowStreamOptions(false)}
+        homeTeam={match.homeTeam}
+        awayTeam={match.awayTeam}
+        competition={match.competition}
+        sport={sportType}
+      />
+    </>
   );
 }
 
