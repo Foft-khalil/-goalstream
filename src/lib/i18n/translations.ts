@@ -60,6 +60,7 @@ export interface Translations {
     share: string;
     copied: string;
     highlights: string;
+    externalSources: string;
   };
   basketball: {
     q1: string;
@@ -258,6 +259,11 @@ export interface Translations {
     back: string;
     live: string;
     liveStream: string;
+    resolvingStream: string;
+    iframeError: string;
+    iframeLoadTimeout: string;
+    tryDirectStream: string;
+    watchElsewhere: string;
   };
   footer: {
     description: string;
@@ -334,6 +340,7 @@ export const translations: Record<Language, Translations> = {
       share: 'Partager',
       copied: 'Copié !',
       highlights: 'Résumé vidéo',
+      externalSources: 'Sources externes',
     },
     basketball: {
       q1: 'Q1',
@@ -532,6 +539,11 @@ export const translations: Record<Language, Translations> = {
       back: 'Retour',
       live: 'DIRECT',
       liveStream: 'Diffusion en direct',
+      resolvingStream: 'Résolution du flux...',
+      iframeError: 'Le flux n\'a pas pu se charger',
+      iframeLoadTimeout: 'Le flux met trop de temps à se charger',
+      tryDirectStream: 'Essayer le flux direct',
+      watchElsewhere: 'Regarder ailleurs :',
     },
     footer: {
       description: 'Streaming sportif gratuit via IPTV',
@@ -606,6 +618,7 @@ export const translations: Record<Language, Translations> = {
       share: 'Share',
       copied: 'Copied!',
       highlights: 'Highlights',
+      externalSources: 'External sources',
     },
     basketball: {
       q1: 'Q1',
@@ -804,6 +817,11 @@ export const translations: Record<Language, Translations> = {
       back: 'Back',
       live: 'LIVE',
       liveStream: 'Live stream',
+      resolvingStream: 'Resolving stream...',
+      iframeError: 'Stream failed to load',
+      iframeLoadTimeout: 'Stream is taking too long to load',
+      tryDirectStream: 'Try direct stream',
+      watchElsewhere: 'Watch elsewhere:',
     },
     footer: {
       description: 'Free sports streaming via IPTV',
@@ -878,6 +896,7 @@ export const translations: Record<Language, Translations> = {
       share: 'مشاركة',
       copied: 'تم النسخ!',
       highlights: 'ملخصات',
+      externalSources: 'مصادر خارجية',
     },
     basketball: {
       q1: 'ر1',
@@ -1076,6 +1095,11 @@ export const translations: Record<Language, Translations> = {
       back: 'رجوع',
       live: 'مباشر',
       liveStream: 'بث مباشر',
+      resolvingStream: 'جاري تحليل البث...',
+      iframeError: 'فشل تحميل البث',
+      iframeLoadTimeout: 'البث يستغرق وقتاً طويلاً للتحميل',
+      tryDirectStream: 'تجربة البث المباشر',
+      watchElsewhere: 'شاهد في مكان آخر:',
     },
     footer: {
       description: 'بث رياضي مجاني عبر IPTV',
@@ -1150,6 +1174,7 @@ export const translations: Record<Language, Translations> = {
       share: 'Compartir',
       copied: '¡Copiado!',
       highlights: 'Resumen',
+      externalSources: 'Fuentes externas',
     },
     basketball: {
       q1: 'C1',
@@ -1348,6 +1373,11 @@ export const translations: Record<Language, Translations> = {
       back: 'Volver',
       live: 'EN VIVO',
       liveStream: 'Transmisión en vivo',
+      resolvingStream: 'Resolviendo stream...',
+      iframeError: 'El stream no se pudo cargar',
+      iframeLoadTimeout: 'El stream está tardando demasiado en cargar',
+      tryDirectStream: 'Probar stream directo',
+      watchElsewhere: 'Ver en otro sitio:',
     },
     footer: {
       description: 'Streaming deportivo gratuito vía IPTV',
@@ -1422,6 +1452,7 @@ export const translations: Record<Language, Translations> = {
       share: 'Compartilhar',
       copied: 'Copiado!',
       highlights: 'Melhores momentos',
+      externalSources: 'Fontes externas',
     },
     basketball: {
       q1: 'Q1',
@@ -1620,6 +1651,11 @@ export const translations: Record<Language, Translations> = {
       back: 'Voltar',
       live: 'AO VIVO',
       liveStream: 'Transmissão ao vivo',
+      resolvingStream: 'Resolvendo stream...',
+      iframeError: 'O stream não pôde ser carregado',
+      iframeLoadTimeout: 'O stream está demorando muito para carregar',
+      tryDirectStream: 'Tentar stream direto',
+      watchElsewhere: 'Assistir em outro site:',
     },
     footer: {
       description: 'Streaming esportivo gratuito via IPTV',

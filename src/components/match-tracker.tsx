@@ -846,7 +846,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                           homeTeam: match.homeTeam,
                           awayTeam: match.awayTeam,
                           competition: match.competition,
-                          sport: 'football',
+                          sport: match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') ? 'basketball' : 'football',
                         }),
                         signal: AbortSignal.timeout(8000),
                       });
@@ -869,9 +869,9 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                       // kora-api failed, fall through to IPTV
                     }
 
-                    // Step 2: IPTV fallback
+                    // Step 2: IPTV fallback (short timeout)
                     const controller = new AbortController();
-                    const timeout = setTimeout(() => controller.abort(), 45000);
+                    const timeout = setTimeout(() => controller.abort(), 10000);
 
                     const res = await fetch('/api/match-stream', {
                       method: 'POST',
@@ -881,7 +881,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                         awayTeam: match.awayTeam,
                         competition: match.competition,
                         matchDate: match.matchDate,
-                        sport: 'football',
+                        sport: match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') ? 'basketball' : 'football',
                       }),
                       signal: controller.signal,
                     });

@@ -136,41 +136,48 @@ export default function MatchCard({ match }: MatchCardProps) {
         // kora-api failed, fall through to IPTV
       }
 
-      // ── Step 2: IPTV fallback ──
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 45000);
+      // ── Step 2: IPTV fallback (short timeout — IPTV streams rarely work for live matches) ──
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
 
-      const res = await fetch('/api/match-stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          homeTeam: match.homeTeam,
-          awayTeam: match.awayTeam,
-          competition: match.competition,
-          matchDate: match.matchDate,
-          sport: sportType,
-        }),
-        signal: controller.signal,
-      });
+        const res = await fetch('/api/match-stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            competition: match.competition,
+            matchDate: match.matchDate,
+            sport: sportType,
+          }),
+          signal: controller.signal,
+        });
 
-      clearTimeout(timeout);
+        clearTimeout(timeout);
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to find channels');
-      }
-      const data = await res.json();
-      const channels = data.channels || [];
-      setFoundChannels(channels);
+        if (res.ok) {
+          const data = await res.json();
+          const channels = data.channels || [];
+          setFoundChannels(channels);
 
-      if (data.broadcasters && data.broadcasters.length > 0) {
-        setBroadcasterInfo(data.broadcasters.join(', '));
-      } else if (data.message) {
-        setBroadcasterInfo(null);
-      }
+          if (data.broadcasters && data.broadcasters.length > 0) {
+            setBroadcasterInfo(data.broadcasters.join(', '));
+          }
 
-      if (channels.length === 0 && koraStreams.length === 0) {
-        setError(t(language, 'match.noChannelFound'));
+          if (channels.length === 0 && koraStreams.length === 0) {
+            setError(t(language, 'match.noChannelFound'));
+          }
+        } else {
+          if (koraStreams.length === 0) {
+            setError(t(language, 'match.noChannelFound'));
+          }
+        }
+      } catch {
+        // IPTV failed, but kora-api/rojadirecta streams may already be available
+        if (koraStreams.length === 0) {
+          setError(t(language, 'match.noChannelFound'));
+        }
       }
     } catch (err: any) {
       console.error('Error finding channels:', err);
@@ -231,43 +238,49 @@ export default function MatchCard({ match }: MatchCardProps) {
         // kora-api failed, fall through to IPTV
       }
 
-      // ── Step 2: IPTV fallback ──
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 45000);
+      // ── Step 2: IPTV fallback (short timeout) ──
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
 
-      const res = await fetch('/api/match-stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          homeTeam: match.homeTeam,
-          awayTeam: match.awayTeam,
-          competition: match.competition,
-          matchDate: match.matchDate,
-          sport: sportType,
-        }),
-        signal: controller.signal,
-      });
+        const res = await fetch('/api/match-stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            competition: match.competition,
+            matchDate: match.matchDate,
+            sport: sportType,
+          }),
+          signal: controller.signal,
+        });
 
-      clearTimeout(timeout);
+        clearTimeout(timeout);
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to find channels');
-      }
-      const data = await res.json();
-      const channels: FoundChannel[] = data.channels || [];
+        if (res.ok) {
+          const data = await res.json();
+          const channels: FoundChannel[] = data.channels || [];
 
-      if (data.broadcasters && data.broadcasters.length > 0) {
-        setBroadcasterInfo(data.broadcasters.join(', '));
-      }
+          if (data.broadcasters && data.broadcasters.length > 0) {
+            setBroadcasterInfo(data.broadcasters.join(', '));
+          }
 
-      if (channels.length > 0) {
-        const first = channels[0];
-        const alternatives = channels.slice(1);
-        openPlayer(first.url, first.name, first.logo || undefined, alternatives);
-      } else {
+          if (channels.length > 0) {
+            const first = channels[0];
+            const alternatives = channels.slice(1);
+            openPlayer(first.url, first.name, first.logo || undefined, alternatives);
+          } else {
+            setError(t(language, 'match.noChannelFound'));
+            setFoundChannels(channels);
+            setShowChannels(true);
+          }
+        } else {
+          setError(t(language, 'match.noChannelFound'));
+          setShowChannels(true);
+        }
+      } catch {
         setError(t(language, 'match.noChannelFound'));
-        setFoundChannels(channels);
         setShowChannels(true);
       }
     } catch (err: any) {
@@ -602,12 +615,24 @@ export default function MatchCard({ match }: MatchCardProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm">{stream.langFlag}</span>
-                    <span className="text-xs font-medium truncate">{stream.lang} Stream</span>
-                    <span className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-green-500/10">
-                      <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-[8px] font-bold text-green-600">{t(language, 'channels.direct')}</span>
-                    </span>
+                    {stream.source === 'rojadirecta' ? (
+                      <>
+                        <span className="text-xs font-medium truncate">{stream.name}</span>
+                        <span className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-orange-500/10">
+                          <span className="w-1 h-1 rounded-full bg-orange-500 animate-pulse" />
+                          <span className="text-[8px] font-bold text-orange-600">LIVE</span>
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-sm">{stream.langFlag}</span>
+                        <span className="text-xs font-medium truncate">{stream.lang} Stream</span>
+                        <span className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-green-500/10">
+                          <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                          <span className="text-[8px] font-bold text-green-600">{t(language, 'channels.direct')}</span>
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover/ch:text-green-500 transition-colors shrink-0" />
@@ -662,7 +687,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           {/* External streaming sites */}
           <div className="mt-2 pt-2 border-t border-border/10">
             <p className="text-[9px] text-muted-foreground/40 font-semibold uppercase tracking-wider mb-1.5">
-              Sources externes
+              {t(language, 'match.externalSources')}
             </p>
             <div className="flex gap-1.5">
               <button

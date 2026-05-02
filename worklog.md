@@ -151,3 +151,29 @@ Stage Summary:
 - Video player no longer uses sandbox (allows nested iframes and fetch calls)
 - All embed URLs from kora-api (streams.center) are automatically proxied
 - Lint passes clean, dev server running without errors
+---
+Task ID: stream-fix-v2
+Agent: Main Agent
+Task: Fix streaming links by analyzing competitor sites and implementing same method
+
+Work Log:
+- Analyzed us-sport.eu: uses kora-api.space API → streams.center embed URLs → stream0.php proxy → nested iframes → decrypt.php → m3u8
+- Analyzed tarjetarojaenvivo.cx: uses pltvhd.com/diaries.json API → tvtvhd.com embed pages → canales.php → fubohd.com m3u8
+- Created /api/resolve-stream route: server-side embed chain resolver that follows iframe chains, finds m3u8 URLs, tries decrypt endpoints
+- Added tarjetaroja (pltvhd.com) API as additional stream source in /api/streams: fetches diaries.json, fuzzy matches teams, decodes base64 embed URLs, returns streams with real TV channel names (ESPN, Disney+, etc.)
+- Updated video-player.tsx: added resolve-stream integration (tries to extract m3u8 before iframe), fixed isHlsUrl function, added tvtvhd.com to proxy domains, added iframe error handling with 15s timeout, added external site buttons in error overlays
+- Added 5 new i18n keys for video player: resolvingStream, iframeError, iframeLoadTimeout, tryDirectStream, watchElsewhere
+- Reduced IPTV timeout from 45s to 10s in match-card, match-tracker, and favorites-view (IPTV rarely works for live matches)
+- Fixed hardcoded "Sources externes" → i18n key match.externalSources (all 5 languages)
+- Fixed match-tracker.tsx hardcoded sport: 'football' → auto-detect basketball
+- Added rojadirecta stream display in channel list with orange LIVE badge
+- All changes lint-clean
+- Deployed to Vercel: https://my-project-zeta-sand-20.vercel.app
+
+Stage Summary:
+- Streaming now uses same method as competitor sites: kora-api + rojadirecta dual source
+- New /api/resolve-stream endpoint tries to extract direct m3u8 from embed URLs
+- Video player tries resolving embed URLs to m3u8 for better playback experience
+- Added iframe error handling with timeout and external site fallbacks
+- Rojadirecta API provides streams with real TV channel names (ESPN, Disney+, Fox Sports, etc.)
+- IPTV fallback shortened to 10s timeout (was 45s) since it rarely works for live sports

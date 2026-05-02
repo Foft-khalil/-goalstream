@@ -2,7 +2,7 @@
 
 import Hls from 'hls.js';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { X, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Loader2, RefreshCw, Tv, SkipForward, ExternalLink } from 'lucide-react';
+import { X, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Loader2, RefreshCw, Tv, SkipForward, ExternalLink, Globe } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ type StreamStatus = 'loading' | 'ready' | 'error';
  * vs an iframe embed URL (needs to be shown in an iframe)
  */
 function isHlsUrl(url: string): boolean {
-  return url.includes('.m3u8') || url.includes('m3u8') || url.includes('/live/') && url.includes('.ts');
+  return url.includes('.m3u8') || url.includes('m3u8');
 }
 
 /**
@@ -28,6 +28,7 @@ function needsProxy(url: string): boolean {
     'kora-api.top',
     '000007.mov',
     'streamcenter.pro',
+    'tvtvhd.com',
   ];
   return proxyDomains.some(domain => url.includes(domain));
 }
@@ -46,6 +47,10 @@ function getProxiedUrl(url: string): string {
     return url;
   }
 }
+
+/** External site URLs for fallback viewing */
+const SPORTSTREAM_URL = 'https://us-sport.eu';
+const ROJADIRECTA_URL = 'https://tarjetarojaenvivo.cx';
 
 export default function VideoPlayer() {
   // language is used for i18n throughout this component
@@ -66,23 +71,107 @@ export default function VideoPlayer() {
   const [readyUrl, setReadyUrl] = useState<string>('');
   const [errorInfo, setErrorInfo] = useState<{ url: string; msg: string } | null>(null);
 
-  // Determine stream type
-  const isHls = playerStreamUrl ? isHlsUrl(playerStreamUrl) : true;
-  const isIframe = playerStreamUrl ? !isHlsUrl(playerStreamUrl) : false;
+  // Resolve-stream state: tracks whether we resolved an iframe URL to m3u8
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
+
+  // Iframe error/timeout state
+  const [iframeError, setIframeError] = useState(false);
+  const [iframeTimedOut, setIframeTimedOut] = useState(false);
+  const iframeTimerRef = useRef<NodeJS.Timeout>();
+
+  // The effective URL to play (resolved m3u8 takes priority over original URL)
+  const effectiveUrl = resolvedUrl || playerStreamUrl;
+
+  // Determine stream type based on the effective URL
+  const isHls = effectiveUrl ? isHlsUrl(effectiveUrl) : true;
+  const isIframe = effectiveUrl ? !isHlsUrl(effectiveUrl) : false;
 
   // For iframe streams, compute the actual URL to use (proxied if needed)
   const iframeSrc = useMemo(() => {
-    if (!isIframe || !playerStreamUrl) return '';
-    return getProxiedUrl(playerStreamUrl);
-  }, [isIframe, playerStreamUrl]);
+    if (!isIframe || !effectiveUrl) return '';
+    return getProxiedUrl(effectiveUrl);
+  }, [isIframe, effectiveUrl]);
 
   // For iframe streams, compute ready state directly instead of using an effect
-  const iframeReady = isIframe && !!playerStreamUrl;
+  const iframeReady = isIframe && !!effectiveUrl;
 
   // Compute derived state - auto-reset when URL changes
-  const streamReady = (isIframe ? iframeReady : (readyUrl === playerStreamUrl && !!playerStreamUrl));
-  const streamError = errorInfo?.url === playerStreamUrl ? errorInfo.msg : null;
-  const isLoading = isHls && playerVisible && !!playerStreamUrl && !streamReady && !streamError;
+  const streamReady = (isIframe ? iframeReady : (readyUrl === effectiveUrl && !!effectiveUrl));
+  const streamError = errorInfo?.url === effectiveUrl ? errorInfo.msg : null;
+  const isLoading = isHls && playerVisible && !!effectiveUrl && !streamReady && !streamError;
+
+  // Reset resolve/iframe state when the original URL changes
+  useEffect(() => {
+    setResolvedUrl(null);
+    setIsResolving(false);
+    setIframeError(false);
+    setIframeTimedOut(false);
+  }, [playerStreamUrl]);
+
+  // Resolve-stream: try to resolve iframe URLs to direct m3u8 in the background
+  // Don't block initial render — show iframe immediately while resolving
+  useEffect(() => {
+    if (!playerVisible || !playerStreamUrl) return;
+    // Only try resolving if it's an iframe URL (not already HLS)
+    if (isHlsUrl(playerStreamUrl)) return;
+    // Don't re-resolve if we already have a resolved URL for this stream
+    if (resolvedUrl) return;
+
+    let cancelled = false;
+    setIsResolving(true);
+
+    const resolveStream = async () => {
+      try {
+        const res = await fetch('/api/resolve-stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: playerStreamUrl }),
+        });
+
+        if (!res.ok) {
+          console.warn('[VideoPlayer] resolve-stream returned non-OK:', res.status);
+          return;
+        }
+
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (data.resolved && data.type === 'hls' && data.resolvedUrl) {
+          console.log('[VideoPlayer] Resolved to m3u8:', data.resolvedUrl);
+          setResolvedUrl(data.resolvedUrl);
+        } else {
+          console.log('[VideoPlayer] Could not resolve to m3u8, falling back to iframe');
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.warn('[VideoPlayer] resolve-stream error:', err);
+      } finally {
+        if (!cancelled) setIsResolving(false);
+      }
+    };
+
+    resolveStream();
+    return () => { cancelled = true; };
+  }, [playerVisible, playerStreamUrl]);
+
+  // Iframe timeout: show warning if iframe hasn't loaded after 15 seconds
+  useEffect(() => {
+    if (!isIframe || !playerVisible || !effectiveUrl) return;
+
+    setIframeError(false);
+    setIframeTimedOut(false);
+
+    iframeTimerRef.current = setTimeout(() => {
+      setIframeTimedOut(true);
+    }, 15000);
+
+    return () => {
+      if (iframeTimerRef.current) {
+        clearTimeout(iframeTimerRef.current);
+      }
+    };
+  }, [isIframe, playerVisible, effectiveUrl]);
 
   const hideControlsAfterDelay = useCallback(() => {
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
@@ -108,15 +197,12 @@ export default function VideoPlayer() {
     return false;
   }, [playerAlternatives, openPlayer]);
 
-  // Reset state when URL changes - use a key approach instead of setState in effect
-  const streamKey = useMemo(() => playerStreamUrl, [playerStreamUrl]);
-
-  // Setup HLS player (only for HLS URLs)
+  // Setup HLS player (only for HLS URLs, including resolved m3u8)
   useEffect(() => {
-    if (!playerVisible || !videoRef.current || !playerStreamUrl || !isHls) return;
+    if (!playerVisible || !videoRef.current || !effectiveUrl || !isHls) return;
 
     const video = videoRef.current;
-    const currentUrl = playerStreamUrl;
+    const currentUrl = effectiveUrl;
 
     // State auto-resets when URL changes (via derived computation above)
     retryCountRef.current = 0;
@@ -202,7 +288,7 @@ export default function VideoPlayer() {
         hlsRef.current = null;
       }
     };
-  }, [playerVisible, streamKey, tryNextChannel, isHls]);
+  }, [playerVisible, effectiveUrl, isHls, tryNextChannel, language]);
 
   // Lock body scroll when player is open
   useEffect(() => {
@@ -248,12 +334,65 @@ export default function VideoPlayer() {
     retryCountRef.current = 0;
     setReadyUrl('');
     setErrorInfo(null);
+    setResolvedUrl(null);
+    setIframeError(false);
+    setIframeTimedOut(false);
   };
 
   const handleSwitchChannel = (channel: { url: string; name: string; logo?: string }) => {
     retryCountRef.current = 0;
     openPlayer(channel.url, channel.name, channel.logo || undefined);
   };
+
+  /** Manually try to resolve the current iframe URL to a direct m3u8 stream */
+  const handleTryResolve = async () => {
+    if (!playerStreamUrl || isResolving) return;
+    setIframeError(false);
+    setIframeTimedOut(false);
+    setIsResolving(true);
+    try {
+      const res = await fetch('/api/resolve-stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: playerStreamUrl }),
+      });
+      const data = await res.json();
+      if (data.resolved && data.type === 'hls' && data.resolvedUrl) {
+        setResolvedUrl(data.resolvedUrl);
+      }
+    } catch {
+      // Silently fail — user can still use iframe or external sites
+    } finally {
+      setIsResolving(false);
+    }
+  };
+
+  /** Render external site fallback buttons (SportStream & RojaDirecta) */
+  const renderExternalSiteButtons = () => (
+    <div className="flex flex-col gap-1.5 w-full max-w-xs mt-2">
+      <p className="text-white/50 text-xs mb-1">{t(language, 'player.watchElsewhere')}</p>
+      <a
+        href={SPORTSTREAM_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-full flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
+      >
+        <Globe className="h-4 w-4 text-green-400 shrink-0" />
+        <span className="text-white text-sm truncate flex-1">SportStream</span>
+        <ExternalLink className="h-3.5 w-3.5 text-white/40 shrink-0" />
+      </a>
+      <a
+        href={ROJADIRECTA_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-full flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
+      >
+        <Globe className="h-4 w-4 text-red-400 shrink-0" />
+        <span className="text-white text-sm truncate flex-1">RojaDirecta</span>
+        <ExternalLink className="h-3.5 w-3.5 text-white/40 shrink-0" />
+      </a>
+    </div>
+  );
 
   if (!playerVisible) return null;
 
@@ -284,10 +423,16 @@ export default function VideoPlayer() {
             />
           )}
           <h2 className="text-white font-semibold text-lg truncate">{playerChannelName}</h2>
-          {isIframe && (
+          {isIframe && !isResolving && (
             <span className="text-green-400/80 text-xs ml-2 flex items-center gap-1">
               <ExternalLink className="h-3 w-3" />
               {t(language, 'player.live')}
+            </span>
+          )}
+          {isResolving && (
+            <span className="text-amber-400/80 text-xs ml-2 flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              {t(language, 'player.resolvingStream')}
             </span>
           )}
           {playerAlternatives && playerAlternatives.length > 0 && (
@@ -314,6 +459,10 @@ export default function VideoPlayer() {
             allowFullScreen
             title={`${t(language, 'player.liveStream')}: ${playerChannelName}`}
             referrerPolicy="no-referrer"
+            onError={() => {
+              console.warn('[VideoPlayer] iframe onError triggered');
+              setIframeError(true);
+            }}
           />
         ) : (
           /* HLS video element */
@@ -336,7 +485,7 @@ export default function VideoPlayer() {
           </div>
         )}
 
-        {/* Error Overlay */}
+        {/* Error Overlay (HLS & general errors) */}
         {streamError && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-4">
             <div className="flex flex-col items-center gap-4 text-center max-w-md">
@@ -390,9 +539,124 @@ export default function VideoPlayer() {
                   </div>
                 )}
 
+                {/* External site buttons */}
+                {renderExternalSiteButtons()}
+
                 <Button variant="outline" onClick={closePlayer} className="mt-1 border-white/20 text-white hover:bg-white/10">
                   {t(language, 'player.back')}
                 </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Iframe Error Overlay */}
+        {iframeError && !streamError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-4">
+            <div className="flex flex-col items-center gap-4 text-center max-w-md">
+              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
+                <Tv className="h-8 w-8 text-red-400" />
+              </div>
+              <div>
+                <p className="text-white font-semibold text-lg mb-1">{t(language, 'player.channelUnavailable')}</p>
+                <p className="text-white/60 text-sm">{t(language, 'player.iframeError')}</p>
+              </div>
+
+              <div className="flex flex-col gap-2 w-full max-w-xs">
+                <Button onClick={handleRetry} className="bg-white/10 hover:bg-white/20 text-white gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  {t(language, 'player.retry')}
+                </Button>
+
+                <Button
+                  onClick={handleTryResolve}
+                  disabled={isResolving}
+                  className="bg-white/10 hover:bg-white/20 text-white gap-2"
+                >
+                  {isResolving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+                  {t(language, 'player.tryDirectStream')}
+                </Button>
+
+                {playerAlternatives && playerAlternatives.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-white/50 text-xs mb-2">{t(language, 'player.otherChannelsLabel')}</p>
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                      {playerAlternatives.map((ch, idx) => (
+                        <button
+                          key={`err-${ch.url}-${idx}`}
+                          onClick={() => handleSwitchChannel(ch)}
+                          className="w-full flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
+                        >
+                          {ch.logo ? (
+                            <img
+                              src={ch.logo}
+                              alt=""
+                              className="w-6 h-6 rounded object-contain shrink-0"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center shrink-0">
+                              <Tv className="h-3 w-3 text-white/50" />
+                            </div>
+                          )}
+                          <span className="text-white text-sm truncate flex-1">{ch.name}</span>
+                          <SkipForward className="h-3.5 w-3.5 text-white/40 shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* External site buttons */}
+                {renderExternalSiteButtons()}
+
+                <Button variant="outline" onClick={closePlayer} className="mt-1 border-white/20 text-white hover:bg-white/10">
+                  {t(language, 'player.back')}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Iframe Timeout Warning (non-blocking, appears at bottom) */}
+        {iframeTimedOut && !iframeError && !streamError && isIframe && (
+          <div className="absolute bottom-16 left-4 right-4 z-20 max-w-md mx-auto">
+            <div className="bg-amber-900/80 backdrop-blur-sm border border-amber-500/30 rounded-lg p-3">
+              <p className="text-amber-200 text-sm font-medium mb-2">
+                {t(language, 'player.iframeLoadTimeout')}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleTryResolve}
+                  disabled={isResolving}
+                  className="bg-amber-700/60 hover:bg-amber-600/60 text-amber-100 gap-1.5 text-xs h-8"
+                >
+                  {isResolving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
+                  {t(language, 'player.tryDirectStream')}
+                </Button>
+                <a
+                  href={SPORTSTREAM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button size="sm" className="bg-amber-700/60 hover:bg-amber-600/60 text-amber-100 gap-1.5 text-xs h-8">
+                    <ExternalLink className="h-3 w-3" />
+                    SportStream
+                  </Button>
+                </a>
+                <a
+                  href={ROJADIRECTA_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button size="sm" className="bg-amber-700/60 hover:bg-amber-600/60 text-amber-100 gap-1.5 text-xs h-8">
+                    <ExternalLink className="h-3 w-3" />
+                    RojaDirecta
+                  </Button>
+                </a>
               </div>
             </div>
           </div>

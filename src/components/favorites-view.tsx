@@ -82,9 +82,9 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
         // kora-api failed, fall through to IPTV
       }
 
-      // ── Step 2: IPTV fallback ──
+      // ── Step 2: IPTV fallback (short timeout) ──
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 45000);
+      const timeout = setTimeout(() => controller.abort(), 10000);
 
       const res = await fetch('/api/match-stream', {
         method: 'POST',
