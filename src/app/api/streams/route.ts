@@ -79,7 +79,6 @@ function setCachedMatches(key: string, data: KoraMatch[]): void {
 async function fetchAllMatches(categoryIds?: number[]): Promise<KoraMatch[]> {
   const cacheKey = categoryIds ? `matches-cats-${categoryIds.join(',')}` : 'matches-all';
 
-  // Check cache first
   const cached = getCachedMatches(cacheKey);
   if (cached) {
     console.log(`[Streams API] Cache hit for key: ${cacheKey} (${cached.length} matches)`);
@@ -109,21 +108,17 @@ async function fetchAllMatches(categoryIds?: number[]): Promise<KoraMatch[]> {
       const data: KoraMatchesResponse = await res.json();
       totalMatches = data.total;
 
-      // Filter by category IDs if specified
       const filtered = categoryIds
         ? data.data.filter((m) => categoryIds.includes(m.category.id))
         : data.data;
 
       allMatches.push(...filtered);
 
-      // If this page returned fewer than perPage results, we're done
       if (data.data.length < perPage) break;
-
       page++;
     }
   } catch (err) {
     console.warn('[Streams API] Error fetching from kora-api:', err);
-    // Return whatever we have so far (could be partial)
   }
 
   console.log(`[Streams API] Fetched ${allMatches.length} matches from kora-api`);
@@ -133,29 +128,12 @@ async function fetchAllMatches(categoryIds?: number[]): Promise<KoraMatch[]> {
 
 // ─── Fuzzy team name matching ────────────────────────────────────────────────
 
-// Common suffixes/prefixes to strip for normalization
 const TEAM_NAME_STRIP_PATTERNS = [
-  /\bFC\b/gi,
-  /\bCF\b/gi,
-  /\bSC\b/gi,
-  /\bAC\b/gi,
-  /\bAS\b/gi,
-  /\bSS\b/gi,
-  /\bRC\b/gi,
-  /\bCD\b/gi,
-  /\bCA\b/gi,
-  /\bSL\b/gi,
-  /\bSD\b/gi,
-  /\bSA\b/gi,
-  /\bAFC\b/gi,
-  /\bSFC\b/gi,
-  /\bBFC\b/gi,
-  /\bInc\b/gi,
-  /\bClub\b/gi,
-  /\bTeam\b/gi,
+  /\bFC\b/gi, /\bCF\b/gi, /\bSC\b/gi, /\bAC\b/gi, /\bAS\b/gi, /\bSS\b/gi,
+  /\bRC\b/gi, /\bCD\b/gi, /\bCA\b/gi, /\bSL\b/gi, /\bSD\b/gi, /\bSA\b/gi,
+  /\bAFC\b/gi, /\bSFC\b/gi, /\bBFC\b/gi, /\bInc\b/gi, /\bClub\b/gi, /\bTeam\b/gi,
 ];
 
-// Known abbreviations for fuzzy matching
 const TEAM_ABBREVIATIONS: Record<string, string[]> = {
   'psg': ['paris saint-germain', 'paris sg', 'paris saint germain'],
   'paris saint-germain': ['psg', 'paris sg'],
@@ -208,35 +186,59 @@ const TEAM_ABBREVIATIONS: Record<string, string[]> = {
   'charlotte hornets': ['hornets'],
   'orlando magic': ['magic'],
   'new york knicks': ['knicks'],
-  'san antonio spurs': ['spurs'],
+  // Saudi Pro League teams
+  'al hilal': ['hilal', 'al-hilal'],
+  'al nassr': ['nassr', 'al-nassr', 'nassr riyadh'],
+  'al ittihad': ['ittihad', 'al-ittihad', 'ittihad jeddah'],
+  'al ahli': ['ahli', 'al-ahli', 'ahli jeddah'],
+  'al shabab': ['shabab', 'al-shabab'],
+  'al raed': ['raed', 'al-raed'],
+  'al taawoun': ['taawoun', 'al-taawoun'],
+  'damac': ['damac fc'],
+  'abha': ['abha club'],
+  'al fateh': ['fateh', 'al-fateh'],
+  'al faisaly': ['faisaly', 'al-faisaly'],
+  'hazen': ['hazen fc', 'al-hazen'],
+  'al khaleej': ['khaleej', 'al-khaleej'],
+  'al wehda': ['wehda', 'al-wehda', 'al wahda'],
+  'al ridha': ['ridha', 'al-ridha'],
+  // MLS teams
+  'inter miami': ['miami', 'inter miami cf'],
+  'la galaxy': ['galaxy', 'los angeles galaxy'],
+  'new york city': ['nyc fc', 'new york city fc'],
+  'seattle sounders': ['sounders'],
+  'atlanta united': ['atlanta utd'],
+  'portland timbers': ['timbers'],
+  // More common teams
+  'benfica': ['sl benfica', 'sporting lisbon'],
+  'porto': ['fc porto'],
+  'sporting cp': ['sporting lisbon', 'sporting clube'],
+  'ajax': ['afc ajax'],
+  'psv': ['psv eindhoven'],
+  'feyenoord': ['feyenoord rotterdam'],
+  'galatasaray': ['galatasaray sk'],
+  'fenerbahce': ['fenerbahce sk'],
+  'besiktas': ['besiktas jk'],
+  'celtic': ['celtic fc'],
+  'rangers': ['rangers fc'],
 };
 
 function normalizeTeamName(name: string): string {
   let normalized = name.toLowerCase().trim();
-  // Remove content in parentheses
   normalized = normalized.replace(/\([^)]*\)/g, '');
-  // Strip common suffixes
   for (const pattern of TEAM_NAME_STRIP_PATTERNS) {
     normalized = normalized.replace(pattern, '');
   }
-  // Remove extra whitespace
   normalized = normalized.replace(/\s+/g, ' ').trim();
-  // Remove trailing/leading hyphens and dots
   normalized = normalized.replace(/[-.]+$/, '').trim();
   return normalized;
 }
 
-/**
- * Get all possible normalized variants of a team name for matching.
- */
 function getTeamVariants(teamName: string): string[] {
   const normalized = normalizeTeamName(teamName);
   const variants = new Set<string>([normalized]);
-
-  // Add the original lowercase
   variants.add(teamName.toLowerCase().trim());
 
-  // Check known abbreviations
   const lower = teamName.toLowerCase().trim();
   for (const [key, values] of Object.entries(TEAM_ABBREVIATIONS)) {
     if (lower === key || normalized === key) {
@@ -245,7 +247,6 @@ function getTeamVariants(teamName: string): string[] {
         variants.add(normalizeTeamName(v));
       }
     }
-    // Also check if the input matches one of the abbreviation values
     if (values.some(v => lower === v || normalized === v)) {
       variants.add(key);
       variants.add(normalizeTeamName(key));
@@ -259,35 +260,65 @@ function getTeamVariants(teamName: string): string[] {
   return Array.from(variants).filter(Boolean);
 }
 
-/**
- * Check if a team name appears in a match name using fuzzy matching.
- * The match name format is typically "Team1 vs Team2" or "Team1 at Team2".
- */
 function teamMatchesInName(teamVariants: string[], matchName: string): boolean {
   const matchLower = matchName.toLowerCase();
 
   for (const variant of teamVariants) {
     if (!variant) continue;
+    if (matchLower.includes(variant)) return true;
 
-    // Direct substring match
-    if (matchLower.includes(variant)) {
-      return true;
-    }
-
-    // Word-level matching: split the variant into words and check if most key words appear
     const variantWords = variant.split(/\s+/).filter(w => w.length > 2);
     if (variantWords.length > 1) {
       const matchCount = variantWords.filter(w => matchLower.includes(w)).length;
-      // If most words match, consider it a match
-      if (matchCount >= Math.ceil(variantWords.length * 0.6)) {
-        return true;
-      }
+      if (matchCount >= Math.ceil(variantWords.length * 0.6)) return true;
     }
 
-    // Check for single-word match if the variant is long enough
-    if (variant.length >= 4 && matchLower.includes(variant)) {
-      return true;
+    if (variant.length >= 4 && matchLower.includes(variant)) return true;
+  }
+
+  return false;
+}
+
+// ─── Competition name to kora-api category matching ────────────────────────
+// Maps our competition names to kora-api category names for fallback matching
+const COMPETITION_TO_KORA_CATEGORY: Record<string, string[]> = {
+  'ligue 1': ['ligue 1', 'ligue1', 'france ligue 1'],
+  'premier league': ['premier league', 'premierleague', 'epl', 'english premier'],
+  'la liga': ['la liga', 'laliga', 'spanish la liga', 'liga ea sports'],
+  'serie a': ['serie a', 'seriea', 'italian serie a'],
+  'bundesliga': ['bundesliga', 'german bundesliga'],
+  'champions league': ['champions league', 'championsleague', 'ucl', 'uefa champions'],
+  'europa league': ['europa league', 'europaleague', 'uel', 'uefa europa'],
+  'conference league': ['conference league', 'uefa conference'],
+  'liga portugal': ['liga portugal', 'portuguese liga', 'liga bwin'],
+  'eredivisie': ['eredivisie', 'dutch eredivisie'],
+  'süper lig': ['süper lig', 'super lig', 'turkish süper', 'turkish super'],
+  'brasileirão': ['brasileirão', 'brasileirao', 'brazilian serie a', 'brasileiro'],
+  'liga profesional': ['liga profesional', 'argentine liga', 'liga argentina'],
+  'liga mx': ['liga mx', 'ligamx', 'mexican liga'],
+  'mls': ['mls', 'major league soccer'],
+  'saudi pro league': ['saudi pro league', 'saudi professional', 'saudi league', 'spl'],
+  'afc champions league': ['afc champions', 'afc champions league'],
+  'caf champions league': ['caf champions', 'caf champions league'],
+  'nba': ['nba', 'national basketball'],
+  'euroleague': ['euroleague', 'euro league'],
+  'ncaa': ['ncaa', 'college basketball'],
+  'fifa': ['fifa', 'world cup'],
+};
+
+function competitionMatchesKoraCategory(competition: string, koraCategoryName: string): boolean {
+  const compLower = competition.toLowerCase();
+  const catLower = koraCategoryName.toLowerCase();
+
+  for (const [compKey, catKeys] of Object.entries(COMPETITION_TO_KORA_CATEGORY)) {
+    if (compLower.includes(compKey)) {
+      return catKeys.some(ck => catLower.includes(ck) || ck.includes(catLower));
     }
+  }
+
+  // Direct substring match between competition and category name
+  if (compLower.length > 3 && catLower.length > 3) {
+    if (compLower.includes(catLower) || catLower.includes(compLower)) return true;
   }
 
   return false;
@@ -312,8 +343,6 @@ export async function POST(request: NextRequest) {
     }
 
     const sportLower = (sport || 'football').toLowerCase();
-
-    // Determine category IDs to filter by
     const categoryIds = SPORT_CATEGORY_IDS[sportLower];
 
     // Fetch matches from kora-api
@@ -334,10 +363,8 @@ export async function POST(request: NextRequest) {
     const awayVariants = getTeamVariants(awayTeam);
 
     console.log(`[Streams API] Searching for: "${homeTeam}" vs "${awayTeam}" (${sportLower})`);
-    console.log(`[Streams API] Home variants: ${homeVariants.join(', ')}`);
-    console.log(`[Streams API] Away variants: ${awayVariants.join(', ')}`);
 
-    // Find the best matching match
+    // ─── Step 1: Try exact team name matching (best quality) ──────────────
     let bestMatch: KoraMatch | null = null;
     let bestScore = 0;
 
@@ -347,17 +374,10 @@ export async function POST(request: NextRequest) {
       const homeInName = teamMatchesInName(homeVariants, match.name);
       const awayInName = teamMatchesInName(awayVariants, match.name);
 
-      // Both teams must match for a valid result
       if (homeInName) score += 50;
       if (awayInName) score += 50;
-
-      // Bonus for live matches
       if (match.is_live) score += 10;
-
-      // Bonus for having streams available
       if (match.streams && match.streams.length > 0) score += 5;
-
-      // Bonus for more streams
       if (match.streams) score += Math.min(match.streams.length, 5);
 
       if (score > bestScore && homeInName && awayInName) {
@@ -366,8 +386,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ─── Step 2: Try partial team name matching (one team matches) ────────
     if (!bestMatch) {
-      // Try a more lenient match: at least one team matches
       for (const match of matches) {
         const homeInName = teamMatchesInName(homeVariants, match.name);
         const awayInName = teamMatchesInName(awayVariants, match.name);
@@ -378,6 +398,56 @@ export async function POST(request: NextRequest) {
             bestScore = score;
             bestMatch = match;
           }
+        }
+      }
+    }
+
+    // ─── Step 3: Try competition/category matching ───────────────────────
+    // If no direct team match found, look for streams from the same competition
+    if (!bestMatch && competition) {
+      console.log(`[Streams API] Trying competition matching for: "${competition}"`);
+
+      let bestCompMatch: KoraMatch | null = null;
+      let bestCompScore = 0;
+
+      for (const match of matches) {
+        if (!match.streams || match.streams.length === 0) continue;
+
+        const catMatches = competitionMatchesKoraCategory(competition, match.category.name);
+
+        if (catMatches) {
+          let score = match.streams.length * 5;
+          if (match.is_live) score += 20; // Strongly prefer live matches
+          score += 10; // Base score for category match
+
+          if (score > bestCompScore) {
+            bestCompScore = score;
+            bestCompMatch = match;
+          }
+        }
+      }
+
+      if (bestCompMatch) {
+        bestMatch = bestCompMatch;
+        console.log(`[Streams API] Found competition match: "${bestCompMatch.name}" (${bestCompMatch.category.name})`);
+      }
+    }
+
+    // ─── Step 4: Try any live match with streams from the same sport ──────
+    // As a last resort, find any live match with streams from the same category
+    if (!bestMatch) {
+      const liveWithStreams = matches.filter(m => m.is_live && m.streams && m.streams.length > 0);
+      if (liveWithStreams.length > 0) {
+        // Prefer matches from the same category if competition matches
+        if (competition) {
+          const categoryMatch = liveWithStreams.find(m =>
+            competitionMatchesKoraCategory(competition, m.category.name)
+          );
+          if (categoryMatch) bestMatch = categoryMatch;
+        }
+        // If still no match, take the first live match with most streams
+        if (!bestMatch) {
+          bestMatch = liveWithStreams.sort((a, b) => (b.streams?.length || 0) - (a.streams?.length || 0))[0];
         }
       }
     }
@@ -401,12 +471,19 @@ export async function POST(request: NextRequest) {
       source: 'kora-api',
     }));
 
-    console.log(`[Streams API] Found match: "${bestMatch.name}" with ${streams.length} streams (live: ${bestMatch.is_live})`);
+    // Determine match quality for the response
+    const isExactMatch = bestScore >= 100; // Both teams matched
+    const isCompetitionMatch = bestScore < 100 && bestScore > 0;
+
+    console.log(`[Streams API] Found match: "${bestMatch.name}" with ${streams.length} streams (live: ${bestMatch.is_live}, exact: ${isExactMatch})`);
 
     return NextResponse.json({
       streams,
       matchId: bestMatch.id,
+      matchName: bestMatch.name,
       isLive: bestMatch.is_live,
+      isExactMatch,
+      isCompetitionMatch: !isExactMatch,
       source: 'kora-api',
     });
   } catch (err) {
@@ -419,7 +496,7 @@ export async function POST(request: NextRequest) {
         source: 'kora-api',
         error: err instanceof Error ? err.message : 'Failed to fetch streams',
       },
-      { status: 200 } // Return 200 with empty streams rather than 500 to be resilient
+      { status: 200 }
     );
   }
 }

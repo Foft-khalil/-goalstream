@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { X, RefreshCw, Loader2, Circle, Square, ArrowRightLeft, AlertTriangle, Eye, Tv, MapPin, Users, Clock, Trophy, BarChart3, Star } from 'lucide-react';
+import { X, RefreshCw, Loader2, Circle, Square, ArrowRightLeft, AlertTriangle, Eye, Tv, MapPin, Users, Clock, Trophy, BarChart3, Star, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import DynamicFootballPitch from '@/components/dynamic-football-pitch';
@@ -827,7 +827,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
 
           {/* Watch live button — only for live or about-to-start matches */}
           {canWatchLive && (
-            <div className="mt-6">
+            <div className="mt-6 space-y-2">
               <Button
                 className={`w-full gap-2 h-10 font-semibold ${
                   isLive
@@ -836,6 +836,39 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                 }`}
                 onClick={async () => {
                   try {
+                    // Step 1: Try kora-api first (fast, direct streaming)
+                    try {
+                      const koraRes = await fetch('/api/streams', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          homeTeam: match.homeTeam,
+                          awayTeam: match.awayTeam,
+                          competition: match.competition,
+                          sport: 'football',
+                        }),
+                        signal: AbortSignal.timeout(8000),
+                      });
+
+                      if (koraRes.ok) {
+                        const koraData = await koraRes.json();
+                        if (koraData.streams && koraData.streams.length > 0) {
+                          const first = koraData.streams[0];
+                          const alternatives = koraData.streams.slice(1).map((s: any) => ({
+                            name: `${s.langFlag} ${s.name}`,
+                            url: s.url,
+                            logo: '',
+                          }));
+                          openPlayer(first.url, `${first.langFlag} ${first.name}`, undefined, alternatives);
+                          onClose();
+                          return;
+                        }
+                      }
+                    } catch {
+                      // kora-api failed, fall through to IPTV
+                    }
+
+                    // Step 2: IPTV fallback
                     const controller = new AbortController();
                     const timeout = setTimeout(() => controller.abort(), 45000);
 
@@ -872,6 +905,33 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                 <Tv className="h-4 w-4" />
                 {isLive ? 'Regarder en direct' : 'Regarder le match'}
               </Button>
+
+              {/* External streaming links */}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-1.5 text-xs h-8 border-border/40"
+                  onClick={() => {
+                    const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || ''} live stream`);
+                    window.open(`https://us-sport.eu/?s=${query}`, '_blank', 'noopener,noreferrer');
+                  }}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  SportStream
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-1.5 text-xs h-8 border-border/40"
+                  onClick={() => {
+                    window.open('https://tarjetarojaenvivo.cx', '_blank', 'noopener,noreferrer');
+                  }}
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  RojaDirecta
+                </Button>
+              </div>
             </div>
           )}
         </div>

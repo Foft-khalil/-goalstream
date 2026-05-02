@@ -467,12 +467,48 @@ export default function MatchCard({ match }: MatchCardProps) {
               <Tv className="h-3.5 w-3.5" />
             </Button>
           )}
+          {/* External streaming site button */}
+          {canWatchLive && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || ''} live stream`);
+                window.open(`https://us-sport.eu/?s=${query}`, '_blank', 'noopener,noreferrer');
+              }}
+              className="h-8 px-3 rounded-lg border-blue-500/30 text-blue-400 hover:bg-blue-500/10 text-xs gap-1"
+              title="Regarder sur SportStream"
+            >
+              <Globe className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
 
         {/* Error message */}
         {error && !findingStream && (
-          <div className="mt-2 text-[11px] text-red-400/80 text-center">
-            {error}
+          <div className="mt-2 space-y-2">
+            <p className="text-[11px] text-red-400/80 text-center">{error}</p>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => {
+                  const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || ''} live stream`);
+                  window.open(`https://us-sport.eu/?s=${query}`, '_blank', 'noopener,noreferrer');
+                }}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition-colors text-[10px] font-medium text-blue-400"
+              >
+                <Globe className="h-3 w-3" />
+                SportStream
+              </button>
+              <button
+                onClick={() => {
+                  window.open('https://tarjetarojaenvivo.cx', '_blank', 'noopener,noreferrer');
+                }}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-colors text-[10px] font-medium text-red-400"
+              >
+                <Globe className="h-3 w-3" />
+                RojaDirecta
+              </button>
+            </div>
           </div>
         )}
 
@@ -500,7 +536,7 @@ export default function MatchCard({ match }: MatchCardProps) {
               </span>
             )}
           </div>
-          <div className="max-h-40 overflow-y-auto space-y-1">
+          <div className="max-h-48 overflow-y-auto space-y-1">
             {/* Kora API streams (primary — direct streaming links) */}
             {koraStreams.map((stream, idx) => (
               <button
@@ -568,6 +604,34 @@ export default function MatchCard({ match }: MatchCardProps) {
                 <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover/ch:text-green-500 transition-colors shrink-0" />
               </button>
             ))}
+          </div>
+
+          {/* External streaming sites */}
+          <div className="mt-2 pt-2 border-t border-border/10">
+            <p className="text-[9px] text-muted-foreground/40 font-semibold uppercase tracking-wider mb-1.5">
+              Sources externes
+            </p>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => {
+                  const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || ''} live stream`);
+                  window.open(`https://us-sport.eu/?s=${query}`, '_blank', 'noopener,noreferrer');
+                }}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition-colors text-[10px] font-medium text-blue-400"
+              >
+                <Globe className="h-3 w-3" />
+                SportStream
+              </button>
+              <button
+                onClick={() => {
+                  window.open('https://tarjetarojaenvivo.cx', '_blank', 'noopener,noreferrer');
+                }}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-colors text-[10px] font-medium text-red-400"
+              >
+                <Globe className="h-3 w-3" />
+                RojaDirecta
+              </button>
+            </div>
           </div>
         </div>
       )}
