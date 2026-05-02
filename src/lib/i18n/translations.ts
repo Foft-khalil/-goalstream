@@ -122,6 +122,7 @@ export interface Translations {
     copaAmericaMessage: string;
     asianCupMessage: string;
     goldCupMessage: string;
+    womenFriendlyMessage: string;
     ranking: string;
     topScorers: string;
     goals: string;
@@ -413,6 +414,7 @@ export const translations: Record<Language, Translations> = {
       copaAmericaMessage: 'La prochaine Copa América aura lieu en 2028. Les groupes seront communiqués ultérieurement.',
       asianCupMessage: "La prochaine Coupe d'Asie aura lieu en 2027 en Arabie Saoudite. Les qualifications sont en cours.",
       goldCupMessage: 'La prochaine Gold Cup aura lieu en 2027. Les détails seront communiqués ultérieurement.',
+      womenFriendlyMessage: "Les matchs amicaux n'ont pas de classement. Consultez les résultats dans l'onglet Matchs.",
       ranking: 'classement',
       topScorers: 'Meilleurs buteurs',
       goals: 'Buts',
@@ -702,6 +704,7 @@ export const translations: Record<Language, Translations> = {
       copaAmericaMessage: 'The next Copa América will take place in 2028. Groups will be announced later.',
       asianCupMessage: 'The next Asian Cup will take place in 2027 in Saudi Arabia. Qualifications are ongoing.',
       goldCupMessage: 'The next Gold Cup will take place in 2027. Details will be announced later.',
+      womenFriendlyMessage: 'Friendly matches do not have standings. Check results in the Matches tab.',
       ranking: 'ranking',
       topScorers: 'Top Scorers',
       goals: 'Goals',
@@ -991,6 +994,7 @@ export const translations: Record<Language, Translations> = {
       copaAmericaMessage: 'ستقام كوبا أمريكا القادمة في 2028. سيتم الإعلان عن المجموعات لاحقاً.',
       asianCupMessage: 'ستقام كأس آسيا القادمة في 2027 في السعودية. التصفيات جارية.',
       goldCupMessage: 'ستقام كأس الكونكاكاف الذهبية القادمة في 2027. سيتم الإعلان عن التفاصيل لاحقاً.',
+      womenFriendlyMessage: 'المباريات الودية ليس لها ترتيب. تحقق من النتائج في علامة تبويب المباريات.',
       ranking: 'ترتيب',
       topScorers: 'الهدافون',
       goals: 'أهداف',
@@ -1280,6 +1284,7 @@ export const translations: Record<Language, Translations> = {
       copaAmericaMessage: 'La próxima Copa América se celebrará en 2028. Los grupos se anunciarán más adelante.',
       asianCupMessage: 'La próxima Copa Asiática se celebrará en 2027 en Arabia Saudita. Las clasificaciones están en curso.',
       goldCupMessage: 'La próxima Copa de Oro se celebrará en 2027. Los detalles se anunciarán más adelante.',
+      womenFriendlyMessage: 'Los partidos amistosos no tienen clasificación. Consulte los resultados en la pestaña de Partidos.',
       ranking: 'clasificación',
       topScorers: 'Máximos goleadores',
       goals: 'Goles',
@@ -1569,6 +1574,7 @@ export const translations: Record<Language, Translations> = {
       copaAmericaMessage: 'A próxima Copa América será em 2028. Os grupos serão anunciados posteriormente.',
       asianCupMessage: 'A próxima Copa da Ásia será em 2027 na Arábia Saudita. As eliminatórias estão em andamento.',
       goldCupMessage: 'A próxima Copa Ouro será em 2027. Os detalhes serão anunciados posteriormente.',
+      womenFriendlyMessage: 'Jogos amigáveis não têm classificação. Confira os resultados na aba de Jogos.',
       ranking: 'classificação',
       topScorers: 'Artilheiros',
       goals: 'Gols',

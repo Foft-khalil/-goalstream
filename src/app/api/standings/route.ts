@@ -617,16 +617,49 @@ async function fetchNBAStandings(): Promise<ParsedStanding[]> {
   return results;
 }
 
+// ─── Women's Friendlies Placeholder ──────────────────────────────────────────
+
+function getWomenFriendliesPlaceholder(): ParsedStanding {
+  const teams: ParsedTeam[] = [
+    { rank: 1, team: 'France 🇫🇷', shortName: '🇫🇷 France', logo: null, teamId: 'wf_fra', leagueCode: 'fifa.friendly.w', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 2, team: 'Angleterre 🏴󠁧󠁢󠁥󠁮󠁧󠁿', shortName: '🏴󠁧󠁢󠁥󠁮󠁧󠁿 Angleterre', logo: null, teamId: 'wf_eng', leagueCode: 'fifa.friendly.w', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 3, team: 'Espagne 🇪🇸', shortName: '🇪🇸 Espagne', logo: null, teamId: 'wf_esp', leagueCode: 'fifa.friendly.w', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 4, team: 'Allemagne 🇩🇪', shortName: '🇩🇪 Allemagne', logo: null, teamId: 'wf_ger', leagueCode: 'fifa.friendly.w', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 5, team: 'États-Unis 🇺🇸', shortName: '🇺🇸 États-Unis', logo: null, teamId: 'wf_usa', leagueCode: 'fifa.friendly.w', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 6, team: 'Brésil 🇧🇷', shortName: '🇧🇷 Brésil', logo: null, teamId: 'wf_bra', leagueCode: 'fifa.friendly.w', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 7, team: 'Japon 🇯🇵', shortName: '🇯🇵 Japon', logo: null, teamId: 'wf_jpn', leagueCode: 'fifa.friendly.w', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 8, team: 'Canada 🇨🇦', shortName: '🇨🇦 Canada', logo: null, teamId: 'wf_can', leagueCode: 'fifa.friendly.w', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+  ];
+  return {
+    league: "Matchs Amicaux Féminins",
+    flag: '🌍',
+    season: 'International — Fenêtres FIFA 2026',
+    leagueCode: 'fifa.friendly.w',
+    teams,
+    isGroup: false,
+    placeholder: true,
+    placeholderMessage: "Les matchs amicaux n'ont pas de classement. Consultez les résultats dans l'onglet Matchs.",
+    placeholderInfo: {
+      'Prochaine fenêtre': '6–9 juin 2026',
+      'Format': 'Matchs amicaux internationaux — pas de classement',
+      'Équipes': 'Sélections nationales féminines',
+      'Statut': 'Consultez les matchs en direct dans l\'onglet Matchs',
+    },
+  };
+}
+
 // ─── Friendly error messages for specific competitions ───────────────────────
 
 function getFriendlyErrorMessage(code: string, leagueName: string, originalError: string): string {
   switch (code) {
+    // Men's national team competitions
     case 'uefa.euro':
       return `${leagueName}: Les données de l'Euro ne sont pas encore disponibles pour le prochain tournoi`;
     case 'uefa.nations':
       return `${leagueName}: Les données de la Ligue des Nations ne sont pas disponibles — la compétition est peut-être entre deux éditions`;
     case 'caf.nations':
       return `${leagueName}: Les données de la CAN ne sont pas disponibles actuellement`;
+    // Men's club cups
     case 'uefa.champions':
       return `${leagueName}: Les données ne sont pas disponibles — la compétition est peut-être en pause`;
     case 'uefa.europa':
@@ -641,6 +674,7 @@ function getFriendlyErrorMessage(code: string, leagueName: string, originalError
       return `${leagueName}: Les données ne sont pas disponibles actuellement — la compétition est peut-être en pause entre les phases`;
     case 'caf.champions':
       return `${leagueName}: Les données ne sont pas disponibles actuellement — la compétition est peut-être en pause entre les phases`;
+    // Men's placeholders
     case 'conmebol.america':
       return `${leagueName}: La Copa América n'a pas de classement en cours — le prochain tournoi sera en 2028`;
     case 'concacaf.gold':
@@ -649,6 +683,25 @@ function getFriendlyErrorMessage(code: string, leagueName: string, originalError
       return `${leagueName}: La Coupe d'Asie n'a pas de classement en cours — le prochain tournoi sera en 2027`;
     case 'ksa.1':
       return `${leagueName}: Les données ne sont pas disponibles actuellement`;
+    // Women's competitions
+    case 'fifa.friendly.w':
+      return `${leagueName}: Les matchs amicaux n'ont pas de classement — consultez les résultats dans l'onglet Matchs`;
+    case 'fifa.wwc':
+      return `${leagueName}: Les données de la Coupe du Monde Féminine ne sont pas disponibles actuellement — la prochaine édition aura lieu en 2027`;
+    case 'uefa.weuro':
+      return `${leagueName}: Les données du Championnat d'Europe Féminin ne sont pas disponibles actuellement`;
+    case 'uefa.w.nations':
+      return `${leagueName}: Les données de la Ligue des Nations Féminine ne sont pas disponibles — la compétition est peut-être entre deux éditions`;
+    case 'concacaf.w.gold':
+      return `${leagueName}: Les données de la W Gold Cup ne sont pas disponibles actuellement`;
+    case 'conmebol.america.femenina':
+      return `${leagueName}: Les données de la Copa América Femenina ne sont pas disponibles actuellement`;
+    case 'afc.w.asian.cup':
+      return `${leagueName}: Les données de la Coupe d'Asie Féminine ne sont pas disponibles actuellement`;
+    case 'caf.w.nations':
+      return `${leagueName}: Les données de la CAN Féminine ne sont pas disponibles actuellement`;
+    case 'uefa.wchampions':
+      return `${leagueName}: Les données de la Ligue des Champions Féminine ne sont pas disponibles — la compétition est peut-être en pause`;
     default:
       return `${leagueName}: ${originalError || 'Données non disponibles'}`;
   }
@@ -680,14 +733,19 @@ export async function GET(request: Request) {
     let includeCopaAmericaPlaceholder = false;
     let includeAsianCupPlaceholder = false;
     let includeGoldCupPlaceholder = false;
+    let includeWomenFriendliesPlaceholder = false;
 
     // Competitions that are placeholders (not available from ESPN API)
     const PLACEHOLDER_CODES = new Set([
-      'fifa.rankings', 'fifa.world', 'conmebol.america', 'afc.asian', 'concacaf.gold',
+      'fifa.rankings', 'fifa.world', 'conmebol.america', 'afc.asian', 'concacaf.gold', 'fifa.friendly.w',
     ]);
 
     if (league === 'fifa.rankings') {
       includeFIFARankings = true;
+      leaguesToFetch = [];
+    } else if (league === 'fifa.friendly.w') {
+      // Women's Friendlies — no standings exist for friendlies
+      includeWomenFriendliesPlaceholder = true;
       leaguesToFetch = [];
     } else if (league === 'fifa.world') {
       includeWorldCupPlaceholder = true;
@@ -811,6 +869,11 @@ export async function GET(request: Request) {
     // Include Gold Cup placeholder
     if (includeGoldCupPlaceholder) {
       standings.push(getGoldCupPlaceholder());
+    }
+
+    // Include Women's Friendlies placeholder
+    if (includeWomenFriendliesPlaceholder) {
+      standings.push(getWomenFriendliesPlaceholder());
     }
 
     const response: Record<string, any> = {

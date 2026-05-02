@@ -643,13 +643,14 @@ function EmptyLeagueState({
   language: string;
 }) {
   // Placeholder competitions
-  const PLACEHOLDER_CODES = ['fifa.world', 'conmebol.america', 'afc.asian', 'concacaf.gold'];
+  const PLACEHOLDER_CODES = ['fifa.world', 'conmebol.america', 'afc.asian', 'concacaf.gold', 'fifa.friendly.w'];
   if (PLACEHOLDER_CODES.includes(leagueCode)) {
     const compMessages: Record<string, string> = {
       'fifa.world': t(language, 'standings.worldCupMessage'),
       'conmebol.america': t(language, 'standings.copaAmericaMessage'),
       'afc.asian': t(language, 'standings.asianCupMessage'),
       'concacaf.gold': t(language, 'standings.goldCupMessage'),
+      'fifa.friendly.w': t(language, 'standings.womenFriendlyMessage'),
     };
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">

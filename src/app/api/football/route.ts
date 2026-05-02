@@ -46,6 +46,18 @@ const ESPN_LEAGUES_WOMEN = [
   { code: 'can.w.nsl', name: 'Northern Super League' },
   { code: 'usa.w.usl.1', name: 'USL Super League' },
   { code: 'uefa.wchampions', name: "Women's Champions League" },
+  { code: 'fifa.friendly.w', name: "Women's Friendly" },
+];
+
+// Women's tournament leagues: fetched on demand (leagues=extended or leagues=all)
+const ESPN_LEAGUES_WOMEN_TOURNAMENTS = [
+  { code: 'uefa.w.nations', name: "Women's Nations League" },
+  { code: 'uefa.weuro', name: "Women's Euro" },
+  { code: 'concacaf.w.gold', name: 'W Gold Cup' },
+  { code: 'conmebol.america.femenina', name: 'Copa América Femenina' },
+  { code: 'afc.w.asian.cup', name: "Women's Asian Cup" },
+  { code: 'caf.w.nations', name: "Women's AFCON" },
+  { code: 'fifa.wwc', name: "Women's World Cup" },
 ];
 
 // ─── ESPN API types ──────────────────────────────────────────────────────────
@@ -212,7 +224,7 @@ async function fetchESPNMatchesForDate(date: string, includeAllLeagues: boolean)
   const errors: string[] = [];
 
   const leagues = includeAllLeagues
-    ? [...ESPN_LEAGUES_PRIMARY, ...ESPN_LEAGUES_EXTENDED, ...ESPN_LEAGUES_WOMEN]
+    ? [...ESPN_LEAGUES_PRIMARY, ...ESPN_LEAGUES_EXTENDED, ...ESPN_LEAGUES_WOMEN, ...ESPN_LEAGUES_WOMEN_TOURNAMENTS]
     : [...ESPN_LEAGUES_PRIMARY, ...ESPN_LEAGUES_WOMEN];
 
   // Fetch leagues in batches of 3 for speed while staying memory-safe

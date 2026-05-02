@@ -210,3 +210,32 @@ Stage Summary:
 - Eliminated the "Le flux met trop de temps à secharger" error by not trying to embed unreliable streams
 - Same method as competitor sites (us-sport.eu, tarjetarojaenvivo.cx): redirect to streaming sites that work
 - Video player still available for IPTV channels and direct m3u8 streams
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix "Pas de données disponibles" for women's competitions in GoalStream
+
+Work Log:
+- Diagnosed the issue: The VLM analysis confirmed the screenshot showed "Women's Friendly: Pas de données disponibles" in the standings view
+- Tested ESPN API endpoints for all women's league codes to determine which have data
+- Found that most women's leagues (eng.w.1, fra.w.1, usa.nwsl, etc.) have standings data
+- Found that women's tournaments (fifa.wwc, uefa.w.nations, etc.) also have standings data from ESPN
+- Found that `fifa.friendly.w` (Women's Friendlies) returns 0 children — no standings exist for friendlies
+- Fixed standings API route: Added `fifa.friendly.w` to PLACEHOLDER_CODES with info card explaining friendlies don't have standings
+- Created `getWomenFriendliesPlaceholder()` function with a nice info card showing key women's national teams
+- Added friendly error messages for all women's competitions in `getFriendlyErrorMessage()`
+- Fixed football API route: Added `fifa.friendly.w` to `ESPN_LEAGUES_WOMEN` (always fetched for match data)
+- Created `ESPN_LEAGUES_WOMEN_TOURNAMENTS` for tournament codes (fetched on demand with leagues=extended/all)
+- Added translation key `standings.womenFriendlyMessage` in all 5 languages (FR, EN, AR, ES, PT)
+- Updated `EmptyLeagueState` component to include `fifa.friendly.w` in placeholder codes list
+- Verified: Standings API returns placeholder card for fifa.friendly.w
+- Verified: WSL (12 teams), NWSL (16 teams), Women's World Cup (8 groups) all return standings data
+- Verified: Football API now returns 43 matches including 19 women's matches across 8 women's competitions
+
+Stage Summary:
+- Women's competitions now display properly in both standings and match views
+- `fifa.friendly.w` shows an informative placeholder card instead of "no data available"
+- All women's league standings work: WSL, NWSL, Liga F, Première Ligue, etc.
+- All women's tournament standings work: Women's World Cup, Women's Nations League, etc.
+- Women's matches now include FIFA Women's Friendlies in the always-fetched list
