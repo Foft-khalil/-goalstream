@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { X, RefreshCw, Loader2, Circle, Square, ArrowRightLeft, AlertTriangle, Eye, Tv, MapPin, Users, Clock, Trophy, BarChart3, Star, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import DynamicFootballPitch from '@/components/dynamic-football-pitch';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -102,16 +103,16 @@ function EventIcon({ type }: { type: MatchEvent['type'] }) {
   }
 }
 
-// Event label in French
-function eventLabel(type: MatchEvent['type']): string {
+// Event label (i18n)
+function eventLabel(type: MatchEvent['type'], language: string): string {
   switch (type) {
-    case 'goal': return 'But';
-    case 'yellow_card': return 'Carton jaune';
-    case 'red_card': return 'Carton rouge';
-    case 'substitution': return 'Remplacement';
+    case 'goal': return t(language, 'tracker.goal');
+    case 'yellow_card': return t(language, 'tracker.yellowCard');
+    case 'red_card': return t(language, 'tracker.redCard');
+    case 'substitution': return t(language, 'tracker.substitution');
     case 'var_review': return 'VAR';
-    case 'period_start': return 'Début';
-    case 'period_end': return 'Fin';
+    case 'period_start': return t(language, 'tracker.start');
+    case 'period_end': return t(language, 'tracker.end');
     default: return '';
   }
 }
@@ -145,7 +146,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
   const [possession, setPossession] = useState<'home' | 'away' | null>(null);
   const [summary, setSummary] = useState<FootballMatchSummary | null>(null);
   const [activeTab, setActiveTab] = useState<'timeline' | 'stats' | 'players'>('timeline');
-  const { openPlayer } = useAppStore();
+  const { openPlayer, language } = useAppStore();
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   // Derive league from match competition
@@ -184,7 +185,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
       const matchId = match.id.startsWith('espn_') ? match.id : `espn_${match.id}`;
       const res = await fetch(`/api/match-events?matchId=${encodeURIComponent(matchId)}&league=${encodeURIComponent(league)}`);
 
-      if (!res.ok) throw new Error('Erreur serveur');
+      if (!res.ok) throw new Error(t(language, 'tracker.serverError'));
 
       const data = await res.json();
       if (data.error && data.events.length === 0) {
@@ -211,7 +212,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
         }
       }
     } catch (err: any) {
-      setError('Impossible de charger les événements');
+      setError(t(language, 'tracker.cantLoadEvents'));
     } finally {
       setLoading(false);
     }
@@ -303,7 +304,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
               </div>
             )}
             <span className="text-xs text-muted-foreground font-medium">
-              ⚽ {match.competition || 'Match'}
+              ⚽ {match.competition || t(language, 'nav.matches')}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -370,19 +371,19 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                     {match.displayClock}
                   </span>
                   {match.isHalftime && (
-                    <span className="text-[10px] font-semibold text-amber-500 ml-1">MI-TEMPS</span>
+                    <span className="text-[10px] font-semibold text-amber-500 ml-1">{t(language, 'tracker.halftime')}</span>
                   )}
                 </div>
               )}
               {isFinished && (
                 <span className="text-xs font-semibold text-muted-foreground mt-1">
-                  {isDraw ? 'Match nul' : 'Terminé'}
+                  {isDraw ? t(language, 'tracker.draw') : t(language, 'common.finished')}
                 </span>
               )}
               {/* Half-time score */}
               {isFinished && summary && summary.halfTimeHome !== null && summary.halfTimeAway !== null && (
                 <span className="text-[10px] text-muted-foreground/50 mt-0.5">
-                  MT: {summary.halfTimeHome} - {summary.halfTimeAway}
+                  {t(language, 'match.ht')}: {summary.halfTimeHome} - {summary.halfTimeAway}
                 </span>
               )}
               {match.status === 'upcoming' && match.matchDate && (
@@ -441,7 +442,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                 : 'border-transparent text-muted-foreground/60 hover:text-foreground'
             }`}
           >
-            📋 Chronologie
+            📋 {t(language, 'tracker.timeline')}
           </button>
           <button
             onClick={() => setActiveTab('stats')}
@@ -451,7 +452,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                 : 'border-transparent text-muted-foreground/60 hover:text-foreground'
             }`}
           >
-            📊 Statistiques
+            📊 {t(language, 'tracker.statistics')}
           </button>
           <button
             onClick={() => setActiveTab('players')}
@@ -461,7 +462,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                 : 'border-transparent text-muted-foreground/60 hover:text-foreground'
             }`}
           >
-            ⭐ Joueurs clés
+            ⭐ {t(language, 'tracker.keyPlayers')}
           </button>
         </div>
       </div>
@@ -477,7 +478,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
               <div className="flex items-center gap-2 mb-4 mt-2">
                 <div className="h-px flex-1 bg-border/40" />
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Chronologie du match
+                  {t(language, 'tracker.timelineMatch')}
                 </span>
                 <div className="h-px flex-1 bg-border/40" />
               </div>
@@ -486,7 +487,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
               {loading && events.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-green-500 mb-3" />
-                  <p className="text-sm text-muted-foreground">Chargement des événements...</p>
+                  <p className="text-sm text-muted-foreground">{t(language, 'tracker.loadingEvents')}</p>
                 </div>
               )}
 
@@ -497,7 +498,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                   <p className="text-sm text-muted-foreground mb-3">{error}</p>
                   <Button onClick={fetchEvents} size="sm" variant="outline" className="gap-2">
                     <RefreshCw className="h-3.5 w-3.5" />
-                    Réessayer
+                    {t(language, 'common.retry')}
                   </Button>
                 </div>
               )}
@@ -541,7 +542,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                               event.type === 'var_review' ? 'text-violet-500' :
                               'text-foreground'
                             }`}>
-                              {eventLabel(event.type)}
+                              {eventLabel(event.type, language)}
                             </span>
                             {event.detail && (
                               <span className="text-[10px] text-muted-foreground/60 font-medium">
@@ -559,7 +560,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                               <span className="text-sm font-medium truncate">{event.player}</span>
                               {event.assistPlayer && (
                                 <span className="text-xs text-muted-foreground/60">
-                                  (passe décisive: {event.assistPlayer})
+                                  ({t(language, 'tracker.assist')}: {event.assistPlayer})
                                 </span>
                               )}
                               {event.playerIn && event.type === 'substitution' && (
@@ -597,15 +598,15 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                   <Circle className="h-8 w-8 text-muted-foreground/30 mb-3" />
                   <p className="text-sm text-muted-foreground">
                     {isLive
-                      ? 'Les événements apparaîtront ici en temps réel'
+                      ? t(language, 'tracker.eventsWillAppear')
                       : match.status === 'upcoming'
-                        ? 'Le suivi en direct sera disponible au coup d\'envoi'
-                        : 'Aucun événement disponible pour ce match'
+                        ? t(language, 'tracker.liveAtKickoff')
+                        : t(language, 'tracker.noEvents')
                     }
                   </p>
                   {isLive && (
                     <p className="text-xs text-muted-foreground/50 mt-1">
-                      Mise à jour automatique toutes les 15 secondes
+                      {t(language, 'tracker.autoRefresh')}
                     </p>
                   )}
                 </div>
@@ -619,7 +620,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
               {loading && !summary && (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-green-500 mb-3" />
-                  <p className="text-sm text-muted-foreground">Chargement des statistiques...</p>
+                  <p className="text-sm text-muted-foreground">{t(language, 'tracker.loadingStats')}</p>
                 </div>
               )}
 
@@ -656,7 +657,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                               <span className={`text-sm font-bold tabular-nums ${homeBetter ? 'text-green-500' : 'text-muted-foreground'}`}>
                                 {stat.homeValue}
                               </span>
-                              <span className="text-[11px] font-medium text-muted-foreground/70">Possession</span>
+                              <span className="text-[11px] font-medium text-muted-foreground/70">{t(language, 'tracker.possession')}</span>
                               <span className={`text-sm font-bold tabular-nums ${awayBetter ? 'text-green-500' : 'text-muted-foreground'}`}>
                                 {stat.awayValue}
                               </span>
@@ -697,7 +698,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
               ) : !loading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <BarChart3 className="h-8 w-8 text-muted-foreground/40 mb-3" />
-                  <p className="text-sm text-muted-foreground">Statistiques non disponibles</p>
+                  <p className="text-sm text-muted-foreground">{t(language, 'tracker.statsUnavailable')}</p>
                 </div>
               ) : null}
 
@@ -713,13 +714,13 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                   {summary.attendance && (
                     <div className="flex items-center gap-2">
                       <Users className="h-3.5 w-3.5 text-muted-foreground/50" />
-                      <span className="text-xs text-muted-foreground">{Number(summary.attendance).toLocaleString('fr-FR')} spectateurs</span>
+                      <span className="text-xs text-muted-foreground">{Number(summary.attendance).toLocaleString()} {t(language, 'tracker.spectators')}</span>
                     </div>
                   )}
                   {summary.officials.length > 0 && (
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground/50">👤</span>
-                      <span className="text-xs text-muted-foreground">Arbitre: {summary.officials.join(', ')}</span>
+                      <span className="text-xs text-muted-foreground">{t(language, 'tracker.referee')}: {summary.officials.join(', ')}</span>
                     </div>
                   )}
                   {summary.matchDate && (
@@ -741,7 +742,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
               {loading && !summary && (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-green-500 mb-3" />
-                  <p className="text-sm text-muted-foreground">Chargement des joueurs clés...</p>
+                  <p className="text-sm text-muted-foreground">{t(language, 'tracker.loadingPlayers')}</p>
                 </div>
               )}
 
@@ -752,9 +753,9 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                     const performers = summary.topPerformers.filter(p => p.category === category);
                     if (performers.length === 0) return null;
 
-                    const categoryLabel = category === 'totalShots' ? 'Tirs' :
-                                         category === 'accuratePasses' ? 'Passes réussies' :
-                                         category === 'saves' ? 'Arrêts' : category;
+                    const categoryLabel = category === 'totalShots' ? t(language, 'tracker.shots') :
+                                         category === 'accuratePasses' ? t(language, 'tracker.accuratePasses') :
+                                         category === 'saves' ? t(language, 'tracker.saves') : category;
                     const categoryIcon = category === 'totalShots' ? '🎯' :
                                         category === 'accuratePasses' ? '🤝' :
                                         category === 'saves' ? '🧤' : '⭐';
@@ -803,7 +804,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
               ) : !loading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <Star className="h-8 w-8 text-muted-foreground/40 mb-3" />
-                  <p className="text-sm text-muted-foreground">Données des joueurs non disponibles</p>
+                  <p className="text-sm text-muted-foreground">{t(language, 'tracker.playersUnavailable')}</p>
                 </div>
               ) : null}
 
@@ -812,12 +813,12 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                 <div className="mt-6 p-4 rounded-xl bg-muted/30 border border-border/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Trophy className="h-3.5 w-3.5 text-muted-foreground/50" />
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Résumé</span>
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{t(language, 'tracker.summary')}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {isDraw
-                      ? `Match nul ${displayHomeScore} - ${displayAwayScore}${summary.venue ? ` à ${summary.venue}` : ''}`
-                      : `${homeWins ? match.homeTeam : match.awayTeam} remporte le match ${displayHomeScore} - ${displayAwayScore}${summary.venue ? ` à ${summary.venue}` : ''}`
+                      ? `${t(language, 'tracker.draw')} ${displayHomeScore} - ${displayAwayScore}${summary.venue ? ` — ${summary.venue}` : ''}`
+                      : `${homeWins ? match.homeTeam : match.awayTeam} ${t(language, 'tracker.winsMatch')} ${displayHomeScore} - ${displayAwayScore}${summary.venue ? ` — ${summary.venue}` : ''}`
                     }
                   </p>
                 </div>

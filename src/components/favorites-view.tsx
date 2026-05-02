@@ -406,7 +406,7 @@ export default function FavoritesView() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 text-[11px] font-bold text-red-500">
                     <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                    EN DIRECT ({liveMatches.length})
+                    {t(language, 'common.live').toUpperCase()} ({liveMatches.length})
                   </div>
                   {liveMatches.map((match) => (
                     <FavoriteMatchCard key={match.id} match={match} />
@@ -419,7 +419,7 @@ export default function FavoritesView() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground mt-1">
                     <Clock className="h-3 w-3" />
-                    À VENIR ({upcomingMatches.length})
+                    {t(language, 'common.upcoming').toUpperCase()} ({upcomingMatches.length})
                   </div>
                   {upcomingMatches.map((match) => (
                     <FavoriteMatchCard key={match.id} match={match} />
@@ -431,7 +431,7 @@ export default function FavoritesView() {
               {finishedMatches.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground/50 mt-1">
-                    TERMINÉ ({finishedMatches.length})
+                    {t(language, 'common.finished').toUpperCase()} ({finishedMatches.length})
                   </div>
                   {finishedMatches.map((match) => (
                     <FavoriteMatchCard key={match.id} match={match} />

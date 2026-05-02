@@ -124,6 +124,18 @@ interface AppState {
   setChannelSearch: (search: string) => void;
   channelCountry: string;
   setChannelCountry: (country: string) => void;
+
+  // Global Search
+  globalSearch: string;
+  setGlobalSearch: (search: string) => void;
+
+  // Competition filter
+  selectedCompetition: string;
+  setSelectedCompetition: (comp: string) => void;
+
+  // Theme
+  theme: 'dark' | 'light';
+  setTheme: (theme: 'dark' | 'light') => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -429,4 +441,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   setChannelSearch: (search) => set({ channelSearch: search }),
   channelCountry: '',
   setChannelCountry: (country) => set({ channelCountry: country }),
+
+  // Global Search
+  globalSearch: '',
+  setGlobalSearch: (search) => set({ globalSearch: search }),
+
+  // Competition filter
+  selectedCompetition: '',
+  setSelectedCompetition: (comp) => set({ selectedCompetition: comp }),
+
+  // Theme
+  theme: (typeof window !== 'undefined' && localStorage.getItem('goalstream_theme') === 'light') ? 'light' as const : 'dark' as const,
+  setTheme: (theme) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('goalstream_theme', theme);
+      const html = document.documentElement;
+      if (theme === 'dark') {
+        html.classList.add('dark');
+      } else {
+        html.classList.remove('dark');
+      }
+    }
+    set({ theme });
+  },
 }));

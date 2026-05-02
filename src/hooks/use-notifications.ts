@@ -697,8 +697,9 @@ export function useNotifications() {
         intervalRef.current = null;
       }
     };
-  // We intentionally depend on the data arrays so the check runs when data updates
-  }, [footballMatches, basketballMatches, favoriteTeamNames, settings]);
+  // All data is accessed via refs (footballMatchesRef, basketballMatchesRef, favoriteTeamNamesRef, settingsRef)
+  // which are kept in sync by separate useEffects, so we only need to run this on mount
+  }, []);
 
   return {
     requestPermission,

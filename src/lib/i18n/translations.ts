@@ -32,6 +32,9 @@ export interface Translations {
     cancel: string;
     clearAll: string;
     vs: string;
+    allCompetitions: string;
+    lightMode: string;
+    darkMode: string;
   };
   match: {
     min: string;
@@ -54,6 +57,8 @@ export interface Translations {
     broadcastOn: string;
     liveStreamAvailable: string;
     friendly: string;
+    share: string;
+    copied: string;
   };
   basketball: {
     q1: string;
@@ -97,6 +102,29 @@ export interface Translations {
     losses: string;
     winPct: string;
     gamesBehind: string;
+    loadingStandings: string;
+    fetchingData: string;
+    updating: string;
+    loadingLeague: string;
+    loadError: string;
+    schedule: string;
+    qualifiedTeams: string;
+    showNextTeams: string;
+    otherTeams: string;
+    barrages: string;
+    dataUnavailable: string;
+    competitionPaused: string;
+    groupsNotFormed: string;
+    worldCupMessage: string;
+    copaAmericaMessage: string;
+    asianCupMessage: string;
+    goldCupMessage: string;
+    ranking: string;
+    topScorers: string;
+    goals: string;
+    assists: string;
+    player: string;
+    matchesPlayed: string;
   };
   favorites: {
     title: string;
@@ -114,6 +142,15 @@ export interface Translations {
     savedLocally: string;
     tapHeart: string;
     quickAccess: string;
+  };
+  search: {
+    title: string;
+    placeholder: string;
+    noResults: string;
+    matches: string;
+    channels: string;
+    competitions: string;
+    shortcut: string;
   };
   channels: {
     title: string;
@@ -168,6 +205,42 @@ export interface Translations {
     invalidResponse: string;
     updateFailed: string;
     serverError: string;
+    boundaryTitle: string;
+    boundaryMessage: string;
+  };
+  tracker: {
+    timeline: string;
+    timelineMatch: string;
+    statistics: string;
+    keyPlayers: string;
+    loadingEvents: string;
+    loadingStats: string;
+    loadingPlayers: string;
+    statsUnavailable: string;
+    playersUnavailable: string;
+    goal: string;
+    yellowCard: string;
+    redCard: string;
+    substitution: string;
+    start: string;
+    end: string;
+    assist: string;
+    spectators: string;
+    referee: string;
+    summary: string;
+    winsMatch: string;
+    draw: string;
+    halftime: string;
+    eventsWillAppear: string;
+    liveAtKickoff: string;
+    noEvents: string;
+    autoRefresh: string;
+    shots: string;
+    accuratePasses: string;
+    saves: string;
+    cantLoadEvents: string;
+    serverError: string;
+    possession: string;
   };
   footer: {
     description: string;
@@ -216,6 +289,9 @@ export const translations: Record<Language, Translations> = {
       cancel: 'Annuler',
       clearAll: 'Tout effacer',
       vs: 'VS',
+      allCompetitions: 'Toutes les compétitions',
+      lightMode: 'Mode clair',
+      darkMode: 'Mode sombre',
     },
     match: {
       min: 'min',
@@ -238,6 +314,8 @@ export const translations: Record<Language, Translations> = {
       broadcastOn: 'Diffusé sur',
       liveStreamAvailable: 'Diffusion en direct disponible ({0} flux)',
       friendly: 'Amical',
+      share: 'Partager',
+      copied: 'Copié !',
     },
     basketball: {
       q1: 'Q1',
@@ -281,6 +359,29 @@ export const translations: Record<Language, Translations> = {
       losses: 'D',
       winPct: 'PCT',
       gamesBehind: 'GB',
+      loadingStandings: 'Chargement des classements',
+      fetchingData: 'Récupération des données...',
+      updating: 'Mise à jour en cours...',
+      loadingLeague: 'Chargement en cours...',
+      loadError: 'Erreur lors du chargement de {0}',
+      schedule: 'Calendrier',
+      qualifiedTeams: 'Équipes qualifiées',
+      showNextTeams: 'Voir les {0} équipes suivantes',
+      otherTeams: 'Voir les {0} autres équipes',
+      barrages: 'Barrages',
+      dataUnavailable: 'Les données ne sont pas encore disponibles pour cette compétition. Réessayez dans quelques minutes.',
+      competitionPaused: 'Les données de {0} ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.',
+      groupsNotFormed: 'Les groupes ne sont pas encore formés pour la prochaine édition.',
+      worldCupMessage: 'Les groupes et le calendrier ne sont pas encore formés. Consultez le classement FIFA pour voir les meilleures équipes du monde.',
+      copaAmericaMessage: 'La prochaine Copa América aura lieu en 2028. Les groupes seront communiqués ultérieurement.',
+      asianCupMessage: "La prochaine Coupe d'Asie aura lieu en 2027 en Arabie Saoudite. Les qualifications sont en cours.",
+      goldCupMessage: 'La prochaine Gold Cup aura lieu en 2027. Les détails seront communiqués ultérieurement.',
+      ranking: 'classement',
+      topScorers: 'Meilleurs buteurs',
+      goals: 'Buts',
+      assists: 'Passes D.',
+      player: 'Joueur',
+      matchesPlayed: 'MJ',
     },
     favorites: {
       title: 'Favoris',
@@ -298,6 +399,15 @@ export const translations: Record<Language, Translations> = {
       savedLocally: 'Vos favoris sont sauvegardés localement sur votre appareil',
       tapHeart: 'Appuyez sur ❤️',
       quickAccess: 'Accès rapide',
+    },
+    search: {
+      title: 'Recherche globale',
+      placeholder: 'Rechercher matchs, chaînes, compétitions...',
+      noResults: 'Aucun résultat trouvé',
+      matches: 'Matchs',
+      channels: 'Chaînes',
+      competitions: 'Compétitions',
+      shortcut: 'Ctrl+K',
     },
     channels: {
       title: 'Chaînes',
@@ -352,6 +462,42 @@ export const translations: Record<Language, Translations> = {
       invalidResponse: 'Réponse invalide',
       updateFailed: 'Mise à jour échouée — données en cache',
       serverError: 'Erreur serveur',
+      boundaryTitle: 'Oups !',
+      boundaryMessage: 'Une erreur inattendue est survenue. Veuillez réessayer.',
+    },
+    tracker: {
+      timeline: 'Chronologie',
+      timelineMatch: 'Chronologie du match',
+      statistics: 'Statistiques',
+      keyPlayers: 'Joueurs clés',
+      loadingEvents: 'Chargement des événements...',
+      loadingStats: 'Chargement des statistiques...',
+      loadingPlayers: 'Chargement des joueurs clés...',
+      statsUnavailable: 'Statistiques non disponibles',
+      playersUnavailable: 'Données des joueurs non disponibles',
+      goal: 'But',
+      yellowCard: 'Carton jaune',
+      redCard: 'Carton rouge',
+      substitution: 'Remplacement',
+      start: 'Début',
+      end: 'Fin',
+      assist: 'passe décisive',
+      spectators: 'spectateurs',
+      referee: 'Arbitre',
+      summary: 'Résumé',
+      winsMatch: 'remporte le match',
+      draw: 'Match nul',
+      halftime: 'MI-TEMPS',
+      eventsWillAppear: "Les événements apparaîtront ici en temps réel",
+      liveAtKickoff: "Le suivi en direct sera disponible au coup d'envoi",
+      noEvents: 'Aucun événement disponible pour ce match',
+      autoRefresh: 'Mise à jour automatique toutes les 15 secondes',
+      shots: 'Tirs',
+      accuratePasses: 'Passes réussies',
+      saves: 'Arrêts',
+      cantLoadEvents: 'Impossible de charger les événements',
+      serverError: 'Erreur serveur',
+      possession: 'Possession',
     },
     footer: {
       description: 'Streaming sportif gratuit via IPTV',
@@ -398,6 +544,9 @@ export const translations: Record<Language, Translations> = {
       cancel: 'Cancel',
       clearAll: 'Clear all',
       vs: 'VS',
+      allCompetitions: 'All competitions',
+      lightMode: 'Light mode',
+      darkMode: 'Dark mode',
     },
     match: {
       min: 'min',
@@ -420,6 +569,8 @@ export const translations: Record<Language, Translations> = {
       broadcastOn: 'Broadcast on',
       liveStreamAvailable: 'Live stream available ({0} streams)',
       friendly: 'Friendly',
+      share: 'Share',
+      copied: 'Copied!',
     },
     basketball: {
       q1: 'Q1',
@@ -463,6 +614,29 @@ export const translations: Record<Language, Translations> = {
       losses: 'L',
       winPct: 'PCT',
       gamesBehind: 'GB',
+      loadingStandings: 'Loading standings',
+      fetchingData: 'Fetching data...',
+      updating: 'Updating...',
+      loadingLeague: 'Loading...',
+      loadError: 'Error loading {0}',
+      schedule: 'Schedule',
+      qualifiedTeams: 'Qualified teams',
+      showNextTeams: 'Show next {0} teams',
+      otherTeams: 'Show {0} more teams',
+      barrages: 'Playoffs',
+      dataUnavailable: 'Data not yet available for this competition. Try again in a few minutes.',
+      competitionPaused: 'Data for {0} is currently unavailable. The competition may be between phases.',
+      groupsNotFormed: 'Groups have not yet been formed for the next edition.',
+      worldCupMessage: 'Groups and schedule are not yet formed. Check the FIFA ranking to see the best teams in the world.',
+      copaAmericaMessage: 'The next Copa América will take place in 2028. Groups will be announced later.',
+      asianCupMessage: 'The next Asian Cup will take place in 2027 in Saudi Arabia. Qualifications are ongoing.',
+      goldCupMessage: 'The next Gold Cup will take place in 2027. Details will be announced later.',
+      ranking: 'ranking',
+      topScorers: 'Top Scorers',
+      goals: 'Goals',
+      assists: 'Assists',
+      player: 'Player',
+      matchesPlayed: 'MP',
     },
     favorites: {
       title: 'Favorites',
@@ -480,6 +654,15 @@ export const translations: Record<Language, Translations> = {
       savedLocally: 'Your favorites are saved locally on your device',
       tapHeart: 'Tap ❤️',
       quickAccess: 'Quick access',
+    },
+    search: {
+      title: 'Global Search',
+      placeholder: 'Search matches, channels, competitions...',
+      noResults: 'No results found',
+      matches: 'Matches',
+      channels: 'Channels',
+      competitions: 'Competitions',
+      shortcut: 'Ctrl+K',
     },
     channels: {
       title: 'Channels',
@@ -534,6 +717,42 @@ export const translations: Record<Language, Translations> = {
       invalidResponse: 'Invalid response',
       updateFailed: 'Update failed — cached data',
       serverError: 'Server error',
+      boundaryTitle: 'Oops!',
+      boundaryMessage: 'An unexpected error occurred. Please try again.',
+    },
+    tracker: {
+      timeline: 'Timeline',
+      timelineMatch: 'Match timeline',
+      statistics: 'Statistics',
+      keyPlayers: 'Key players',
+      loadingEvents: 'Loading events...',
+      loadingStats: 'Loading statistics...',
+      loadingPlayers: 'Loading key players...',
+      statsUnavailable: 'Statistics unavailable',
+      playersUnavailable: 'Player data unavailable',
+      goal: 'Goal',
+      yellowCard: 'Yellow card',
+      redCard: 'Red card',
+      substitution: 'Substitution',
+      start: 'Start',
+      end: 'End',
+      assist: 'assist',
+      spectators: 'spectators',
+      referee: 'Referee',
+      summary: 'Summary',
+      winsMatch: 'wins the match',
+      draw: 'Draw',
+      halftime: 'HALFTIME',
+      eventsWillAppear: 'Events will appear here in real time',
+      liveAtKickoff: 'Live tracking will be available at kickoff',
+      noEvents: 'No events available for this match',
+      autoRefresh: 'Auto-refresh every 15 seconds',
+      shots: 'Shots',
+      accuratePasses: 'Accurate passes',
+      saves: 'Saves',
+      cantLoadEvents: 'Cannot load events',
+      serverError: 'Server error',
+      possession: 'Possession',
     },
     footer: {
       description: 'Free sports streaming via IPTV',
@@ -580,6 +799,9 @@ export const translations: Record<Language, Translations> = {
       cancel: 'إلغاء',
       clearAll: 'مسح الكل',
       vs: 'ضد',
+      allCompetitions: 'جميع البطولات',
+      lightMode: 'الوضع الفاتح',
+      darkMode: 'الوضع الداكن',
     },
     match: {
       min: 'د',
@@ -602,6 +824,8 @@ export const translations: Record<Language, Translations> = {
       broadcastOn: 'يبث على',
       liveStreamAvailable: 'بث مباشر متاح ({0} بث)',
       friendly: 'ودي',
+      share: 'مشاركة',
+      copied: 'تم النسخ!',
     },
     basketball: {
       q1: 'ر1',
@@ -645,6 +869,29 @@ export const translations: Record<Language, Translations> = {
       losses: 'خ',
       winPct: 'نسبة',
       gamesBehind: 'خلف',
+      loadingStandings: 'تحميل الترتيب',
+      fetchingData: 'جاري استرجاع البيانات...',
+      updating: 'جاري التحديث...',
+      loadingLeague: 'جاري التحميل...',
+      loadError: 'خطأ في تحميل {0}',
+      schedule: 'الجدول',
+      qualifiedTeams: 'الفرق المتأهلة',
+      showNextTeams: 'عرض الفرق الـ {0} التالية',
+      otherTeams: 'عرض {0} فرق أخرى',
+      barrages: 'التصفيات',
+      dataUnavailable: 'البيانات غير متاحة بعد لهذه البطولة. حاول مرة أخرى بعد بضع دقائق.',
+      competitionPaused: 'بيانات {0} غير متاحة حالياً. قد تكون البطولة بين مراحل.',
+      groupsNotFormed: 'المجموعات لم تتشكل بعد للنسخة القادمة.',
+      worldCupMessage: 'المجموعات والجدول لم يتشكلا بعد. راقب تصنيف FIFA لأفضل الفرق في العالم.',
+      copaAmericaMessage: 'ستقام كوبا أمريكا القادمة في 2028. سيتم الإعلان عن المجموعات لاحقاً.',
+      asianCupMessage: 'ستقام كأس آسيا القادمة في 2027 في السعودية. التصفيات جارية.',
+      goldCupMessage: 'ستقام كأس الكونكاكاف الذهبية القادمة في 2027. سيتم الإعلان عن التفاصيل لاحقاً.',
+      ranking: 'ترتيب',
+      topScorers: 'الهدافون',
+      goals: 'أهداف',
+      assists: 'تمريرات',
+      player: 'لاعب',
+      matchesPlayed: 'مباريات',
     },
     favorites: {
       title: 'المفضلة',
@@ -662,6 +909,15 @@ export const translations: Record<Language, Translations> = {
       savedLocally: 'يتم حفظ مفضلاتك محلياً على جهازك',
       tapHeart: 'اضغط على ❤️',
       quickAccess: 'وصول سريع',
+    },
+    search: {
+      title: 'بحث شامل',
+      placeholder: 'ابحث عن مباريات، قنوات، بطولات...',
+      noResults: 'لم يتم العثور على نتائج',
+      matches: 'مباريات',
+      channels: 'قنوات',
+      competitions: 'بطولات',
+      shortcut: 'Ctrl+K',
     },
     channels: {
       title: 'القنوات',
@@ -716,6 +972,42 @@ export const translations: Record<Language, Translations> = {
       invalidResponse: 'استجابة غير صالحة',
       updateFailed: 'فشل التحديث — بيانات مخزنة مؤقتاً',
       serverError: 'خطأ في الخادم',
+      boundaryTitle: 'عفواً!',
+      boundaryMessage: 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.',
+    },
+    tracker: {
+      timeline: 'الجدول الزمني',
+      timelineMatch: 'الجدول الزمني للمباراة',
+      statistics: 'الإحصائيات',
+      keyPlayers: 'اللاعبون الرئيسيون',
+      loadingEvents: 'تحميل الأحداث...',
+      loadingStats: 'تحميل الإحصائيات...',
+      loadingPlayers: 'تحميل اللاعبين الرئيسيين...',
+      statsUnavailable: 'الإحصائيات غير متاحة',
+      playersUnavailable: 'بيانات اللاعبين غير متاحة',
+      goal: 'هدف',
+      yellowCard: 'بطاقة صفراء',
+      redCard: 'بطاقة حمراء',
+      substitution: 'تبديل',
+      start: 'بداية',
+      end: 'نهاية',
+      assist: 'تمريرة حاسمة',
+      spectators: 'متفرجون',
+      referee: 'الحكم',
+      summary: 'ملخص',
+      winsMatch: 'يفوز بالمباراة',
+      draw: 'تعادل',
+      halftime: 'نهاية الشوط',
+      eventsWillAppear: 'ستظهر الأحداث هنا في الوقت الفعلي',
+      liveAtKickoff: 'سيكون التتبع المباشر متاحاً عند بدء المباراة',
+      noEvents: 'لا توجد أحداث متاحة لهذه المباراة',
+      autoRefresh: 'تحديث تلقائي كل 15 ثانية',
+      shots: 'تسديدات',
+      accuratePasses: 'تمريرات دقيقة',
+      saves: 'تصديات',
+      cantLoadEvents: 'لا يمكن تحميل الأحداث',
+      serverError: 'خطأ في الخادم',
+      possession: 'الاستحواذ',
     },
     footer: {
       description: 'بث رياضي مجاني عبر IPTV',
@@ -762,6 +1054,9 @@ export const translations: Record<Language, Translations> = {
       cancel: 'Cancelar',
       clearAll: 'Borrar todo',
       vs: 'VS',
+      allCompetitions: 'Todas las competiciones',
+      lightMode: 'Modo claro',
+      darkMode: 'Modo oscuro',
     },
     match: {
       min: 'min',
@@ -784,6 +1079,8 @@ export const translations: Record<Language, Translations> = {
       broadcastOn: 'Transmitido por',
       liveStreamAvailable: 'Transmisión en vivo disponible ({0} flujos)',
       friendly: 'Amistoso',
+      share: 'Compartir',
+      copied: '¡Copiado!',
     },
     basketball: {
       q1: 'C1',
@@ -827,6 +1124,29 @@ export const translations: Record<Language, Translations> = {
       losses: 'P',
       winPct: 'PCT',
       gamesBehind: 'GB',
+      loadingStandings: 'Cargando clasificaciones',
+      fetchingData: 'Obteniendo datos...',
+      updating: 'Actualizando...',
+      loadingLeague: 'Cargando...',
+      loadError: 'Error al cargar {0}',
+      schedule: 'Calendario',
+      qualifiedTeams: 'Equipos clasificados',
+      showNextTeams: 'Ver los {0} equipos siguientes',
+      otherTeams: 'Ver {0} equipos más',
+      barrages: 'Playoffs',
+      dataUnavailable: 'Los datos aún no están disponibles para esta competición. Intente de nuevo en unos minutos.',
+      competitionPaused: 'Los datos de {0} no están disponibles actualmente. La competición puede estar entre fases.',
+      groupsNotFormed: 'Los grupos aún no se han formado para la próxima edición.',
+      worldCupMessage: 'Los grupos y el calendario aún no se han formado. Consulte el ranking FIFA para ver los mejores equipos del mundo.',
+      copaAmericaMessage: 'La próxima Copa América se celebrará en 2028. Los grupos se anunciarán más adelante.',
+      asianCupMessage: 'La próxima Copa Asiática se celebrará en 2027 en Arabia Saudita. Las clasificaciones están en curso.',
+      goldCupMessage: 'La próxima Copa de Oro se celebrará en 2027. Los detalles se anunciarán más adelante.',
+      ranking: 'clasificación',
+      topScorers: 'Máximos goleadores',
+      goals: 'Goles',
+      assists: 'Asistencias',
+      player: 'Jugador',
+      matchesPlayed: 'PJ',
     },
     favorites: {
       title: 'Favoritos',
@@ -844,6 +1164,15 @@ export const translations: Record<Language, Translations> = {
       savedLocally: 'Tus favoritos se guardan localmente en tu dispositivo',
       tapHeart: 'Toca ❤️',
       quickAccess: 'Acceso rápido',
+    },
+    search: {
+      title: 'Búsqueda global',
+      placeholder: 'Buscar partidos, canales, competiciones...',
+      noResults: 'No se encontraron resultados',
+      matches: 'Partidos',
+      channels: 'Canales',
+      competitions: 'Competiciones',
+      shortcut: 'Ctrl+K',
     },
     channels: {
       title: 'Canales',
@@ -898,6 +1227,42 @@ export const translations: Record<Language, Translations> = {
       invalidResponse: 'Respuesta inválida',
       updateFailed: 'Actualización fallida — datos en caché',
       serverError: 'Error del servidor',
+      boundaryTitle: '¡Ups!',
+      boundaryMessage: 'Ocurrió un error inesperado. Por favor, intente de nuevo.',
+    },
+    tracker: {
+      timeline: 'Cronología',
+      timelineMatch: 'Cronología del partido',
+      statistics: 'Estadísticas',
+      keyPlayers: 'Jugadores clave',
+      loadingEvents: 'Cargando eventos...',
+      loadingStats: 'Cargando estadísticas...',
+      loadingPlayers: 'Cargando jugadores clave...',
+      statsUnavailable: 'Estadísticas no disponibles',
+      playersUnavailable: 'Datos de jugadores no disponibles',
+      goal: 'Gol',
+      yellowCard: 'Tarjeta amarilla',
+      redCard: 'Tarjeta roja',
+      substitution: 'Sustitución',
+      start: 'Inicio',
+      end: 'Fin',
+      assist: 'asistencia',
+      spectators: 'espectadores',
+      referee: 'Árbitro',
+      summary: 'Resumen',
+      winsMatch: 'gana el partido',
+      draw: 'Empate',
+      halftime: 'MEDIO TIEMPO',
+      eventsWillAppear: 'Los eventos aparecerán aquí en tiempo real',
+      liveAtKickoff: 'El seguimiento en vivo estará disponible al inicio',
+      noEvents: 'No hay eventos disponibles para este partido',
+      autoRefresh: 'Actualización automática cada 15 segundos',
+      shots: 'Tiros',
+      accuratePasses: 'Pases precisos',
+      saves: 'Atajadas',
+      cantLoadEvents: 'No se pueden cargar los eventos',
+      serverError: 'Error del servidor',
+      possession: 'Posesión',
     },
     footer: {
       description: 'Streaming deportivo gratuito vía IPTV',
@@ -944,6 +1309,9 @@ export const translations: Record<Language, Translations> = {
       cancel: 'Cancelar',
       clearAll: 'Limpar tudo',
       vs: 'VS',
+      allCompetitions: 'Todas as competições',
+      lightMode: 'Modo claro',
+      darkMode: 'Modo escuro',
     },
     match: {
       min: 'min',
@@ -966,6 +1334,8 @@ export const translations: Record<Language, Translations> = {
       broadcastOn: 'Transmitido por',
       liveStreamAvailable: 'Transmissão ao vivo disponível ({0} streams)',
       friendly: 'Amistoso',
+      share: 'Compartilhar',
+      copied: 'Copiado!',
     },
     basketball: {
       q1: 'Q1',
@@ -1009,6 +1379,24 @@ export const translations: Record<Language, Translations> = {
       losses: 'D',
       winPct: 'PCT',
       gamesBehind: 'GB',
+      loadingStandings: 'Carregando classificações',
+      fetchingData: 'Obtendo dados...',
+      updating: 'Atualizando...',
+      loadingLeague: 'Carregando...',
+      loadError: 'Erro ao carregar {0}',
+      schedule: 'Calendário',
+      qualifiedTeams: 'Times classificados',
+      showNextTeams: 'Ver os {0} próximos times',
+      otherTeams: 'Ver mais {0} times',
+      barrages: 'Playoffs',
+      dataUnavailable: 'Dados ainda não disponíveis para esta competição. Tente novamente em alguns minutos.',
+      competitionPaused: 'Dados de {0} não estão disponíveis no momento. A competição pode estar entre fases.',
+      groupsNotFormed: 'Os grupos ainda não foram formados para a próxima edição.',
+      worldCupMessage: 'Os grupos e o calendário ainda não foram formados. Consulte o ranking FIFA para ver os melhores times do mundo.',
+      copaAmericaMessage: 'A próxima Copa América será em 2028. Os grupos serão anunciados posteriormente.',
+      asianCupMessage: 'A próxima Copa da Ásia será em 2027 na Arábia Saudita. As eliminatórias estão em andamento.',
+      goldCupMessage: 'A próxima Copa Ouro será em 2027. Os detalhes serão anunciados posteriormente.',
+      ranking: 'classificação',
     },
     favorites: {
       title: 'Favoritos',
@@ -1026,6 +1414,15 @@ export const translations: Record<Language, Translations> = {
       savedLocally: 'Seus favoritos são salvos localmente no seu dispositivo',
       tapHeart: 'Toque em ❤️',
       quickAccess: 'Acesso rápido',
+    },
+    search: {
+      title: 'Busca global',
+      placeholder: 'Buscar jogos, canais, competições...',
+      noResults: 'Nenhum resultado encontrado',
+      matches: 'Jogos',
+      channels: 'Canais',
+      competitions: 'Competições',
+      shortcut: 'Ctrl+K',
     },
     channels: {
       title: 'Canais',
@@ -1080,6 +1477,42 @@ export const translations: Record<Language, Translations> = {
       invalidResponse: 'Resposta inválida',
       updateFailed: 'Atualização falhou — dados em cache',
       serverError: 'Erro do servidor',
+      boundaryTitle: 'Ops!',
+      boundaryMessage: 'Ocorreu um erro inesperado. Por favor, tente novamente.',
+    },
+    tracker: {
+      timeline: 'Cronologia',
+      timelineMatch: 'Cronologia do jogo',
+      statistics: 'Estatísticas',
+      keyPlayers: 'Jogadores-chave',
+      loadingEvents: 'Carregando eventos...',
+      loadingStats: 'Carregando estatísticas...',
+      loadingPlayers: 'Carregando jogadores-chave...',
+      statsUnavailable: 'Estatísticas indisponíveis',
+      playersUnavailable: 'Dados dos jogadores indisponíveis',
+      goal: 'Gol',
+      yellowCard: 'Cartão amarelo',
+      redCard: 'Cartão vermelho',
+      substitution: 'Substituição',
+      start: 'Início',
+      end: 'Fim',
+      assist: 'assistência',
+      spectators: 'espectadores',
+      referee: 'Árbitro',
+      summary: 'Resumo',
+      winsMatch: 'vence o jogo',
+      draw: 'Empate',
+      halftime: 'INTERVALO',
+      eventsWillAppear: 'Os eventos aparecerão aqui em tempo real',
+      liveAtKickoff: 'O acompanhamento ao vivo estará disponível no início do jogo',
+      noEvents: 'Nenhum evento disponível para este jogo',
+      autoRefresh: 'Atualização automática a cada 15 segundos',
+      shots: 'Chutes',
+      accuratePasses: 'Passes precisos',
+      saves: 'Defesas',
+      cantLoadEvents: 'Não foi possível carregar os eventos',
+      serverError: 'Erro do servidor',
+      possession: 'Posse de bola',
     },
     footer: {
       description: 'Streaming esportivo gratuito via IPTV',

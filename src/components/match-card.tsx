@@ -2,7 +2,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Play, Tv, Clock, Loader2, Radio, ChevronRight, Heart, Activity, ExternalLink, Globe } from 'lucide-react';
+import { Play, Tv, Clock, Loader2, Radio, ChevronRight, Heart, Activity, ExternalLink, Globe, Share } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
@@ -62,6 +62,7 @@ export default function MatchCard({ match }: MatchCardProps) {
   const [error, setError] = useState<string | null>(null);
   const [broadcasterInfo, setBroadcasterInfo] = useState<string | null>(null);
   const [showTracker, setShowTracker] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const isLive = match.status === 'live';
   const isFinished = match.status === 'finished';
@@ -281,6 +282,31 @@ export default function MatchCard({ match }: MatchCardProps) {
     }
   };
 
+  const handleShare = async () => {
+    const homeScore = match.homeScore ?? 0;
+    const awayScore = match.awayScore ?? 0;
+    const scorePart = match.status === 'live' || match.status === 'finished'
+      ? `${homeScore} - ${awayScore}`
+      : 'vs';
+    const shareText = `⚽ ${match.homeTeam} ${scorePart} ${match.awayTeam} | ${match.competition || ''} | GoalStream`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: shareText });
+      } catch {
+        // User cancelled or share failed
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      } catch {
+        // Clipboard failed
+      }
+    }
+  };
+
   return (
     <div
       className={`group relative rounded-xl overflow-hidden transition-all duration-200 ${
@@ -467,6 +493,17 @@ export default function MatchCard({ match }: MatchCardProps) {
               <Tv className="h-3.5 w-3.5" />
             </Button>
           )}
+          {/* Share button */}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleShare}
+            className="h-8 px-3 rounded-lg border-border/40 text-xs gap-1"
+            title={t(language, 'match.share')}
+          >
+            <Share className="h-3.5 w-3.5" />
+            {shareCopied && <span className="text-green-500 text-[10px]">{t(language, 'match.copied')}</span>}
+          </Button>
           {/* External streaming site button */}
           {canWatchLive && (
             <Button

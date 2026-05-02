@@ -5,7 +5,8 @@ import { useAppStore, DateTab } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { formatShort, formatLong } from '@/lib/date-utils';
 import MatchCard from '@/components/match-card';
-import { Loader2, Zap, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
+import { usePullRefresh } from '@/hooks/use-pull-refresh';
+import { Loader2, Zap, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight, ChevronLeft, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /** Get YYYYMMDD string for a Date */
@@ -48,6 +49,8 @@ export default function LiveMatches() {
     selectedDate,
     setSelectedDate,
     fetchFootballMatches,
+    selectedCompetition,
+    setSelectedCompetition,
     language,
   } = useAppStore();
 
@@ -95,6 +98,12 @@ export default function LiveMatches() {
     setCountdown(60);
   }, [fetchFootballMatches]);
 
+  // Pull-to-refresh integration
+  const { pullDistance, isRefreshing, pullRef } = usePullRefresh({
+    onRefresh: handleRetry,
+    threshold: 60,
+  });
+
   // Compute date keys for all 7 tabs
   const dateKeys = useMemo(() => {
     const keys: Record<DateTab, string> = {} as any;
@@ -115,10 +124,34 @@ export default function LiveMatches() {
 
   // Filter matches by selected date tab — live matches always show regardless of date
   const dateKey = dateKeys[selectedDate];
-  const filteredMatches = useMemo(
+  const dateFilteredMatches = useMemo(
     () => footballMatches.filter((m) => m.status === 'live' || isMatchOnDate(m.matchDate, dateKey)),
     [footballMatches, dateKey]
   );
+
+  // Extract unique competitions from the current day's matches
+  const uniqueCompetitions = useMemo(() => {
+    const comps = new Set<string>();
+    dateFilteredMatches.forEach((m) => {
+      if (m.competition) comps.add(m.competition);
+    });
+    return Array.from(comps).sort();
+  }, [dateFilteredMatches]);
+
+  // Apply competition filter on top of date filter
+  const filteredMatches = useMemo(
+    () => selectedCompetition
+      ? dateFilteredMatches.filter((m) => m.competition === selectedCompetition || m.status === 'live')
+      : dateFilteredMatches,
+    [dateFilteredMatches, selectedCompetition]
+  );
+
+  // Reset competition filter when it no longer exists in the current filtered matches
+  useEffect(() => {
+    if (selectedCompetition && !uniqueCompetitions.includes(selectedCompetition)) {
+      setSelectedCompetition('');
+    }
+  }, [selectedCompetition, uniqueCompetitions, setSelectedCompetition]);
 
   // Count per tab — don't count live matches from other days to avoid confusion
   const tabCounts = useMemo(() => {
@@ -238,7 +271,27 @@ export default function LiveMatches() {
   }
 
   return (
-    <div className="space-y-5 pb-4">
+    <div className="space-y-5 pb-4" ref={pullRef}>
+      {/* Pull-to-refresh indicator */}
+      {(pullDistance > 0 || isRefreshing) && (
+        <div
+          className="flex items-center justify-center transition-all duration-150 ease-out overflow-hidden"
+          style={{ height: `${isRefreshing ? 40 : pullDistance}px`, opacity: Math.min(pullDistance / 40, 1) }}
+        >
+          <div className="flex items-center gap-2 text-green-500">
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="text-xs font-medium">
+              {isRefreshing
+                ? t(language, 'standings.updating')
+                : pullDistance >= 60
+                  ? t(language, 'common.retry')
+                  : '↓'
+              }
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Date Tab Selector - Scrollable for 7 days */}
       <div className="relative">
         <div
@@ -282,6 +335,36 @@ export default function LiveMatches() {
           })}
         </div>
       </div>
+
+      {/* Competition Filter Bar */}
+      {uniqueCompetitions.length > 1 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <button
+            onClick={() => setSelectedCompetition('')}
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
+              selectedCompetition === ''
+                ? 'bg-green-500/15 text-green-600 border border-green-500/30'
+                : 'bg-muted/50 text-muted-foreground border border-transparent hover:bg-muted/80 hover:text-foreground'
+            }`}
+          >
+            <Filter className="h-3 w-3" />
+            {t(language, 'common.all')}
+          </button>
+          {uniqueCompetitions.map((comp) => (
+            <button
+              key={comp}
+              onClick={() => setSelectedCompetition(comp === selectedCompetition ? '' : comp)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
+                selectedCompetition === comp
+                  ? 'bg-green-500/15 text-green-600 border border-green-500/30'
+                  : 'bg-muted/50 text-muted-foreground border border-transparent hover:bg-muted/80 hover:text-foreground'
+              }`}
+            >
+              {comp}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Header with date info */}
       <div className="flex items-center justify-between">

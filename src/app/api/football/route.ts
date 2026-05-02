@@ -27,6 +27,12 @@ const ESPN_LEAGUES_EXTENDED = [
   { code: 'mex.1', name: 'Liga MX' },
   { code: 'afc.champions', name: 'AFC Champions League' },
   { code: 'caf.champions', name: 'CAF Champions League' },
+  { code: 'sco.1', name: 'Scottish Premiership' },
+  { code: 'bel.1', name: 'Jupiler Pro League' },
+  { code: 'gre.1', name: 'Super League Greece' },
+  { code: 'concacaf.champions', name: 'CONCACAF Champions Cup' },
+  { code: 'conmebol.libertadores', name: 'Copa Libertadores' },
+  { code: 'conmebol.sudamericana', name: 'Copa Sudamericana' },
 ];
 
 // ─── ESPN API types ──────────────────────────────────────────────────────────

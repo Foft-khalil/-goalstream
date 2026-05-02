@@ -10,7 +10,8 @@ import StandingsView from '@/components/standings-view';
 import FavoritesView from '@/components/favorites-view';
 import VideoPlayer from '@/components/video-player';
 import LanguageSelector from '@/components/language-selector';
-import { Zap, Tv, BarChart3, Menu, Download, WifiOff, Heart, Dribbble, Bell } from 'lucide-react';
+import ErrorBoundary from '@/components/error-boundary';
+import { Zap, Tv, BarChart3, Menu, Download, WifiOff, Heart, Dribbble, Bell, Sun, Moon, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -18,18 +19,20 @@ import { useState } from 'react';
 import { usePWA } from '@/hooks/use-pwa';
 import { NotificationSettingsDialog } from '@/components/notification-settings';
 import NotificationCenter from '@/components/notification-center';
+import GlobalSearch from '@/components/global-search';
 import { useNotificationStore } from '@/lib/notification-store';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useNotifications } from '@/hooks/use-notifications';
 
 function AppHeader() {
-  const { currentView, setCurrentView, footballMatches, basketballMatches, language } = useAppStore();
+  const { currentView, setCurrentView, footballMatches, basketballMatches, language, theme, setTheme } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { installPrompt, installApp, isOnline } = usePWA();
   const { totalFavorites } = useFavorites();
   const { settings, updateSettings } = useNotifications();
   const { unreadCount } = useNotificationStore();
   const [notifSettingsOpen, setNotifSettingsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const footballLiveCount = footballMatches.filter((m) => m.status === 'live').length;
   const bballLiveCount = basketballMatches.filter((m) => m.status === 'live').length;
@@ -63,9 +66,27 @@ function AppHeader() {
             </div>
           </button>
 
-          {/* Language + Notification + Install button + Desktop Nav */}
+          {/* Search + Language + Theme + Notification + Install button + Desktop Nav */}
           <div className="hidden sm:flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg"
+              onClick={() => setSearchOpen(true)}
+              title={t(language, 'search.title')}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
             <LanguageSelector />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              title={theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -142,9 +163,27 @@ function AppHeader() {
             })}
           </nav>
 
-          {/* Mobile language + notification + menu */}
+          {/* Mobile search + language + theme + notification + menu */}
           <div className="flex sm:hidden items-center gap-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => setSearchOpen(true)}
+              title={t(language, 'search.title')}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
             <LanguageSelector />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              title={theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -254,6 +293,8 @@ function AppHeader() {
         settings={settings}
         onSettingsChange={updateSettings}
       />
+      {/* Global Search Dialog */}
+      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   );
 }
@@ -316,8 +357,21 @@ function MobileBottomNav() {
 }
 
 export default function Home() {
-  const { currentView, fetchChannels, fetchFootballMatches, fetchBasketballMatches, language } = useAppStore();
+  const { currentView, fetchChannels, fetchFootballMatches, fetchBasketballMatches, language, theme, setTheme } = useAppStore();
   const { isOnline } = usePWA();
+
+  // Initialize theme from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('goalstream_theme');
+      if (saved === 'light' || saved === 'dark') {
+        setTheme(saved);
+      } else {
+        // Apply default dark class if not set
+        document.documentElement.classList.add('dark');
+      }
+    }
+  }, [setTheme]);
 
   useEffect(() => {
     // Initial fetch: today's matches first (fast), then rest of week in background
@@ -373,11 +427,13 @@ export default function Home() {
       )}
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-5 pb-20 sm:pb-5">
-        {currentView === 'live' && <LiveMatches />}
-        {currentView === 'basketball' && <BasketballMatches />}
-        {currentView === 'favorites' && <FavoritesView />}
-        {currentView === 'channels' && <ChannelsList />}
-        {currentView === 'standings' && <StandingsView />}
+        <ErrorBoundary>
+          {currentView === 'live' && <LiveMatches />}
+          {currentView === 'basketball' && <BasketballMatches />}
+          {currentView === 'favorites' && <FavoritesView />}
+          {currentView === 'channels' && <ChannelsList />}
+          {currentView === 'standings' && <StandingsView />}
+        </ErrorBoundary>
       </main>
 
       {/* Footer */}

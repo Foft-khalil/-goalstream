@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Loader2, Trophy, RefreshCw, AlertCircle, Globe, Users, Calendar, Info, MapPin, Flag, ChevronDown, ChevronUp, Clock, Dribbble, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TeamDetailDialog from '@/components/team-detail-dialog';
+import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -62,12 +64,22 @@ interface StandingsData {
 
 type Category = 'championnats' | 'basketball' | 'coupes' | 'nationales';
 
-const CATEGORIES: { key: Category; label: string; icon: React.ReactNode }[] = [
-  { key: 'championnats', label: 'Championnats', icon: <Trophy className="h-3.5 w-3.5" /> },
-  { key: 'basketball', label: 'Basketball', icon: <Dribbble className="h-3.5 w-3.5" /> },
-  { key: 'coupes', label: 'Coupes Clubs', icon: <Award className="h-3.5 w-3.5" /> },
-  { key: 'nationales', label: 'Éq. Nationales', icon: <Globe className="h-3.5 w-3.5" /> },
-];
+// Category keys for i18n lookup
+const CATEGORY_KEYS: Record<Category, string> = {
+  championnats: 'standings.championships',
+  basketball: 'standings.basketball',
+  coupes: 'standings.clubCups',
+  nationales: 'standings.nationalTeams',
+};
+
+const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
+  championnats: <Trophy className="h-3.5 w-3.5" />,
+  basketball: <Dribbble className="h-3.5 w-3.5" />,
+  coupes: <Award className="h-3.5 w-3.5" />,
+  nationales: <Globe className="h-3.5 w-3.5" />,
+};
+
+const CATEGORIES: Category[] = ['championnats', 'basketball', 'coupes', 'nationales'];
 
 // League tabs per category
 const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: string }>> = {
@@ -93,7 +105,7 @@ const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: st
     { code: 'nba', name: 'NBA', flag: '🏀' },
   ],
   coupes: [
-    { code: 'uefa.champions', name: 'Ligue des Champions', flag: '🏆' },
+    { code: 'uefa.champions', name: 'Champions League', flag: '🏆' },
     { code: 'uefa.europa', name: 'Europa League', flag: '🏆' },
     { code: 'uefa.europa.conf', name: 'Conference League', flag: '🏆' },
     { code: 'conmebol.libertadores', name: 'Copa Libertadores', flag: '🌎' },
@@ -102,14 +114,14 @@ const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: st
     { code: 'caf.champions', name: 'CAF Champions League', flag: '🌍' },
   ],
   nationales: [
-    { code: 'fifa.rankings', name: 'Classement FIFA', flag: '🌍' },
-    { code: 'fifa.world', name: 'Coupe du Monde', flag: '🏆' },
+    { code: 'fifa.rankings', name: 'FIFA Ranking', flag: '🌍' },
+    { code: 'fifa.world', name: 'World Cup', flag: '🏆' },
     { code: 'uefa.euro', name: 'Euro', flag: '🇪🇺' },
-    { code: 'uefa.nations', name: 'Ligue des Nations', flag: '🇪🇺' },
+    { code: 'uefa.nations', name: 'Nations League', flag: '🇪🇺' },
     { code: 'conmebol.america', name: 'Copa América', flag: '🌎' },
     { code: 'concacaf.gold', name: 'Gold Cup', flag: '🇺🇸' },
-    { code: 'afc.asian', name: 'Coupe d\'Asie', flag: '🌏' },
-    { code: 'caf.nations', name: 'CAN', flag: '🌍' },
+    { code: 'afc.asian', name: 'Asian Cup', flag: '🌏' },
+    { code: 'caf.nations', name: 'AFCON', flag: '🌍' },
   ],
 };
 
@@ -142,7 +154,7 @@ function getNoteStyle(note: string | null, noteColor: string | null) {
 
 // ─── Competition Info Card (for placeholders like World Cup, Copa América, etc.) ──
 
-function WorldCupInfoCard({ placeholder }: { placeholder: LeagueStanding }) {
+function WorldCupInfoCard({ placeholder, language }: { placeholder: LeagueStanding; language: string }) {
   const info = placeholder.placeholderInfo || {};
   const events = placeholder.upcomingEvents || [];
   const teams = placeholder.teams || [];
@@ -177,7 +189,7 @@ function WorldCupInfoCard({ placeholder }: { placeholder: LeagueStanding }) {
         <div className="px-4 py-3 border-t border-amber-500/10">
           <div className="flex items-center gap-1.5 mb-2">
             <Calendar className="h-3.5 w-3.5 text-amber-400/70" />
-            <span className="text-[10px] font-bold text-amber-300/70 uppercase tracking-wider">Calendrier</span>
+            <span className="text-[10px] font-bold text-amber-300/70 uppercase tracking-wider">{t(language, 'standings.schedule')}</span>
           </div>
           <div className="space-y-1.5">
             {events.map((ev, i) => (
@@ -196,7 +208,7 @@ function WorldCupInfoCard({ placeholder }: { placeholder: LeagueStanding }) {
           <div className="flex items-center gap-1.5 mb-2">
             <Flag className="h-3.5 w-3.5 text-amber-400/70" />
             <span className="text-[10px] font-bold text-amber-300/70 uppercase tracking-wider">
-              Équipes qualifiées ({teams.length})
+              {t(language, 'standings.qualifiedTeams')} ({teams.length})
             </span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
@@ -220,12 +232,12 @@ function WorldCupInfoCard({ placeholder }: { placeholder: LeagueStanding }) {
               {showAllTeams ? (
                 <>
                   <ChevronUp className="h-3 w-3" />
-                  Voir moins
+                  {t(language, 'common.showLess')}
                 </>
               ) : (
                 <>
                   <ChevronDown className="h-3 w-3" />
-                  Voir les {teams.length - 10} autres équipes
+                  {t(language, 'standings.otherTeams', teams.length - 10)}
                 </>
               )}
             </button>
@@ -255,6 +267,7 @@ function StandingsTable({
   isNBA,
   activeCategory,
   onTeamClick,
+  language,
 }: {
   league: LeagueStanding;
   isFIFARankings: boolean;
@@ -262,6 +275,7 @@ function StandingsTable({
   isNBA: boolean;
   activeCategory: Category;
   onTeamClick: (team: StandingTeam) => void;
+  language: string;
 }) {
   const [showAll, setShowAll] = useState(false);
   const INITIAL_SHOW = 12; // Show first 12 by default
@@ -301,7 +315,7 @@ function StandingsTable({
         </div>
         {isLeaguePhase && (
           <span className="text-[10px] text-amber-400/60 font-medium">
-            {league.teams.length} équipes
+            {league.teams.length} {t(language, 'standings.teams')}
           </span>
         )}
       </div>
@@ -311,23 +325,23 @@ function StandingsTable({
         {/* Header */}
         <div className={`grid gap-0 px-2.5 py-2 bg-muted/30 border-b border-border/20 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider ${getGridCols()}`}>
           <span className="text-center">#</span>
-          <span>Équipe</span>
+          <span>{t(language, 'standings.team')}</span>
           {isFIFARank ? (
-            <span className="text-center">Points</span>
+            <span className="text-center">{t(language, 'standings.points')}</span>
           ) : isNBATable ? (
             <>
-              <span className="text-center">W</span>
-              <span className="text-center">L</span>
-              <span className="text-center">PCT</span>
-              <span className="text-center">GB</span>
+              <span className="text-center">{t(language, 'standings.wins')}</span>
+              <span className="text-center">{t(language, 'standings.losses')}</span>
+              <span className="text-center">{t(language, 'standings.winPct')}</span>
+              <span className="text-center">{t(language, 'standings.gamesBehind')}</span>
             </>
           ) : (
             <>
-              <span className="text-center">J</span>
-              <span className="text-center">V</span>
-              <span className="text-center">N</span>
-              <span className="text-center">D</span>
-              <span className="text-center font-bold">Pts</span>
+              <span className="text-center">{t(language, 'standings.played')}</span>
+              <span className="text-center">{t(language, 'standings.won')}</span>
+              <span className="text-center">{t(language, 'standings.drawn')}</span>
+              <span className="text-center">{t(language, 'standings.lost')}</span>
+              <span className="text-center font-bold">{t(language, 'standings.points')}</span>
             </>
           )}
         </div>
@@ -408,12 +422,12 @@ function StandingsTable({
             {showAll ? (
               <>
                 <ChevronUp className="h-3.5 w-3.5" />
-                Voir moins
+                {t(language, 'common.showLess')}
               </>
             ) : (
               <>
                 <ChevronDown className="h-3.5 w-3.5" />
-                Voir les {league.teams.length - INITIAL_SHOW} équipes suivantes
+                {t(language, 'standings.showNextTeams', league.teams.length - INITIAL_SHOW)}
               </>
             )}
           </button>
@@ -424,15 +438,15 @@ function StandingsTable({
           <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-green-500/40" />
-              <span className="text-[9px] text-muted-foreground/50">Ligue des Champions</span>
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.championsLeague')}</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-blue-500/40" />
-              <span className="text-[9px] text-muted-foreground/50">Europa / Conf.</span>
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.europaConf')}</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-red-500/40" />
-              <span className="text-[9px] text-muted-foreground/50">Relégation</span>
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.relegation')}</span>
             </div>
           </div>
         )}
@@ -440,15 +454,15 @@ function StandingsTable({
           <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-green-500/40" />
-              <span className="text-[9px] text-muted-foreground/50">Playoffs</span>
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.playoffs')}</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-blue-500/40" />
-              <span className="text-[9px] text-muted-foreground/50">Play-In</span>
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.playIn')}</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-red-500/40" />
-              <span className="text-[9px] text-muted-foreground/50">Éliminé</span>
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.eliminated')}</span>
             </div>
           </div>
         )}
@@ -456,11 +470,11 @@ function StandingsTable({
           <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-green-500/40" />
-              <span className="text-[9px] text-muted-foreground/50">Qualifié tour suivant</span>
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.qualified')}</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-blue-500/40" />
-              <span className="text-[9px] text-muted-foreground/50">Barrages</span>
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.barrages')}</span>
             </div>
           </div>
         )}
@@ -468,11 +482,11 @@ function StandingsTable({
           <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-green-500/40" />
-              <span className="text-[9px] text-muted-foreground/50">Top 10</span>
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.top10')}</span>
             </div>
             <div className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-blue-500/40" />
-              <span className="text-[9px] text-muted-foreground/50">Top 20</span>
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.top20')}</span>
             </div>
           </div>
         )}
@@ -488,33 +502,29 @@ function EmptyLeagueState({
   leagueName,
   onRetry,
   retrying,
+  language,
 }: {
   leagueCode: string;
   leagueName: string;
   onRetry: () => void;
   retrying: boolean;
+  language: string;
 }) {
-  // Placeholder competitions are handled by the WorldCupInfoCard, not this component
+  // Placeholder competitions
   const PLACEHOLDER_CODES = ['fifa.world', 'conmebol.america', 'afc.asian', 'concacaf.gold'];
   if (PLACEHOLDER_CODES.includes(leagueCode)) {
-    const compNames: Record<string, string> = {
-      'fifa.world': 'Coupe du Monde 2026',
-      'conmebol.america': 'Copa América 2028',
-      'afc.asian': 'Coupe d\'Asie 2027',
-      'concacaf.gold': 'Gold Cup 2027',
-    };
     const compMessages: Record<string, string> = {
-      'fifa.world': 'Les groupes et le calendrier ne sont pas encore formés. Consultez le classement FIFA pour voir les meilleures équipes du monde.',
-      'conmebol.america': 'La prochaine Copa América aura lieu en 2028. Les groupes seront communiqués ultérieurement.',
-      'afc.asian': 'La prochaine Coupe d\'Asie aura lieu en 2027 en Arabie Saoudite. Les qualifications sont en cours.',
-      'concacaf.gold': 'La prochaine Gold Cup aura lieu en 2027. Les détails seront communiqués ultérieurement.',
+      'fifa.world': t(language, 'standings.worldCupMessage'),
+      'conmebol.america': t(language, 'standings.copaAmericaMessage'),
+      'afc.asian': t(language, 'standings.asianCupMessage'),
+      'concacaf.gold': t(language, 'standings.goldCupMessage'),
     };
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <Trophy className="h-12 w-12 text-amber-500/30 mb-3" />
-        <p className="text-sm font-semibold mb-1">{compNames[leagueCode] || leagueName}</p>
+        <p className="text-sm font-semibold mb-1">{leagueName}</p>
         <p className="text-xs text-muted-foreground/60 max-w-xs">
-          {compMessages[leagueCode] || 'Les données ne sont pas encore disponibles pour cette compétition.'}
+          {compMessages[leagueCode] || t(language, 'standings.dataUnavailable')}
         </p>
       </div>
     );
@@ -524,35 +534,21 @@ function EmptyLeagueState({
   const getEmptyMessage = () => {
     switch (leagueCode) {
       case 'uefa.champions':
-        return 'Les phases de groupes de la Ligue des Champions ne sont pas encore disponibles. La compétition reprend avec les phases à élimination directe.';
       case 'uefa.europa':
-        return 'Les données de l\'Europa League ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
       case 'uefa.europa.conf':
-        return 'Les données de la Conference League ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
-      case 'uefa.euro':
-        return 'Les groupes de l\'Euro ne sont pas encore formés pour la prochaine édition. Consultez le classement FIFA pour suivre les équipes.';
-      case 'uefa.nations':
-        return 'Les données de la Ligue des Nations ne sont pas disponibles actuellement. La compétition est peut-être entre deux éditions.';
-      case 'caf.nations':
-        return 'Les données de la CAN ne sont pas disponibles actuellement. Les phases de qualification sont peut-être en cours.';
       case 'conmebol.libertadores':
-        return 'Les données de la Copa Libertadores ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
       case 'conmebol.sudamericana':
-        return 'Les données de la Copa Sudamericana ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
       case 'afc.champions':
-        return 'Les données de l\'AFC Champions League ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
       case 'caf.champions':
-        return 'Les données de la CAF Champions League ne sont pas disponibles actuellement. La compétition est peut-être en pause entre les phases.';
-      case 'conmebol.america':
-        return 'La Copa América n\'a pas de classement en cours — le prochain tournoi sera en 2028.';
-      case 'concacaf.gold':
-        return 'La Gold Cup n\'a pas de classement en cours — le prochain tournoi sera en 2027.';
-      case 'afc.asian':
-        return 'La Coupe d\'Asie n\'a pas de classement en cours — le prochain tournoi sera en 2027 en Arabie Saoudite.';
+        return t(language, 'standings.competitionPaused', leagueName);
+      case 'uefa.euro':
+      case 'uefa.nations':
+        return t(language, 'standings.groupsNotFormed');
+      case 'caf.nations':
+        return t(language, 'standings.competitionPaused', leagueName);
       case 'ksa.1':
-        return 'Les données de la Saudi Pro League ne sont pas disponibles actuellement. Réessayez dans quelques minutes.';
       default:
-        return 'Les données ne sont pas encore disponibles pour cette compétition. Réessayez dans quelques minutes.';
+        return t(language, 'standings.dataUnavailable');
     }
   };
 
@@ -572,7 +568,7 @@ function EmptyLeagueState({
         ) : (
           <RefreshCw className="h-3.5 w-3.5" />
         )}
-        {retrying ? 'Chargement...' : 'Réessayer'}
+        {retrying ? t(language, 'common.loading') : t(language, 'common.retry')}
       </Button>
     </div>
   );
@@ -581,6 +577,7 @@ function EmptyLeagueState({
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function StandingsView() {
+  const { language } = useAppStore();
   const [activeCategory, setActiveCategory] = useState<Category>('championnats');
   const [data, setData] = useState<Record<Category, StandingsData | null>>({
     championnats: null,
@@ -618,7 +615,7 @@ export default function StandingsView() {
       for (const league of leagues) {
         try {
           const res = await fetch(`/api/standings?league=${league.code}`);
-          if (!res.ok) throw new Error('Échec du chargement');
+          if (!res.ok) throw new Error(t(language, 'errors.loadFailed'));
           const json: StandingsData = await res.json();
           if (json.standings.length > 0) {
             allStandings.push(...json.standings);
@@ -629,7 +626,7 @@ export default function StandingsView() {
           newLeagueErrors.push({
             code: league.code,
             name: league.name,
-            message: 'Échec du chargement',
+            message: t(language, 'errors.loadFailed'),
             retrying: false,
           });
         }
@@ -658,14 +655,14 @@ export default function StandingsView() {
     } finally {
       setLoading((prev) => ({ ...prev, [category]: false }));
     }
-  }, []);
+  }, [language]);
 
   // Retry a single league
   const retryLeague = useCallback(async (leagueCode: string, leagueName: string) => {
     setRetryingLeague(leagueCode);
     try {
       const res = await fetch(`/api/standings?league=${leagueCode}`);
-      if (!res.ok) throw new Error('Échec du chargement');
+      if (!res.ok) throw new Error(t(language, 'errors.loadFailed'));
       const json: StandingsData = await res.json();
 
       setData((prev) => {
@@ -694,7 +691,7 @@ export default function StandingsView() {
     } finally {
       setRetryingLeague(null);
     }
-  }, [activeCategory]);
+  }, [activeCategory, language]);
 
   // Fetch only the current category on mount (sequential to avoid OOM)
   useEffect(() => {
@@ -759,8 +756,8 @@ export default function StandingsView() {
             <Loader2 className="h-10 w-10 animate-spin text-green-500" />
           </div>
         </div>
-        <p className="text-base font-semibold mb-1">Chargement des classements</p>
-        <p className="text-sm text-muted-foreground/60">Récupération des données...</p>
+        <p className="text-base font-semibold mb-1">{t(language, 'standings.loadingStandings')}</p>
+        <p className="text-sm text-muted-foreground/60">{t(language, 'standings.fetchingData')}</p>
       </div>
     );
   }
@@ -772,10 +769,10 @@ export default function StandingsView() {
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Trophy className="h-5 w-5 text-green-500" />
-            Classements
+            {t(language, 'standings.title')}
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {standings.length} classement{standings.length !== 1 ? 's' : ''} · Cliquez sur une équipe
+            {standings.length} {t(language, 'standings.ranking')}{standings.length !== 1 ? 's' : ''} · {t(language, 'standings.clickTeam')}
           </p>
         </div>
         <Button
@@ -791,23 +788,23 @@ export default function StandingsView() {
 
       {/* Category tabs */}
       <div className="flex gap-1 bg-muted/40 rounded-xl p-1">
-        {CATEGORIES.map((cat) => {
-          const isActive = activeCategory === cat.key;
-          const catData = data[cat.key];
-          const catLoading = loading[cat.key];
+        {CATEGORIES.map((catKey) => {
+          const isActive = activeCategory === catKey;
+          const catData = data[catKey];
+          const catLoading = loading[catKey];
           const teamCount = catData?.standings?.reduce((sum, s) => sum + (s.placeholder ? 0 : s.teams.length), 0) || 0;
           return (
             <button
-              key={cat.key}
-              onClick={() => handleCategoryChange(cat.key)}
+              key={catKey}
+              onClick={() => handleCategoryChange(catKey)}
               className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
                 isActive
                   ? 'bg-green-500/15 text-green-400 shadow-sm'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
               }`}
             >
-              {cat.icon}
-              <span>{cat.label}</span>
+              {CATEGORY_ICONS[catKey]}
+              <span>{t(language, CATEGORY_KEYS[catKey])}</span>
               {catLoading && !catData && (
                 <Loader2 className="h-3 w-3 animate-spin" />
               )}
@@ -861,7 +858,7 @@ export default function StandingsView() {
       {currentLoading && currentData && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500/5 border border-green-500/10 text-xs text-green-500">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          <span>Mise à jour en cours...</span>
+          <span>{t(language, 'standings.updating')}</span>
         </div>
       )}
 
@@ -876,7 +873,7 @@ export default function StandingsView() {
             onClick={() => fetchStandings(activeCategory)}
             className="ml-auto h-6 px-2 text-[10px] text-red-400 hover:text-red-300"
           >
-            Réessayer
+            {t(language, 'common.retry')}
           </Button>
         </div>
       )}
@@ -898,7 +895,7 @@ export default function StandingsView() {
         selectedStandings.map((league) => {
           // If this is a placeholder (World Cup), render the info card
           if (league.placeholder) {
-            return <WorldCupInfoCard key={league.leagueCode} placeholder={league} />;
+            return <WorldCupInfoCard key={league.leagueCode} placeholder={league} language={language} />;
           }
 
           return (
@@ -910,6 +907,7 @@ export default function StandingsView() {
               isNBA={isNBA}
               activeCategory={activeCategory}
               onTeamClick={handleTeamClick}
+              language={language}
             />
           );
         })
@@ -923,6 +921,7 @@ export default function StandingsView() {
             currentTabs.find((t) => t.code === selectedLeague)?.name || selectedLeague
           )}
           retrying={retryingLeague === selectedLeague}
+          language={language}
         />
       ) : null}
 
@@ -930,7 +929,7 @@ export default function StandingsView() {
       {selectedLeagueError && !currentLoading && (
         <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/15 text-xs text-red-400">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-          <span className="flex-1">Erreur lors du chargement de {selectedLeagueError.name}</span>
+          <span className="flex-1">{t(language, 'standings.loadError', selectedLeagueError.name)}</span>
           <Button
             variant="ghost"
             size="sm"
@@ -951,13 +950,13 @@ export default function StandingsView() {
       {currentLoading && selectedStandings.length === 0 && currentData && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Loader2 className="h-8 w-8 animate-spin text-green-500 mb-3" />
-          <p className="text-sm text-muted-foreground">Chargement en cours...</p>
+          <p className="text-sm text-muted-foreground">{t(language, 'standings.loadingLeague')}</p>
         </div>
       )}
 
       {/* Footer */}
       <div className="text-center text-[10px] text-muted-foreground/30 pt-1">
-        Classements — données ESPN · Cliquez sur une équipe pour voir les détails
+        {t(language, 'favorites.savedLocally')}
       </div>
 
       {/* Team Detail Dialog */}
@@ -967,7 +966,6 @@ export default function StandingsView() {
           leagueCode={selectedTeam.leagueCode}
           teamName={selectedTeam.teamName}
           teamLogo={selectedTeam.teamLogo}
-          open={!!selectedTeam}
           onClose={() => setSelectedTeam(null)}
         />
       )}
