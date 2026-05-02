@@ -43,6 +43,26 @@ const NATIONALES = [
   { code: 'caf.nations', name: 'CAN', flag: '🌍' },
 ];
 
+const FEMININES = [
+  { code: 'eng.w.1', name: "Women's Super League", flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  { code: 'fra.w.1', name: 'Première Ligue', flag: '🇫🇷' },
+  { code: 'esp.w.1', name: 'Liga F', flag: '🇪🇸' },
+  { code: 'ned.w.1', name: 'Vrouwen Eredivisie', flag: '🇳🇱' },
+  { code: 'usa.nwsl', name: 'NWSL', flag: '🇺🇸' },
+  { code: 'aus.w.1', name: 'A-League Women', flag: '🇦🇺' },
+  { code: 'can.w.nsl', name: 'Northern Super League', flag: '🇨🇦' },
+  { code: 'usa.w.usl.1', name: 'USL Super League', flag: '🇺🇸' },
+  { code: 'uefa.wchampions', name: "Women's Champions League", flag: '🏆' },
+  { code: 'fifa.wwc', name: "Women's World Cup", flag: '🏆' },
+  { code: 'uefa.w.nations', name: "Women's Nations League", flag: '🇪🇺' },
+  { code: 'uefa.weuro', name: "Women's Euro", flag: '🇪🇺' },
+  { code: 'concacaf.w.gold', name: 'W Gold Cup', flag: '🇺🇸' },
+  { code: 'conmebol.america.femenina', name: 'Copa América Femenina', flag: '🌎' },
+  { code: 'afc.w.asian.cup', name: "Women's Asian Cup", flag: '🌏' },
+  { code: 'caf.w.nations', name: "Women's AFCON", flag: '🌍' },
+  { code: 'fifa.friendly.w', name: "Women's Friendly", flag: '🌍' },
+];
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface StandingEntry {
@@ -688,7 +708,7 @@ export async function GET(request: Request) {
       if (PLACEHOLDER_CODES.has(league)) {
         leaguesToFetch = [];
       } else {
-        const allLeagues = [...CHAMPIONNATS, ...COUPES_CLUBS, ...NATIONALES];
+        const allLeagues = [...CHAMPIONNATS, ...COUPES_CLUBS, ...NATIONALES, ...FEMININES];
         leaguesToFetch = allLeagues.filter((l) => l.code === league);
         if (leaguesToFetch.length === 0) {
           return NextResponse.json(
@@ -713,6 +733,9 @@ export async function GET(request: Request) {
           includeCopaAmericaPlaceholder = true;
           includeAsianCupPlaceholder = true;
           includeGoldCupPlaceholder = true;
+          break;
+        case 'feminines':
+          leaguesToFetch = FEMININES;
           break;
         case 'championnats':
         default:

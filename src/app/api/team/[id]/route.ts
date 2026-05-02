@@ -20,6 +20,23 @@ const LEAGUE_NAMES: Record<string, string> = {
   'caf.nations': 'CAN',
   'fifa.rankings': 'Classement FIFA',
   'nba': 'NBA',
+  'eng.w.1': "Women's Super League",
+  'fra.w.1': 'Première Ligue',
+  'esp.w.1': 'Liga F',
+  'ned.w.1': 'Vrouwen Eredivisie',
+  'usa.nwsl': 'NWSL',
+  'aus.w.1': 'A-League Women',
+  'can.w.nsl': 'Northern Super League',
+  'usa.w.usl.1': 'USL Super League',
+  'uefa.wchampions': "Women's Champions League",
+  'fifa.wwc': "Women's World Cup",
+  'uefa.w.nations': "Women's Nations League",
+  'uefa.weuro': "Women's Euro",
+  'concacaf.w.gold': 'W Gold Cup',
+  'conmebol.america.femenina': 'Copa América Femenina',
+  'afc.w.asian.cup': "Women's Asian Cup",
+  'caf.w.nations': "Women's AFCON",
+  'fifa.friendly.w': "Women's Friendly",
 };
 
 /**

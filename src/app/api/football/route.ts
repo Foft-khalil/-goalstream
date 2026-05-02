@@ -35,6 +35,19 @@ const ESPN_LEAGUES_EXTENDED = [
   { code: 'conmebol.sudamericana', name: 'Copa Sudamericana' },
 ];
 
+// Women's leagues: always fetched alongside primary
+const ESPN_LEAGUES_WOMEN = [
+  { code: 'eng.w.1', name: "Women's Super League" },
+  { code: 'fra.w.1', name: 'Première Ligue' },
+  { code: 'esp.w.1', name: 'Liga F' },
+  { code: 'ned.w.1', name: 'Vrouwen Eredivisie' },
+  { code: 'usa.nwsl', name: 'NWSL' },
+  { code: 'aus.w.1', name: 'A-League Women' },
+  { code: 'can.w.nsl', name: 'Northern Super League' },
+  { code: 'usa.w.usl.1', name: 'USL Super League' },
+  { code: 'uefa.wchampions', name: "Women's Champions League" },
+];
+
 // ─── ESPN API types ──────────────────────────────────────────────────────────
 interface ESPNCompetitor {
   team: {
@@ -199,8 +212,8 @@ async function fetchESPNMatchesForDate(date: string, includeAllLeagues: boolean)
   const errors: string[] = [];
 
   const leagues = includeAllLeagues
-    ? [...ESPN_LEAGUES_PRIMARY, ...ESPN_LEAGUES_EXTENDED]
-    : ESPN_LEAGUES_PRIMARY;
+    ? [...ESPN_LEAGUES_PRIMARY, ...ESPN_LEAGUES_EXTENDED, ...ESPN_LEAGUES_WOMEN]
+    : [...ESPN_LEAGUES_PRIMARY, ...ESPN_LEAGUES_WOMEN];
 
   // Fetch leagues in batches of 3 for speed while staying memory-safe
   const batchSize = 3;

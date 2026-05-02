@@ -80,6 +80,7 @@ export interface Translations {
     championships: string;
     clubCups: string;
     nationalTeams: string;
+    women: string;
     basketball: string;
     fifaRanking: string;
     worldCup: string;
@@ -370,6 +371,7 @@ export const translations: Record<Language, Translations> = {
       championships: 'Championnats',
       clubCups: 'Coupes Clubs',
       nationalTeams: 'Éq. Nationales',
+      women: 'Féminines',
       basketball: 'Basketball',
       fifaRanking: 'Classement FIFA',
       worldCup: 'Coupe du Monde',
@@ -658,6 +660,7 @@ export const translations: Record<Language, Translations> = {
       championships: 'Championships',
       clubCups: 'Club Cups',
       nationalTeams: 'National Teams',
+      women: 'Women',
       basketball: 'Basketball',
       fifaRanking: 'FIFA Ranking',
       worldCup: 'World Cup',
@@ -946,6 +949,7 @@ export const translations: Record<Language, Translations> = {
       championships: 'البطولات',
       clubCups: 'كأس الأندية',
       nationalTeams: 'الفرق الوطنية',
+      women: 'نسائية',
       basketball: 'كرة السلة',
       fifaRanking: 'تصنيف FIFA',
       worldCup: 'كأس العالم',
@@ -1234,6 +1238,7 @@ export const translations: Record<Language, Translations> = {
       championships: 'Campeonatos',
       clubCups: 'Copas de Clubes',
       nationalTeams: 'Selecciones',
+      women: 'Femenino',
       basketball: 'Baloncesto',
       fifaRanking: 'Ranking FIFA',
       worldCup: 'Copa del Mundo',
@@ -1522,6 +1527,7 @@ export const translations: Record<Language, Translations> = {
       championships: 'Campeonatos',
       clubCups: 'Copas de Clubes',
       nationalTeams: 'Seleções',
+      women: 'Feminino',
       basketball: 'Basquetebol',
       fifaRanking: 'Ranking FIFA',
       worldCup: 'Copa do Mundo',

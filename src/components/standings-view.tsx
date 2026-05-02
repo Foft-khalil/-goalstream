@@ -74,7 +74,7 @@ interface TopScorer {
 
 // ─── Category definitions ────────────────────────────────────────────────────
 
-type Category = 'championnats' | 'basketball' | 'coupes' | 'nationales';
+type Category = 'championnats' | 'basketball' | 'coupes' | 'nationales' | 'feminines';
 
 // Category keys for i18n lookup
 const CATEGORY_KEYS: Record<Category, string> = {
@@ -82,6 +82,7 @@ const CATEGORY_KEYS: Record<Category, string> = {
   basketball: 'standings.basketball',
   coupes: 'standings.clubCups',
   nationales: 'standings.nationalTeams',
+  feminines: 'standings.women',
 };
 
 const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
@@ -89,9 +90,10 @@ const CATEGORY_ICONS: Record<Category, React.ReactNode> = {
   basketball: <Dribbble className="h-3.5 w-3.5" />,
   coupes: <Award className="h-3.5 w-3.5" />,
   nationales: <Globe className="h-3.5 w-3.5" />,
+  feminines: <Users className="h-3.5 w-3.5" />,
 };
 
-const CATEGORIES: Category[] = ['championnats', 'basketball', 'coupes', 'nationales'];
+const CATEGORIES: Category[] = ['championnats', 'basketball', 'coupes', 'nationales', 'feminines'];
 
 // League tabs per category
 const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: string }>> = {
@@ -134,6 +136,25 @@ const LEAGUE_TABS: Record<Category, Array<{ code: string; name: string; flag: st
     { code: 'concacaf.gold', name: 'Gold Cup', flag: '🇺🇸' },
     { code: 'afc.asian', name: 'Asian Cup', flag: '🌏' },
     { code: 'caf.nations', name: 'AFCON', flag: '🌍' },
+  ],
+  feminines: [
+    { code: 'eng.w.1', name: 'WSL', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+    { code: 'fra.w.1', name: 'Première Ligue', flag: '🇫🇷' },
+    { code: 'esp.w.1', name: 'Liga F', flag: '🇪🇸' },
+    { code: 'ned.w.1', name: 'Vrouw. Eredivisie', flag: '🇳🇱' },
+    { code: 'usa.nwsl', name: 'NWSL', flag: '🇺🇸' },
+    { code: 'aus.w.1', name: 'A-League Women', flag: '🇦🇺' },
+    { code: 'can.w.nsl', name: 'Northern SL', flag: '🇨🇦' },
+    { code: 'usa.w.usl.1', name: 'USL Super League', flag: '🇺🇸' },
+    { code: 'uefa.wchampions', name: 'W. Champions L.', flag: '🏆' },
+    { code: 'fifa.wwc', name: 'W. World Cup', flag: '🏆' },
+    { code: 'uefa.w.nations', name: 'W. Nations L.', flag: '🇪🇺' },
+    { code: 'uefa.weuro', name: 'W. Euro', flag: '🇪🇺' },
+    { code: 'concacaf.w.gold', name: 'W Gold Cup', flag: '🇺🇸' },
+    { code: 'conmebol.america.femenina', name: 'Copa Amér. Fem.', flag: '🌎' },
+    { code: 'afc.w.asian.cup', name: 'W. Asian Cup', flag: '🌏' },
+    { code: 'caf.w.nations', name: 'W. AFCON', flag: '🌍' },
+    { code: 'fifa.friendly.w', name: 'W. Friendly', flag: '🌍' },
   ],
 };
 
@@ -462,6 +483,18 @@ function StandingsTable({
             </div>
           </div>
         )}
+        {activeCategory === 'feminines' && (
+          <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-green-500/40" />
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.championsLeague')}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-500/40" />
+              <span className="text-[9px] text-muted-foreground/50">{t(language, 'standings.relegation')}</span>
+            </div>
+          </div>
+        )}
         {isNBATable && (
           <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
             <div className="flex items-center gap-1">
@@ -683,12 +716,14 @@ export default function StandingsView() {
     basketball: null,
     coupes: null,
     nationales: null,
+    feminines: null,
   });
   const [loading, setLoading] = useState<Record<Category, boolean>>({
     championnats: false,
     basketball: false,
     coupes: false,
     nationales: false,
+    feminines: false,
   });
   const [selectedLeague, setSelectedLeague] = useState<string>('fra.1');
   const [selectedTeam, setSelectedTeam] = useState<{
