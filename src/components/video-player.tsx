@@ -4,6 +4,7 @@ import Hls from 'hls.js';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { X, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Loader2, RefreshCw, Tv, SkipForward, ExternalLink } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 
 type StreamStatus = 'loading' | 'ready' | 'error';
@@ -17,7 +18,7 @@ function isHlsUrl(url: string): boolean {
 }
 
 export default function VideoPlayer() {
-  const { playerVisible, playerStreamUrl, playerChannelName, playerChannelLogo, playerAlternatives, closePlayer, openPlayer } =
+  const { playerVisible, playerStreamUrl, playerChannelName, playerChannelLogo, playerAlternatives, closePlayer, openPlayer, language } =
     useAppStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -121,7 +122,7 @@ export default function VideoPlayer() {
                 hls.startLoad();
               } else {
                 if (tryNextChannel()) return;
-                setErrorInfo({ url: currentUrl, msg: 'Flux indisponible — chaîne probablement hors ligne' });
+                setErrorInfo({ url: currentUrl, msg: t(language, 'player.streamUnavailable') });
                 hls.destroy();
               }
               break;
@@ -130,7 +131,7 @@ export default function VideoPlayer() {
               break;
             default:
               if (tryNextChannel()) return;
-              setErrorInfo({ url: currentUrl, msg: 'Erreur de lecture — ce flux ne peut pas être lu' });
+              setErrorInfo({ url: currentUrl, msg: t(language, 'player.playbackError') });
               hls.destroy();
               break;
           }
@@ -146,14 +147,14 @@ export default function VideoPlayer() {
       };
       const onError = () => {
         if (tryNextChannel()) return;
-        setErrorInfo({ url: currentUrl, msg: 'Flux indisponible' });
+        setErrorInfo({ url: currentUrl, msg: t(language, 'player.streamUnavailableShort') });
       };
       video.addEventListener('loadedmetadata', onLoaded);
       video.addEventListener('error', onError);
     } else {
       if (!tryNextChannel()) {
         queueMicrotask(() => {
-          setErrorInfo({ url: currentUrl, msg: 'HLS non supporté par ce navigateur' });
+          setErrorInfo({ url: currentUrl, msg: t(language, 'player.hlsNotSupported') });
         });
       }
     }
@@ -254,7 +255,7 @@ export default function VideoPlayer() {
           )}
           {playerAlternatives && playerAlternatives.length > 0 && (
             <span className="text-white/40 text-xs ml-auto">
-              +{playerAlternatives.length} autre{playerAlternatives.length > 1 ? 's' : ''} chaîne{playerAlternatives.length > 1 ? 's' : ''}
+              {t(language, 'player.otherChannels', playerAlternatives.length)}
             </span>
           )}
         </div>
@@ -292,8 +293,8 @@ export default function VideoPlayer() {
           <div className="absolute inset-0 flex items-center justify-center bg-black/60">
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="h-12 w-12 text-white animate-spin" />
-              <p className="text-white/80 text-sm">Chargement du flux...</p>
-              <p className="text-white/40 text-xs">Si la chaîne ne charge pas, on essaie la suivante automatiquement</p>
+              <p className="text-white/80 text-sm">{t(language, 'player.loadingStream')}</p>
+              <p className="text-white/40 text-xs">{t(language, 'player.autoNextChannel')}</p>
             </div>
           </div>
         )}
@@ -306,10 +307,10 @@ export default function VideoPlayer() {
                 <Tv className="h-8 w-8 text-red-400" />
               </div>
               <div>
-                <p className="text-white font-semibold text-lg mb-1">Chaîne indisponible</p>
+                <p className="text-white font-semibold text-lg mb-1">{t(language, 'player.channelUnavailable')}</p>
                 <p className="text-white/60 text-sm">{streamError}</p>
                 <p className="text-white/40 text-xs mt-2">
-                  Les flux IPTV gratuits sont souvent instables.
+                  {t(language, 'player.iptvUnstable')}
                 </p>
               </div>
 
@@ -317,12 +318,12 @@ export default function VideoPlayer() {
               <div className="flex flex-col gap-2 w-full max-w-xs">
                 <Button onClick={handleRetry} className="bg-white/10 hover:bg-white/20 text-white gap-2">
                   <RefreshCw className="h-4 w-4" />
-                  Réessayer
+                  {t(language, 'player.retry')}
                 </Button>
 
                 {playerAlternatives && playerAlternatives.length > 0 && (
                   <div className="mt-2">
-                    <p className="text-white/50 text-xs mb-2">Autres chaînes :</p>
+                    <p className="text-white/50 text-xs mb-2">{t(language, 'player.otherChannelsLabel')}</p>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
                       {playerAlternatives.map((ch, idx) => (
                         <button
@@ -353,7 +354,7 @@ export default function VideoPlayer() {
                 )}
 
                 <Button variant="outline" onClick={closePlayer} className="mt-1 border-white/20 text-white hover:bg-white/10">
-                  Retour
+                  {t(language, 'player.back')}
                 </Button>
               </div>
             </div>

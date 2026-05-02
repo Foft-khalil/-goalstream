@@ -5,7 +5,7 @@ import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Play, Tv, Heart, Star, Clock, Radio, Loader2, Trash2, WifiOff, X, ChevronRight, Zap, Users } from 'lucide-react';
+import { Play, Tv, Heart, Star, Clock, Radio, Loader2, Trash2, WifiOff, X, ChevronRight, Zap, Users, Globe } from 'lucide-react';
 import { useState } from 'react';
 
 interface FoundChannel {
@@ -42,11 +42,50 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
     return matchDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   })();
 
+  const isBasketballSport = match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') || match.competition?.toLowerCase().includes('euroleague');
+  const sportType = isBasketballSport ? 'basketball' : 'football';
+
   const handleQuickPlay = async () => {
     if (findingStream) return;
     setFindingStream(true);
     setError(null);
     try {
+      // ── Step 1: Try kora-api first (fast, direct streams) ──
+      try {
+        const koraRes = await fetch('/api/streams', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            competition: match.competition,
+            sport: sportType,
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (koraRes.ok) {
+          const koraData = await koraRes.json();
+          if (koraData.streams && koraData.streams.length > 0) {
+            const first = koraData.streams[0];
+            const alternatives = koraData.streams.slice(1).map((s: any) => ({
+              name: `${s.langFlag} ${s.name}`,
+              url: s.url,
+              logo: '',
+            }));
+            openPlayer(first.url, `${first.langFlag} ${first.name}`, undefined, alternatives);
+            setFindingStream(false);
+            return;
+          }
+        }
+      } catch {
+        // kora-api failed, fall through to IPTV
+      }
+
+      // ── Step 2: IPTV fallback ──
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000);
+
       const res = await fetch('/api/match-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -54,8 +93,13 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam,
           competition: match.competition,
+          sport: sportType,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeout);
+
       if (!res.ok) throw new Error('Failed to find channels');
       const data = await res.json();
       const channels: FoundChannel[] = data.channels || [];
@@ -203,7 +247,30 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
             )}
           </Button>
           {error && !findingStream && (
-            <div className="mt-2 text-[11px] text-red-400/80 text-center">{error}</div>
+            <div className="mt-2 space-y-2">
+              <p className="text-[11px] text-red-400/80 text-center">{error}</p>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => {
+                    const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || ''} live stream`);
+                    window.open(`https://us-sport.eu/?s=${query}`, '_blank', 'noopener,noreferrer');
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition-colors text-[10px] font-medium text-blue-400"
+                >
+                  <Globe className="h-3 w-3" />
+                  SportStream
+                </button>
+                <button
+                  onClick={() => {
+                    window.open('https://tarjetarojaenvivo.cx', '_blank', 'noopener,noreferrer');
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-colors text-[10px] font-medium text-red-400"
+                >
+                  <Globe className="h-3 w-3" />
+                  RojaDirecta
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

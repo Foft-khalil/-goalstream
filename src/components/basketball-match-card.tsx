@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Play, Tv, Clock, Loader2, Radio, ChevronRight, Heart, Activity, ExternalLink, Globe } from 'lucide-react';
+import { Play, Tv, Clock, Loader2, Radio, ChevronRight, Heart, Activity, ExternalLink, Globe, Film } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
@@ -440,6 +440,22 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
               title="Regarder sur SportStream"
             >
               <Globe className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {/* Highlights button — only for finished matches */}
+          {isFinished && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const year = matchDate ? matchDate.getFullYear() : new Date().getFullYear();
+                const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || ''} highlights ${year}`);
+                window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank', 'noopener,noreferrer');
+              }}
+              className="h-8 px-3 rounded-lg border-border/40 text-xs gap-1"
+              title={t(language, 'match.highlights')}
+            >
+              <Film className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>

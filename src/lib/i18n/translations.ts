@@ -59,6 +59,7 @@ export interface Translations {
     friendly: string;
     share: string;
     copied: string;
+    highlights: string;
   };
   basketball: {
     q1: string;
@@ -242,6 +243,20 @@ export interface Translations {
     serverError: string;
     possession: string;
   };
+  player: {
+    streamUnavailable: string;
+    playbackError: string;
+    streamUnavailableShort: string;
+    hlsNotSupported: string;
+    otherChannels: string;
+    loadingStream: string;
+    autoNextChannel: string;
+    channelUnavailable: string;
+    iptvUnstable: string;
+    retry: string;
+    otherChannelsLabel: string;
+    back: string;
+  };
   footer: {
     description: string;
     streamsFrom: string;
@@ -316,6 +331,7 @@ export const translations: Record<Language, Translations> = {
       friendly: 'Amical',
       share: 'Partager',
       copied: 'Copié !',
+      highlights: 'Résumé vidéo',
     },
     basketball: {
       q1: 'Q1',
@@ -499,6 +515,20 @@ export const translations: Record<Language, Translations> = {
       serverError: 'Erreur serveur',
       possession: 'Possession',
     },
+    player: {
+      streamUnavailable: 'Flux indisponible — chaîne probablement hors ligne',
+      playbackError: 'Erreur de lecture — ce flux ne peut pas être lu',
+      streamUnavailableShort: 'Flux indisponible',
+      hlsNotSupported: 'HLS non supporté par ce navigateur',
+      otherChannels: '+{0} autres chaînes',
+      loadingStream: 'Chargement du flux...',
+      autoNextChannel: 'Si la chaîne ne charge pas, on essaie la suivante automatiquement',
+      channelUnavailable: 'Chaîne indisponible',
+      iptvUnstable: 'Les flux IPTV gratuits sont souvent instables.',
+      retry: 'Réessayer',
+      otherChannelsLabel: 'Autres chaînes :',
+      back: 'Retour',
+    },
     footer: {
       description: 'Streaming sportif gratuit via IPTV',
       streamsFrom: 'Flux issus de',
@@ -571,6 +601,7 @@ export const translations: Record<Language, Translations> = {
       friendly: 'Friendly',
       share: 'Share',
       copied: 'Copied!',
+      highlights: 'Highlights',
     },
     basketball: {
       q1: 'Q1',
@@ -754,6 +785,20 @@ export const translations: Record<Language, Translations> = {
       serverError: 'Server error',
       possession: 'Possession',
     },
+    player: {
+      streamUnavailable: 'Stream unavailable — channel likely offline',
+      playbackError: 'Playback error — this stream cannot be played',
+      streamUnavailableShort: 'Stream unavailable',
+      hlsNotSupported: 'HLS not supported by this browser',
+      otherChannels: '+{0} other channels',
+      loadingStream: 'Loading stream...',
+      autoNextChannel: 'If the channel doesn\'t load, we\'ll try the next one automatically',
+      channelUnavailable: 'Channel unavailable',
+      iptvUnstable: 'Free IPTV streams are often unstable.',
+      retry: 'Retry',
+      otherChannelsLabel: 'Other channels:',
+      back: 'Back',
+    },
     footer: {
       description: 'Free sports streaming via IPTV',
       streamsFrom: 'Streams from',
@@ -826,6 +871,7 @@ export const translations: Record<Language, Translations> = {
       friendly: 'ودي',
       share: 'مشاركة',
       copied: 'تم النسخ!',
+      highlights: 'ملخصات',
     },
     basketball: {
       q1: 'ر1',
@@ -1009,6 +1055,20 @@ export const translations: Record<Language, Translations> = {
       serverError: 'خطأ في الخادم',
       possession: 'الاستحواذ',
     },
+    player: {
+      streamUnavailable: 'البث غير متاح — القناة على الأرجح غير متصلة',
+      playbackError: 'خطأ في التشغيل — لا يمكن تشغيل هذا البث',
+      streamUnavailableShort: 'البث غير متاح',
+      hlsNotSupported: 'HLS غير مدعوم في هذا المتصفح',
+      otherChannels: '+{0} قنوات أخرى',
+      loadingStream: 'جاري تحميل البث...',
+      autoNextChannel: 'إذا لم يتم تحميل القناة، سنحاول التالية تلقائياً',
+      channelUnavailable: 'القناة غير متاحة',
+      iptvUnstable: 'البث المباشر المجاني غالباً ما يكون غير مستقر.',
+      retry: 'إعادة المحاولة',
+      otherChannelsLabel: 'قنوات أخرى:',
+      back: 'رجوع',
+    },
     footer: {
       description: 'بث رياضي مجاني عبر IPTV',
       streamsFrom: 'البث من',
@@ -1081,6 +1141,7 @@ export const translations: Record<Language, Translations> = {
       friendly: 'Amistoso',
       share: 'Compartir',
       copied: '¡Copiado!',
+      highlights: 'Resumen',
     },
     basketball: {
       q1: 'C1',
@@ -1264,6 +1325,20 @@ export const translations: Record<Language, Translations> = {
       serverError: 'Error del servidor',
       possession: 'Posesión',
     },
+    player: {
+      streamUnavailable: 'Stream no disponible — el canal probablemente está fuera de línea',
+      playbackError: 'Error de reproducción — este stream no se puede reproducir',
+      streamUnavailableShort: 'Stream no disponible',
+      hlsNotSupported: 'HLS no soportado por este navegador',
+      otherChannels: '+{0} otros canales',
+      loadingStream: 'Cargando stream...',
+      autoNextChannel: 'Si el canal no carga, se intentará el siguiente automáticamente',
+      channelUnavailable: 'Canal no disponible',
+      iptvUnstable: 'Los streams IPTV gratuitos suelen ser inestables.',
+      retry: 'Reintentar',
+      otherChannelsLabel: 'Otros canales:',
+      back: 'Volver',
+    },
     footer: {
       description: 'Streaming deportivo gratuito vía IPTV',
       streamsFrom: 'Transmisiones de',
@@ -1336,6 +1411,7 @@ export const translations: Record<Language, Translations> = {
       friendly: 'Amistoso',
       share: 'Compartilhar',
       copied: 'Copiado!',
+      highlights: 'Melhores momentos',
     },
     basketball: {
       q1: 'Q1',
@@ -1397,6 +1473,11 @@ export const translations: Record<Language, Translations> = {
       asianCupMessage: 'A próxima Copa da Ásia será em 2027 na Arábia Saudita. As eliminatórias estão em andamento.',
       goldCupMessage: 'A próxima Copa Ouro será em 2027. Os detalhes serão anunciados posteriormente.',
       ranking: 'classificação',
+      topScorers: 'Artilheiros',
+      goals: 'Gols',
+      assists: 'Assistências',
+      player: 'Jogador',
+      matchesPlayed: 'JJ',
     },
     favorites: {
       title: 'Favoritos',
@@ -1513,6 +1594,20 @@ export const translations: Record<Language, Translations> = {
       cantLoadEvents: 'Não foi possível carregar os eventos',
       serverError: 'Erro do servidor',
       possession: 'Posse de bola',
+    },
+    player: {
+      streamUnavailable: 'Stream indisponível — canal provavelmente offline',
+      playbackError: 'Erro de reprodução — este stream não pode ser reproduzido',
+      streamUnavailableShort: 'Stream indisponível',
+      hlsNotSupported: 'HLS não suportado por este navegador',
+      otherChannels: '+{0} outros canais',
+      loadingStream: 'Carregando stream...',
+      autoNextChannel: 'Se o canal não carregar, tentaremos o próximo automaticamente',
+      channelUnavailable: 'Canal indisponível',
+      iptvUnstable: 'Streams IPTV gratuitos costumam ser instáveis.',
+      retry: 'Tentar novamente',
+      otherChannelsLabel: 'Outros canais:',
+      back: 'Voltar',
     },
     footer: {
       description: 'Streaming esportivo gratuito via IPTV',

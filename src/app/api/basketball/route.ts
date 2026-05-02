@@ -6,7 +6,6 @@ import type { BasketballMatch, BasketballMatchesResponse } from '@/lib/basketbal
 const ESPN_BASKETBALL_LEAGUES = [
   { code: 'nba', name: 'NBA', sport: 'basketball' },
   { code: 'mens-college-basketball', name: 'NCAA Men\'s Basketball', sport: 'basketball' },
-  { code: 'euroleague', name: 'EuroLeague', sport: 'basketball' },
   { code: 'wnba', name: 'WNBA', sport: 'basketball' },
 ];
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Loader2, Trophy, RefreshCw, AlertCircle, Globe, Users, Calendar, Info, MapPin, Flag, ChevronDown, ChevronUp, Clock, Dribbble, Award } from 'lucide-react';
+import { Loader2, Trophy, RefreshCw, AlertCircle, Globe, Users, Calendar, Info, MapPin, Flag, ChevronDown, ChevronUp, Clock, Dribbble, Award, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import TeamDetailDialog from '@/components/team-detail-dialog';
 import { useAppStore } from '@/lib/store';
@@ -58,6 +58,18 @@ interface StandingsData {
   errors?: string[];
   errorCount?: number;
   error?: string;
+}
+
+// ─── Top Scorers Types ─────────────────────────────────────────────────────────
+
+interface TopScorer {
+  rank: number;
+  name: string;
+  team: string;
+  teamLogo: string | null;
+  goals: number;
+  assists: number;
+  played: number;
 }
 
 // ─── Category definitions ────────────────────────────────────────────────────
@@ -495,6 +507,93 @@ function StandingsTable({
   );
 }
 
+// ─── Top Scorers Table ─────────────────────────────────────────────────────────
+
+function TopScorersTable({
+  scorers,
+  language,
+}: {
+  scorers: TopScorer[];
+  language: string;
+}) {
+  return (
+    <section className="space-y-0">
+      {/* Table */}
+      <div className="rounded-xl border border-border/30 overflow-hidden bg-card/50">
+        {/* Header */}
+        <div className="grid grid-cols-[28px_1fr_60px_40px_40px_40px] gap-0 px-2.5 py-2 bg-muted/30 border-b border-border/20 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+          <span className="text-center">#</span>
+          <span>{t(language, 'standings.player')}</span>
+          <span>{t(language, 'standings.team')}</span>
+          <span className="text-center">{t(language, 'standings.matchesPlayed')}</span>
+          <span className="text-center">{t(language, 'standings.goals')}</span>
+          <span className="text-center">{t(language, 'standings.assists')}</span>
+        </div>
+
+        {/* Rows */}
+        <div className="divide-y divide-border/10">
+          {scorers.map((scorer) => (
+            <div
+              key={`${scorer.name}-${scorer.rank}`}
+              className="grid grid-cols-[28px_1fr_60px_40px_40px_40px] gap-0 px-2.5 py-2.5 items-center text-xs hover:bg-green-500/5 transition-colors"
+            >
+              {/* Rank */}
+              <div className="flex justify-center">
+                {scorer.rank <= 3 ? (
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded text-[9px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                    {scorer.rank}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/50 font-medium">{scorer.rank}</span>
+                )}
+              </div>
+
+              {/* Player name */}
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
+                  <span className="text-[9px] font-bold text-green-500">
+                    {scorer.name.split(' ').map(n => n[0]).join('')}
+                  </span>
+                </div>
+                <span className="font-medium truncate text-[11px]">{scorer.name}</span>
+              </div>
+
+              {/* Team */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                {scorer.teamLogo ? (
+                  <img
+                    src={scorer.teamLogo}
+                    alt=""
+                    className="w-4 h-4 rounded object-contain shrink-0"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                ) : null}
+                <span className="text-muted-foreground/60 truncate text-[10px]">{scorer.team}</span>
+              </div>
+
+              {/* Stats */}
+              <span className="text-center text-muted-foreground/60 tabular-nums">{scorer.played}</span>
+              <span className="text-center font-bold text-green-400 tabular-nums">{scorer.goals}</span>
+              <span className="text-center text-muted-foreground/70 tabular-nums">{scorer.assists}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-3 px-3 py-1.5 bg-muted/10 border-t border-border/10">
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-amber-500/40" />
+            <span className="text-[9px] text-muted-foreground/50">Top 3</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[9px] text-muted-foreground/50">⚽ {t(language, 'standings.goals')} · 🅰️ {t(language, 'standings.assists')}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Empty State per League ──────────────────────────────────────────────────
 
 function EmptyLeagueState({
@@ -600,6 +699,10 @@ export default function StandingsView() {
   } | null>(null);
   const [leagueErrors, setLeagueErrors] = useState<LeagueError[]>([]);
   const [retryingLeague, setRetryingLeague] = useState<string | null>(null);
+  const [activeSubTab, setActiveSubTab] = useState<'standings' | 'scorers'>('standings');
+  const [topScorers, setTopScorers] = useState<TopScorer[]>([]);
+  const [topScorersLoading, setTopScorersLoading] = useState(false);
+  const [topScorersError, setTopScorersError] = useState<string | null>(null);
 
   // Fetch standings for a category on demand
   const fetchStandings = useCallback(async (category: Category) => {
@@ -708,12 +811,46 @@ export default function StandingsView() {
   // Handle category tab change
   const handleCategoryChange = (category: Category) => {
     setActiveCategory(category);
+    setActiveSubTab('standings');
     // Auto-select first league of the category
     const firstCode = LEAGUE_TABS[category][0]?.code;
     if (firstCode) {
       setSelectedLeague(firstCode);
     }
   };
+
+  // Fetch top scorers when sub-tab or selected league changes
+  useEffect(() => {
+    if (activeSubTab !== 'scorers') return;
+    if (activeCategory === 'basketball') return; // No top scorers for basketball
+
+    const fetchTopScorers = async () => {
+      setTopScorersLoading(true);
+      setTopScorersError(null);
+      try {
+        const res = await fetch(`/api/top-scorers?league=${encodeURIComponent(selectedLeague)}`);
+        if (!res.ok) throw new Error('Failed to fetch top scorers');
+        const data = await res.json();
+        setTopScorers(data.scorers || []);
+        if ((!data.scorers || data.scorers.length === 0) && data.error) {
+          setTopScorersError(data.error);
+        }
+      } catch {
+        setTopScorersError(t(language, 'standings.dataUnavailable'));
+        setTopScorers([]);
+      } finally {
+        setTopScorersLoading(false);
+      }
+    };
+    fetchTopScorers();
+  }, [activeSubTab, selectedLeague, language]);
+
+  // Reset sub-tab when category changes to basketball
+  useEffect(() => {
+    if (activeCategory === 'basketball') {
+      setActiveSubTab('standings');
+    }
+  }, [activeCategory]);
 
   const handleTeamClick = (team: StandingTeam) => {
     setSelectedTeam({
@@ -826,7 +963,7 @@ export default function StandingsView() {
           return (
             <button
               key={tab.code}
-              onClick={() => setSelectedLeague(tab.code)}
+              onClick={() => { setSelectedLeague(tab.code); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                 isSelected
                   ? 'bg-green-500/15 text-green-400 border border-green-500/20'
@@ -853,6 +990,34 @@ export default function StandingsView() {
           );
         })}
       </div>
+
+      {/* Standings / Top Scorers sub-tab toggle — only for non-basketball categories */}
+      {activeCategory !== 'basketball' && (
+        <div className="flex gap-1 bg-muted/30 rounded-lg p-0.5">
+          <button
+            onClick={() => setActiveSubTab('standings')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              activeSubTab === 'standings'
+                ? 'bg-card text-foreground shadow-sm border border-border/30'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Trophy className="h-3 w-3" />
+            {t(language, 'standings.title')}
+          </button>
+          <button
+            onClick={() => setActiveSubTab('scorers')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+              activeSubTab === 'scorers'
+                ? 'bg-card text-foreground shadow-sm border border-border/30'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Target className="h-3 w-3" />
+            {t(language, 'standings.topScorers')}
+          </button>
+        </div>
+      )}
 
       {/* Loading overlay for refresh */}
       {currentLoading && currentData && (
@@ -890,6 +1055,31 @@ export default function StandingsView() {
         </div>
       )}
 
+      {/* Standings / Top Scorers content */}
+      {activeSubTab === 'scorers' && activeCategory !== 'basketball' ? (
+        /* Top Scorers view */
+        topScorersLoading ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-green-500 mb-3" />
+            <p className="text-sm text-muted-foreground">{t(language, 'standings.loadingLeague')}</p>
+          </div>
+        ) : topScorersError && topScorers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="h-10 w-10 text-muted-foreground/20 mb-3" />
+            <p className="text-sm font-semibold text-muted-foreground mb-1">{t(language, 'standings.topScorers')}</p>
+            <p className="text-xs text-muted-foreground/60 max-w-xs">{topScorersError}</p>
+          </div>
+        ) : topScorers.length > 0 ? (
+          <TopScorersTable scorers={topScorers} language={language} />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Target className="h-10 w-10 text-muted-foreground/20 mb-3" />
+            <p className="text-sm text-muted-foreground">{t(language, 'standings.dataUnavailable')}</p>
+          </div>
+        )
+      ) : (
+        /* Standings view (original) */
+        <>
       {/* Selected league standings */}
       {selectedStandings.length > 0 ? (
         selectedStandings.map((league) => {
@@ -952,6 +1142,8 @@ export default function StandingsView() {
           <Loader2 className="h-8 w-8 animate-spin text-green-500 mb-3" />
           <p className="text-sm text-muted-foreground">{t(language, 'standings.loadingLeague')}</p>
         </div>
+      )}
+      </>
       )}
 
       {/* Footer */}

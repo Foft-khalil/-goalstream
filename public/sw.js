@@ -1,6 +1,6 @@
-// GoalStream Service Worker — Offline caching & network-first strategy
+// GoalStream Service Worker — Offline caching, SPA navigation fallback & network-first strategy
 
-const CACHE_NAME = 'goalstream-v1';
+const CACHE_NAME = 'goalstream-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -10,6 +10,12 @@ const STATIC_ASSETS = [
   '/favicon-32.png',
   '/apple-touch-icon.png',
 ];
+
+// Offline fallback response for API requests
+const OFFLINE_API_RESPONSE = JSON.stringify({
+  error: 'offline',
+  message: 'You are offline. Please check your connection and try again.',
+});
 
 // Install — cache static assets
 self.addEventListener('install', (event) => {
@@ -35,13 +41,32 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch — Network first, fallback to cache
+// Fetch — routing strategy based on request type
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
   // Skip non-GET requests
   if (request.method !== 'GET') return;
+
+  // Next.js static assets: stale-while-revalidate
+  if (url.pathname.startsWith('/_next/')) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match(request).then((cached) => {
+          const fetchPromise = fetch(request).then((response) => {
+            if (response.ok) {
+              cache.put(request, response.clone());
+            }
+            return response;
+          }).catch(() => cached);
+
+          return cached || fetchPromise;
+        });
+      })
+    );
+    return;
+  }
 
   // API calls: Network first, no cache fallback (data needs to be fresh)
   if (url.pathname.startsWith('/api/')) {
@@ -60,7 +85,7 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           // Fallback to cached API response if offline
           return caches.match(request).then((cached) => {
-            return cached || new Response(JSON.stringify({ error: 'Hors ligne' }), {
+            return cached || new Response(OFFLINE_API_RESPONSE, {
               status: 503,
               headers: { 'Content-Type': 'application/json' },
             });
@@ -70,7 +95,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets & pages: Cache first, then network
+  // Navigation requests (HTML pages): Network first with SPA fallback
+  if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, clone);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Navigation fallback: serve cached root page for SPA routing
+          return caches.match(request).then((cached) => {
+            return cached || caches.match('/');
+          });
+        })
+    );
+    return;
+  }
+
+  // Static assets & other: Cache first, then network (with background update)
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) {
@@ -94,11 +142,11 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       }).catch(() => {
-        // If offline and no cache, return the offline page or root
-        if (request.headers.get('accept')?.includes('text/html')) {
-          return caches.match('/');
-        }
-        return new Response('Hors ligne', { status: 503 });
+        // If offline and no cache, return offline JSON response
+        return new Response(JSON.stringify({ error: 'offline', message: 'Resource unavailable offline' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        });
       });
     })
   );

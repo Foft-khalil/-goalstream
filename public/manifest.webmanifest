@@ -1,13 +1,14 @@
 {
-  "name": "GoalStream — Sport en direct",
+  "name": "GoalStream — Live Sports",
   "short_name": "GoalStream",
-  "description": "Regardez les matchs de football et basketball en direct. Scores en temps réel, chaînes sportives et plus encore.",
+  "description": "Watch live football and basketball matches. Real-time scores, sports channels and more.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a0a0a",
   "theme_color": "#16a34a",
-  "lang": "fr",
+  "lang": "en",
   "categories": ["sports", "entertainment"],
   "icons": [
     {
@@ -27,6 +28,34 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Live Matches",
+      "short_name": "Live",
+      "description": "Watch live football matches",
+      "url": "/?tab=matches",
+      "icons": [
+        {
+          "src": "/icon-192.png?v=2",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Basketball",
+      "short_name": "Basketball",
+      "description": "Watch live basketball matches",
+      "url": "/?tab=basketball",
+      "icons": [
+        {
+          "src": "/icon-192.png?v=2",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ],
   "screenshots": [],
