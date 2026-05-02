@@ -130,6 +130,58 @@ export interface Translations {
     player: string;
     matchesPlayed: string;
   };
+  teamDetail: {
+    info: string;
+    roster: string;
+    schedule: string;
+    stats: string;
+    stadium: string;
+    coach: string;
+    founded: string;
+    abbreviation: string;
+    seasonStats: string;
+    matchesPlayed: string;
+    victories: string;
+    draws: string;
+    defeats: string;
+    goalsScored: string;
+    goalsConceded: string;
+    goalDiff: string;
+    avgGoals: string;
+    pointsScored: string;
+    pointsConceded: string;
+    pointDiff: string;
+    avgPoints: string;
+    winPct: string;
+    form: string;
+    upcoming: string;
+    finished: string;
+    live: string;
+    home: string;
+    away: string;
+    otherMatches: string;
+    noInfo: string;
+    noInfoHint: string;
+    noRoster: string;
+    noRosterHint: string;
+    noSchedule: string;
+    noScheduleHint: string;
+    loading: string;
+    loadError: string;
+    retry: string;
+    addFavorite: string;
+    removeFavorite: string;
+    goalkeepers: string;
+    defenders: string;
+    midfielders: string;
+    attackers: string;
+    pointGuard: string;
+    shootingGuard: string;
+    smallForward: string;
+    powerForward: string;
+    center: string;
+    yearsOld: string;
+  };
   favorites: {
     title: string;
     myFavorites: string;
@@ -422,6 +474,58 @@ export const translations: Record<Language, Translations> = {
       player: 'Joueur',
       matchesPlayed: 'MJ',
     },
+    teamDetail: {
+      info: 'Infos',
+      roster: 'Effectif',
+      schedule: 'Calendrier',
+      stats: 'Statistiques',
+      stadium: 'Stade',
+      coach: 'Entraineur',
+      founded: 'Fondé',
+      abbreviation: 'Abréviation',
+      seasonStats: 'Statistiques de saison',
+      matchesPlayed: 'Matchs joués',
+      victories: 'Victoires',
+      draws: 'Nuls',
+      defeats: 'Défaites',
+      goalsScored: 'Buts marqués',
+      goalsConceded: 'Buts encaissés',
+      goalDiff: 'Diff. de buts',
+      avgGoals: 'Moy. buts/match',
+      pointsScored: 'Points marqués',
+      pointsConceded: 'Points encaissés',
+      pointDiff: 'Diff. de points',
+      avgPoints: 'Moy. points/match',
+      winPct: '% Victoires',
+      form: 'Forme',
+      upcoming: 'À venir',
+      finished: 'Terminé',
+      live: 'En direct',
+      home: 'DOM',
+      away: 'EXT',
+      otherMatches: 'autres matchs',
+      noInfo: 'Informations limitées',
+      noInfoHint: 'Les données détaillées seront disponibles prochainement',
+      noRoster: 'Effectif non disponible',
+      noRosterHint: "L'effectif sera annoncé prochainement",
+      noSchedule: 'Calendrier non disponible',
+      noScheduleHint: 'Les matchs seront programmés prochainement',
+      loading: 'Chargement des données...',
+      loadError: 'Échec du chargement',
+      retry: 'Réessayer',
+      addFavorite: 'Ajouter aux favoris',
+      removeFavorite: 'Retirer des favoris',
+      goalkeepers: 'Gardiens',
+      defenders: 'Défenseurs',
+      midfielders: 'Milieux',
+      attackers: 'Attaquants',
+      pointGuard: 'Meneur',
+      shootingGuard: 'Arrière',
+      smallForward: 'Ailier',
+      powerForward: 'Ailier fort',
+      center: 'Pivot',
+      yearsOld: 'ans',
+    },
     favorites: {
       title: 'Favoris',
       myFavorites: 'Mes Favoris',
@@ -711,6 +815,58 @@ export const translations: Record<Language, Translations> = {
       assists: 'Assists',
       player: 'Player',
       matchesPlayed: 'MP',
+    },
+    teamDetail: {
+      info: 'Info',
+      roster: 'Roster',
+      schedule: 'Schedule',
+      stats: 'Statistics',
+      stadium: 'Stadium',
+      coach: 'Coach',
+      founded: 'Founded',
+      abbreviation: 'Abbreviation',
+      seasonStats: 'Season Statistics',
+      matchesPlayed: 'Matches Played',
+      victories: 'Wins',
+      draws: 'Draws',
+      defeats: 'Losses',
+      goalsScored: 'Goals Scored',
+      goalsConceded: 'Goals Conceded',
+      goalDiff: 'Goal Diff.',
+      avgGoals: 'Avg goals/match',
+      pointsScored: 'Points Scored',
+      pointsConceded: 'Points Conceded',
+      pointDiff: 'Point Diff.',
+      avgPoints: 'Avg points/match',
+      winPct: 'Win %',
+      form: 'Form',
+      upcoming: 'Upcoming',
+      finished: 'Finished',
+      live: 'Live',
+      home: 'HOME',
+      away: 'AWAY',
+      otherMatches: 'other matches',
+      noInfo: 'Limited information',
+      noInfoHint: 'Detailed data will be available soon',
+      noRoster: 'Roster unavailable',
+      noRosterHint: 'Roster will be announced soon',
+      noSchedule: 'Schedule unavailable',
+      noScheduleHint: 'Matches will be scheduled soon',
+      loading: 'Loading data...',
+      loadError: 'Failed to load',
+      retry: 'Retry',
+      addFavorite: 'Add to favorites',
+      removeFavorite: 'Remove from favorites',
+      goalkeepers: 'Goalkeepers',
+      defenders: 'Defenders',
+      midfielders: 'Midfielders',
+      attackers: 'Attackers',
+      pointGuard: 'Point Guard',
+      shootingGuard: 'Shooting Guard',
+      smallForward: 'Small Forward',
+      powerForward: 'Power Forward',
+      center: 'Center',
+      yearsOld: 'y/o',
     },
     favorites: {
       title: 'Favorites',
@@ -1002,6 +1158,58 @@ export const translations: Record<Language, Translations> = {
       player: 'لاعب',
       matchesPlayed: 'مباريات',
     },
+    teamDetail: {
+      info: 'معلومات',
+      roster: 'القائمة',
+      schedule: 'الجدول',
+      stats: 'إحصائيات',
+      stadium: 'الملعب',
+      coach: 'المدرب',
+      founded: 'تأسس',
+      abbreviation: 'الاختصار',
+      seasonStats: 'إحصائيات الموسم',
+      matchesPlayed: 'المباريات',
+      victories: 'انتصارات',
+      draws: 'تعادلات',
+      defeats: 'هزائم',
+      goalsScored: 'أهداف مسجلة',
+      goalsConceded: 'أهداف مستقبلة',
+      goalDiff: 'فارق الأهداف',
+      avgGoals: 'معدل أهداف/مباراة',
+      pointsScored: 'نقاط مسجلة',
+      pointsConceded: 'نقاط مستقبلة',
+      pointDiff: 'فارق النقاط',
+      avgPoints: 'معدل نقاط/مباراة',
+      winPct: 'نسبة الفوز',
+      form: 'الشكل',
+      upcoming: 'قادمة',
+      finished: 'منتهية',
+      live: 'مباشر',
+      home: 'أرض',
+      away: 'خارج',
+      otherMatches: 'مباريات أخرى',
+      noInfo: 'معلومات محدودة',
+      noInfoHint: 'ستتوفر البيانات التفصيلية قريبًا',
+      noRoster: 'القائمة غير متوفرة',
+      noRosterHint: 'سيتم الإعلان عن القائمة قريبًا',
+      noSchedule: 'الجدول غير متوفر',
+      noScheduleHint: 'سيتم جدولة المباريات قريبًا',
+      loading: 'جاري التحميل...',
+      loadError: 'فشل التحميل',
+      retry: 'إعادة المحاولة',
+      addFavorite: 'أضف للمفضلة',
+      removeFavorite: 'إزالة من المفضلة',
+      goalkeepers: 'حراس المرمى',
+      defenders: 'مدافعون',
+      midfielders: 'لاعبو وسط',
+      attackers: 'مهاجمون',
+      pointGuard: 'لاعب نقطة',
+      shootingGuard: 'لاعب رمي',
+      smallForward: 'جناح صغير',
+      powerForward: 'جناح قوي',
+      center: 'محور',
+      yearsOld: 'سنة',
+    },
     favorites: {
       title: 'المفضلة',
       myFavorites: 'مفضلاتي',
@@ -1292,6 +1500,58 @@ export const translations: Record<Language, Translations> = {
       player: 'Jugador',
       matchesPlayed: 'PJ',
     },
+    teamDetail: {
+      info: 'Información',
+      roster: 'Plantilla',
+      schedule: 'Calendario',
+      stats: 'Estadísticas',
+      stadium: 'Estadio',
+      coach: 'Entrenador',
+      founded: 'Fundado',
+      abbreviation: 'Abreviatura',
+      seasonStats: 'Estadísticas de temporada',
+      matchesPlayed: 'Partidos jugados',
+      victories: 'Victorias',
+      draws: 'Empates',
+      defeats: 'Derrotas',
+      goalsScored: 'Goles a favor',
+      goalsConceded: 'Goles en contra',
+      goalDiff: 'Dif. de goles',
+      avgGoals: 'Prom. goles/partido',
+      pointsScored: 'Puntos anotados',
+      pointsConceded: 'Puntos recibidos',
+      pointDiff: 'Dif. de puntos',
+      avgPoints: 'Prom. puntos/partido',
+      winPct: '% Victorias',
+      form: 'Forma',
+      upcoming: 'Próximos',
+      finished: 'Finalizados',
+      live: 'En vivo',
+      home: 'CASA',
+      away: 'FUERA',
+      otherMatches: 'otros partidos',
+      noInfo: 'Información limitada',
+      noInfoHint: 'Los datos detallados estarán disponibles pronto',
+      noRoster: 'Plantilla no disponible',
+      noRosterHint: 'La plantilla se anunciará pronto',
+      noSchedule: 'Calendario no disponible',
+      noScheduleHint: 'Los partidos se programarán pronto',
+      loading: 'Cargando datos...',
+      loadError: 'Error al cargar',
+      retry: 'Reintentar',
+      addFavorite: 'Añadir a favoritos',
+      removeFavorite: 'Quitar de favoritos',
+      goalkeepers: 'Porteros',
+      defenders: 'Defensas',
+      midfielders: 'Mediocampistas',
+      attackers: 'Delanteros',
+      pointGuard: 'Base',
+      shootingGuard: 'Escolta',
+      smallForward: 'Alero',
+      powerForward: 'Ala-pívot',
+      center: 'Pívot',
+      yearsOld: 'años',
+    },
     favorites: {
       title: 'Favoritos',
       myFavorites: 'Mis Favoritos',
@@ -1581,6 +1841,58 @@ export const translations: Record<Language, Translations> = {
       assists: 'Assistências',
       player: 'Jogador',
       matchesPlayed: 'JJ',
+    },
+    teamDetail: {
+      info: 'Informações',
+      roster: 'Elenco',
+      schedule: 'Calendário',
+      stats: 'Estatísticas',
+      stadium: 'Estádio',
+      coach: 'Treinador',
+      founded: 'Fundado',
+      abbreviation: 'Abreviação',
+      seasonStats: 'Estatísticas da temporada',
+      matchesPlayed: 'Jogos disputados',
+      victories: 'Vitórias',
+      draws: 'Empates',
+      defeats: 'Derrotas',
+      goalsScored: 'Gols marcados',
+      goalsConceded: 'Gols sofridos',
+      goalDiff: 'Saldo de gols',
+      avgGoals: 'Média gols/jogo',
+      pointsScored: 'Pontos marcados',
+      pointsConceded: 'Pontos sofridos',
+      pointDiff: 'Saldo de pontos',
+      avgPoints: 'Média pontos/jogo',
+      winPct: '% Vitórias',
+      form: 'Forma',
+      upcoming: 'Próximos',
+      finished: 'Finalizados',
+      live: 'Ao vivo',
+      home: 'CASA',
+      away: 'FORA',
+      otherMatches: 'outros jogos',
+      noInfo: 'Informações limitadas',
+      noInfoHint: 'Dados detalhados estarão disponíveis em breve',
+      noRoster: 'Elenco indisponível',
+      noRosterHint: 'O elenco será anunciado em breve',
+      noSchedule: 'Calendário indisponível',
+      noScheduleHint: 'Os jogos serão agendados em breve',
+      loading: 'Carregando dados...',
+      loadError: 'Falha ao carregar',
+      retry: 'Tentar novamente',
+      addFavorite: 'Adicionar aos favoritos',
+      removeFavorite: 'Remover dos favoritos',
+      goalkeepers: 'Goleiros',
+      defenders: 'Zagueiros',
+      midfielders: 'Meio-campistas',
+      attackers: 'Atacantes',
+      pointGuard: 'Armador',
+      shootingGuard: 'Ala-armador',
+      smallForward: 'Ala',
+      powerForward: 'Ala-pivô',
+      center: 'Pivô',
+      yearsOld: 'anos',
     },
     favorites: {
       title: 'Favoritos',

@@ -239,3 +239,52 @@ Stage Summary:
 - All women's league standings work: WSL, NWSL, Liga F, Première Ligue, etc.
 - All women's tournament standings work: Women's World Cup, Women's Nations League, etc.
 - Women's matches now include FIFA Women's Friendlies in the always-fetched list
+
+---
+Task ID: 2-a
+Agent: i18n Agent
+Task: Add teamDetail i18n translations section for all 5 languages
+
+Work Log:
+- Read translations.ts to understand file structure (Translations interface + 5 language objects: fr, en, ar, es, pt)
+- Added `teamDetail` interface section to `Translations` interface after `standings` section (52 new keys: info, roster, schedule, stats, stadium, coach, founded, abbreviation, seasonStats, matchesPlayed, victories, draws, defeats, goalsScored, goalsConceded, goalDiff, avgGoals, pointsScored, pointsConceded, pointDiff, avgPoints, winPct, form, upcoming, finished, live, home, away, otherMatches, noInfo, noInfoHint, noRoster, noRosterHint, noSchedule, noScheduleHint, loading, loadError, retry, addFavorite, removeFavorite, goalkeepers, defenders, midfielders, attackers, pointGuard, shootingGuard, smallForward, powerForward, center, yearsOld)
+- Added French (fr) teamDetail translations after standings section
+- Added English (en) teamDetail translations after standings section
+- Added Arabic (ar) teamDetail translations after standings section
+- Added Spanish (es) teamDetail translations after standings section
+- Added Portuguese (pt) teamDetail translations after standings section
+- Ran `bun run lint` — zero errors
+
+Stage Summary:
+- Added `teamDetail` section with 52 i18n keys to Translations interface
+- All 5 languages (fr, en, ar, es, pt) have complete teamDetail translations
+- Covers team info, roster, schedule, stats, stadium, coach, match results, goals/points stats, form, favorites, and player position labels (football + basketball)
+- All changes lint-clean
+
+---
+Task ID: 1
+Agent: main
+Task: Fix team detail dialog not showing when clicking teams in standings
+
+Work Log:
+- Investigated the TeamDetailDialog component and standings-view.tsx
+- Discovered the critical bug: TeamDetailDialog was rendered without the `open` prop
+- The dialog uses `<Dialog open={open}>` but `open` was undefined (always false), so dialog never showed
+- Fixed by always rendering TeamDetailDialog and passing `open={!!selectedTeam}`
+- Rewrote the entire TeamDetailDialog component with:
+  - Full i18n support (5 languages) via teamDetail translation keys
+  - 4 tabs: Info, Roster, Stats, Schedule (previously only 3)
+  - New Stats tab with form visualization and recent results
+  - Better position grouping (GK/DEF/MID/ATT) for football, position-specific for basketball
+  - Player images, position badges, age display
+  - Locale-aware date formatting for match rows
+  - Proper error states and loading states with i18n
+- Added 52 i18n translation keys in teamDetail section for all 5 languages
+- Verified API endpoints work for football, NBA, FIFA rankings, and women's leagues
+- Lint passes with zero errors
+
+Stage Summary:
+- Critical bug fixed: missing `open` prop prevented dialog from ever showing
+- Enhanced dialog with 4 tabs (Info, Roster, Stats, Schedule) instead of 3
+- Full i18n support added for team detail section
+- All data sections now display: team info, roster, stats, schedule

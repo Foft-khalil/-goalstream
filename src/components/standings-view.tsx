@@ -1188,15 +1188,14 @@ export default function StandingsView() {
       </div>
 
       {/* Team Detail Dialog */}
-      {selectedTeam && (
-        <TeamDetailDialog
-          teamId={selectedTeam.teamId}
-          leagueCode={selectedTeam.leagueCode}
-          teamName={selectedTeam.teamName}
-          teamLogo={selectedTeam.teamLogo}
-          onClose={() => setSelectedTeam(null)}
-        />
-      )}
+      <TeamDetailDialog
+        teamId={selectedTeam?.teamId ?? null}
+        leagueCode={selectedTeam?.leagueCode ?? ''}
+        teamName={selectedTeam?.teamName ?? ''}
+        teamLogo={selectedTeam?.teamLogo ?? null}
+        open={!!selectedTeam}
+        onClose={() => setSelectedTeam(null)}
+      />
     </div>
   );
 }
