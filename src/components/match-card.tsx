@@ -86,20 +86,42 @@ export default function MatchCard({ match }: MatchCardProps) {
       : 'vs';
     const shareText = `⚽ ${match.homeTeam} ${scorePart} ${match.awayTeam} | ${match.competition || ''} | GoalStream`;
 
+    // Try native share first
     if (navigator.share) {
       try {
         await navigator.share({ text: shareText });
+        return;
       } catch {
-        // User cancelled or share failed
+        // User cancelled or share failed — fall through to clipboard
       }
-    } else {
+    }
+
+    // Try clipboard API, then fallback to execCommand
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(shareText);
+      copied = true;
+    } catch {
+      // Clipboard API blocked — fallback to execCommand
       try {
-        await navigator.clipboard.writeText(shareText);
-        setShareCopied(true);
-        setTimeout(() => setShareCopied(false), 2000);
+        const textarea = document.createElement('textarea');
+        textarea.value = shareText;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, textarea.value.length);
+        copied = document.execCommand('copy');
+        document.body.removeChild(textarea);
       } catch {
-        // Clipboard failed
+        // execCommand also failed
       }
+    }
+
+    if (copied) {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
     }
   };
 
