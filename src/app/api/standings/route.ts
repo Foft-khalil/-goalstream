@@ -476,7 +476,7 @@ function getWorldCupPlaceholder(): ParsedStanding {
       'Groupes': '12 groupes de 4 équipes',
       'Format': 'Phase de groupes → 32e de finale → Finale',
       'Stades': '16 stades dans 3 pays',
-      'Statut': 'Qualifications en cours — tirage au sort en mars 2026',
+      'Statut': '11 juin — 19 juillet 2026 · Suivez les matchs en direct !',
     },
     upcomingEvents,
   };

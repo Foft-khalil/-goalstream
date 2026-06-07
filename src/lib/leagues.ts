@@ -42,6 +42,10 @@ export const INTERNATIONAL_CLUB: LeagueConfig[] = [
 // Note: FIFA Rankings are fetched via web search (no ESPN standings API)
 export const INTERNATIONAL_TEAM: LeagueConfig[] = [
   { code: 'fifa.rankings', name: 'Classement FIFA', flag: '🌍', category: 'international_team', region: 'World' },
+  { code: 'fifa.world', name: 'Coupe du Monde', flag: '🏆', category: 'international_team', region: 'World', hasGroups: true },
+  { code: 'uefa.euro', name: 'Euro', flag: '🇪🇺', category: 'international_team', region: 'Europe', hasGroups: true },
+  { code: 'uefa.nations', name: 'Ligue des Nations', flag: '🇪🇺', category: 'international_team', region: 'Europe', hasGroups: true },
+  { code: 'conmebol.america', name: 'Copa América', flag: '🌎', category: 'international_team', region: 'South America', hasGroups: true },
 ];
 
 // ─── All leagues combined ─────────────────────────────────────────────────────
