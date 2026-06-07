@@ -227,6 +227,7 @@ export interface Translations {
     teams: string;
     channels: string;
     noMatches: string;
+    noMatchesDay: string;
     comeBackLater: string;
     savedLocally: string;
     tapHeart: string;
@@ -630,6 +631,7 @@ export const translations: Record<Language, Translations> = {
       teams: 'équipe',
       channels: 'chaîne',
       noMatches: 'Aucun match prévu pour vos équipes sur les 3 prochains jours',
+      noMatchesDay: 'Aucun match prévu ce jour',
       comeBackLater: 'Revenez plus tard !',
       savedLocally: 'Vos favoris sont sauvegardés localement sur votre appareil',
       tapHeart: 'Appuyez sur ❤️',
@@ -1031,6 +1033,7 @@ export const translations: Record<Language, Translations> = {
       teams: 'team',
       channels: 'channel',
       noMatches: 'No matches scheduled for your teams in the next 3 days',
+      noMatchesDay: 'No matches scheduled for this day',
       comeBackLater: 'Come back later!',
       savedLocally: 'Your favorites are saved locally on your device',
       tapHeart: 'Tap ❤️',
@@ -1432,6 +1435,7 @@ export const translations: Record<Language, Translations> = {
       teams: 'فريق',
       channels: 'قناة',
       noMatches: 'لا توجد مباريات لفرقك في الأيام الثلاثة القادمة',
+      noMatchesDay: 'لا توجد مباريات مجدولة في هذا اليوم',
       comeBackLater: 'عد لاحقاً!',
       savedLocally: 'يتم حفظ مفضلاتك محلياً على جهازك',
       tapHeart: 'اضغط على ❤️',
@@ -1833,6 +1837,7 @@ export const translations: Record<Language, Translations> = {
       teams: 'equipo',
       channels: 'canal',
       noMatches: 'No hay partidos para tus equipos en los próximos 3 días',
+      noMatchesDay: 'No hay partidos programados para este día',
       comeBackLater: '¡Vuelve más tarde!',
       savedLocally: 'Tus favoritos se guardan localmente en tu dispositivo',
       tapHeart: 'Toca ❤️',
@@ -2234,6 +2239,7 @@ export const translations: Record<Language, Translations> = {
       teams: 'time',
       channels: 'canal',
       noMatches: 'Nenhum jogo previsto para seus times nos próximos 3 dias',
+      noMatchesDay: 'Nenhum jogo programado para este dia',
       comeBackLater: 'Volte mais tarde!',
       savedLocally: 'Seus favoritos são salvos localmente no seu dispositivo',
       tapHeart: 'Toque em ❤️',

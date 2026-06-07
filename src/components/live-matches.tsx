@@ -423,9 +423,9 @@ export default function LiveMatches() {
           <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
             <Calendar className="h-8 w-8 text-muted-foreground/40" />
           </div>
-          <h3 className="text-base font-semibold mb-1">{t(language, 'common.loading')}</h3>
+          <h3 className="text-base font-semibold mb-1">{t(language, 'common.noMatchesDay')}</h3>
           <p className="text-sm text-muted-foreground/60">
-            ...
+            {t(language, 'common.comeBackLater')}
           </p>
         </div>
       )}
