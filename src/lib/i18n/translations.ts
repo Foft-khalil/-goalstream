@@ -35,6 +35,11 @@ export interface Translations {
     allCompetitions: string;
     lightMode: string;
     darkMode: string;
+    nextMatch: string;
+    nextMatchIn: string;
+    noMatchesNow: string;
+    checkBackLater: string;
+    loadingMatches: string;
   };
   match: {
     min: string;
@@ -439,6 +444,11 @@ export const translations: Record<Language, Translations> = {
       allCompetitions: 'Toutes les compétitions',
       lightMode: 'Mode clair',
       darkMode: 'Mode sombre',
+      nextMatch: 'Prochain match',
+      nextMatchIn: 'Prochain match dans',
+      noMatchesNow: 'Aucun match en cours',
+      checkBackLater: 'Revenez plus tard pour les prochains matchs !',
+      loadingMatches: 'Chargement des matchs...',
     },
     match: {
       min: 'min',
@@ -841,6 +851,11 @@ export const translations: Record<Language, Translations> = {
       allCompetitions: 'All competitions',
       lightMode: 'Light mode',
       darkMode: 'Dark mode',
+      nextMatch: 'Next match',
+      nextMatchIn: 'Next match in',
+      noMatchesNow: 'No matches currently',
+      checkBackLater: 'Check back later for upcoming matches!',
+      loadingMatches: 'Loading matches...',
     },
     match: {
       min: 'min',
@@ -1243,6 +1258,11 @@ export const translations: Record<Language, Translations> = {
       allCompetitions: 'جميع البطولات',
       lightMode: 'الوضع الفاتح',
       darkMode: 'الوضع الداكن',
+      nextMatch: 'المباراة التالية',
+      nextMatchIn: 'المباراة التالية بعد',
+      noMatchesNow: 'لا توجد مباريات حالياً',
+      checkBackLater: 'عد لاحقاً للمباريات القادمة!',
+      loadingMatches: 'جاري تحميل المباريات...',
     },
     match: {
       min: 'د',
@@ -1645,6 +1665,11 @@ export const translations: Record<Language, Translations> = {
       allCompetitions: 'Todas las competiciones',
       lightMode: 'Modo claro',
       darkMode: 'Modo oscuro',
+      nextMatch: 'Próximo partido',
+      nextMatchIn: 'Próximo partido en',
+      noMatchesNow: 'No hay partidos actualmente',
+      checkBackLater: '¡Vuelve más tarde para los próximos partidos!',
+      loadingMatches: 'Cargando partidos...',
     },
     match: {
       min: 'min',
@@ -2047,6 +2072,11 @@ export const translations: Record<Language, Translations> = {
       allCompetitions: 'Todas as competições',
       lightMode: 'Modo claro',
       darkMode: 'Modo escuro',
+      nextMatch: 'Próximo jogo',
+      nextMatchIn: 'Próximo jogo em',
+      noMatchesNow: 'Nenhum jogo no momento',
+      checkBackLater: 'Volte mais tarde para os próximos jogos!',
+      loadingMatches: 'Carregando jogos...',
     },
     match: {
       min: 'min',

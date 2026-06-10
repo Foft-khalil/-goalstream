@@ -6,7 +6,7 @@ import { t } from '@/lib/i18n';
 import { formatShort, formatLong } from '@/lib/date-utils';
 import MatchCard from '@/components/match-card';
 import { usePullRefresh } from '@/hooks/use-pull-refresh';
-import { Loader2, Zap, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight, ChevronLeft, Filter } from 'lucide-react';
+import { Loader2, Zap, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight, ChevronLeft, Filter, Timer, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /** Get YYYYMMDD string for a Date */
@@ -36,6 +36,46 @@ function isMatchOnDate(matchDate: string | null, ymd: string): boolean {
   }
 }
 
+/** Format a countdown to a future date */
+function formatCountdown(targetDate: Date, language: string): string {
+  const now = new Date();
+  const diffMs = targetDate.getTime() - now.getTime();
+  if (diffMs <= 0) return '';
+
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays > 0) {
+    const remainingHours = diffHours % 24;
+    if (remainingHours > 0) {
+      return `${diffDays}j ${remainingHours}h`;
+    }
+    return `${diffDays}j`;
+  }
+  if (diffHours > 0) {
+    const remainingMins = diffMins % 60;
+    if (remainingMins > 0) {
+      return `${diffHours}h ${remainingMins}min`;
+    }
+    return `${diffHours}h`;
+  }
+  return `${diffMins}min`;
+}
+
+/** Format match time from ISO date */
+function formatMatchTime(matchDate: string | null, language: string): string {
+  if (!matchDate) return '';
+  try {
+    const d = new Date(matchDate);
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    return `${hours}:${mins}`;
+  } catch {
+    return '';
+  }
+}
+
 /** All 7 date tabs */
 const ALL_DATE_TABS: DateTab[] = ['day0', 'day1', 'day2', 'day3', 'day4', 'day5', 'day6'];
 
@@ -55,16 +95,44 @@ export default function LiveMatches() {
   } = useAppStore();
 
   const [countdown, setCountdown] = useState(60);
+  const [loadStartedAt, setLoadStartedAt] = useState<number | null>(null);
+  const [forceUpdate, setForceUpdate] = useState(0);
   const lastUpdatedRef = useRef<string | null>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
 
-  // Initial fetch is handled by parent (page.tsx) with a delay to avoid OOM
-  // Only poll for updates here
-  const hasFetchedOnce = footballMatches.length > 0 || footballError !== null;
+  // Track when loading starts to implement a max 8-second loading screen
+  useEffect(() => {
+    if (footballLoading && footballMatches.length === 0) {
+      setLoadStartedAt((prev) => prev ?? Date.now());
+    }
+  }, [footballLoading, footballMatches.length]);
+
+  // Force re-render after 8 seconds of loading to show empty state
+  useEffect(() => {
+    if (loadStartedAt !== null && footballLoading && footballMatches.length === 0) {
+      const elapsed = Date.now() - loadStartedAt;
+      const remaining = Math.max(0, 8000 - elapsed);
+      const timer = setTimeout(() => {
+        setForceUpdate((n) => n + 1);
+      }, remaining + 100);
+      return () => clearTimeout(timer);
+    }
+  }, [loadStartedAt, footballLoading, footballMatches.length, forceUpdate]);
+
+  // Derive loadingTimeout: true if we've been loading for more than 8 seconds
+  const loadingTimeout = loadStartedAt !== null && footballLoading && footballMatches.length === 0 && (Date.now() - loadStartedAt > 8000);
+
+  // Clear loadStartedAt when loading finishes
+  useEffect(() => {
+    if (!footballLoading && loadStartedAt !== null) {
+      setLoadStartedAt(null);
+    }
+  }, [footballLoading, loadStartedAt]);
 
   // Adaptive polling: 15s when live matches exist, 2 min otherwise
   const hasLive = footballMatches.some(m => m.status === 'live');
   const pollInterval = hasLive ? 15 * 1000 : 120 * 1000;
+  const hasFetchedOnce = footballMatches.length > 0 || footballError !== null;
 
   useEffect(() => {
     // Only start polling after first fetch has completed
@@ -166,6 +234,19 @@ export default function LiveMatches() {
   const upcomingMatches = filteredMatches.filter((m) => m.status === 'upcoming');
   const finishedMatches = filteredMatches.filter((m) => m.status === 'finished');
 
+  // Find the next upcoming match across ALL dates (not just selected date)
+  const nextMatch = useMemo(() => {
+    const now = new Date();
+    const upcoming = footballMatches
+      .filter((m) => m.status === 'upcoming' && m.matchDate && new Date(m.matchDate) > now)
+      .sort((a, b) => {
+        const dateA = a.matchDate ? new Date(a.matchDate).getTime() : Infinity;
+        const dateB = b.matchDate ? new Date(b.matchDate).getTime() : Infinity;
+        return dateA - dateB;
+      });
+    return upcoming[0] || null;
+  }, [footballMatches]);
+
   // Group upcoming matches by competition
   const competitionGroups = upcomingMatches.reduce<Record<string, typeof upcomingMatches>>((acc, match) => {
     const comp = match.competition || 'Football';
@@ -232,8 +313,14 @@ export default function LiveMatches() {
     return formatLong(selectedDateObj, language);
   }, [selectedDate, selectedDateObj, language]);
 
-  // Loading state
-  if (footballLoading && footballMatches.length === 0) {
+  // Next match countdown string
+  const nextMatchCountdown = useMemo(() => {
+    if (!nextMatch?.matchDate) return '';
+    return formatCountdown(new Date(nextMatch.matchDate), language);
+  }, [nextMatch, language]);
+
+  // ─── Loading state (max 8 seconds, then show empty state) ─────────────────
+  if (footballLoading && footballMatches.length === 0 && !loadingTimeout) {
     return (
       <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
         <div className="relative mb-6">
@@ -242,7 +329,7 @@ export default function LiveMatches() {
           </div>
           <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 animate-ping opacity-60" />
         </div>
-        <p className="text-base font-semibold mb-1">{t(language, 'common.loading')}</p>
+        <p className="text-base font-semibold mb-1">{t(language, 'common.loadingMatches')}</p>
         <p className="text-sm text-muted-foreground/60">...</p>
         <div className="flex items-center gap-1.5 mt-4">
           <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -254,7 +341,7 @@ export default function LiveMatches() {
   }
 
   // Error state
-  if (footballError && footballMatches.length === 0) {
+  if (footballError && footballMatches.length === 0 && !loadingTimeout) {
     return (
       <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
         <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
@@ -269,6 +356,9 @@ export default function LiveMatches() {
       </div>
     );
   }
+
+  // When loading timed out or no matches at all — show empty state with next match
+  const showEmptyState = filteredMatches.length === 0 && (footballMatches.length > 0 || loadingTimeout || footballError);
 
   return (
     <div className="space-y-5 pb-4" ref={pullRef}>
@@ -417,16 +507,91 @@ export default function LiveMatches() {
         </div>
       )}
 
-      {/* No matches for this date */}
-      {filteredMatches.length === 0 && footballMatches.length > 0 && (
-        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+      {/* ─── No matches state with next match info ─── */}
+      {showEmptyState && (
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
           <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
             <Calendar className="h-8 w-8 text-muted-foreground/40" />
           </div>
-          <h3 className="text-base font-semibold mb-1">{t(language, 'common.noMatchesDay')}</h3>
-          <p className="text-sm text-muted-foreground/60">
-            {t(language, 'common.comeBackLater')}
+          <h3 className="text-base font-semibold mb-1">{t(language, 'common.noMatchesNow')}</h3>
+          <p className="text-sm text-muted-foreground/60 mb-6">
+            {t(language, 'common.checkBackLater')}
           </p>
+
+          {/* Next upcoming match card */}
+          {nextMatch && (
+            <div className="w-full max-w-sm rounded-xl border border-green-500/20 bg-green-500/5 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Timer className="h-4 w-4 text-green-500" />
+                <span className="text-sm font-semibold text-green-500">{t(language, 'common.nextMatch')}</span>
+                {nextMatchCountdown && (
+                  <span className="ml-auto text-xs font-bold text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">
+                    {nextMatchCountdown}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    {nextMatch.homeLogo && (
+                      <img src={nextMatch.homeLogo} alt="" className="w-6 h-6 object-contain" />
+                    )}
+                    <span className="text-sm font-semibold truncate">{nextMatch.homeTeam}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center gap-0.5 px-2">
+                  <span className="text-[10px] text-muted-foreground/60 uppercase font-bold">
+                    {t(language, 'common.vs')}
+                  </span>
+                  {nextMatch.matchDate && (
+                    <span className="text-xs font-bold text-green-500">
+                      {formatMatchTime(nextMatch.matchDate, language)}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex-1 text-left">
+                  <div className="flex items-center gap-2">
+                    {nextMatch.awayLogo && (
+                      <img src={nextMatch.awayLogo} alt="" className="w-6 h-6 object-contain" />
+                    )}
+                    <span className="text-sm font-semibold truncate">{nextMatch.awayTeam}</span>
+                  </div>
+                </div>
+              </div>
+
+              {nextMatch.competition && (
+                <div className="mt-3 pt-2 border-t border-border/20 flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground/50 font-medium">{nextMatch.competition}</span>
+                  {nextMatch.matchDate && (
+                    <span className="text-[10px] text-muted-foreground/50">
+                      {formatShort(new Date(nextMatch.matchDate), language)}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Navigate to next match day */}
+              {nextMatch.matchDate && (() => {
+                const nextMatchYMD = formatDateYMD(new Date(nextMatch.matchDate));
+                const nextTab = ALL_DATE_TABS.find(tab => dateKeys[tab] === nextMatchYMD);
+                if (nextTab && nextTab !== selectedDate) {
+                  return (
+                    <button
+                      onClick={() => setSelectedDate(nextTab)}
+                      className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-green-500/10 border border-green-500/20 text-green-500 text-xs font-semibold hover:bg-green-500/20 transition-all"
+                    >
+                      {t(language, 'common.nextMatch')}
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          )}
         </div>
       )}
 
