@@ -14,6 +14,7 @@ const ESPN_LEAGUES_PRIMARY = [
   { code: 'uefa.europa', name: 'Europa League' },
   { code: 'uefa.europa.conf', name: 'Conference League' },
   { code: 'fifa.world', name: 'Coupe du Monde' },
+  { code: 'fifa.friendly', name: 'Match Amical' },
   { code: 'usa.1', name: 'MLS' },
   { code: 'ksa.1', name: 'Saudi Pro League' },
 ];
@@ -37,6 +38,9 @@ const ESPN_LEAGUES_EXTENDED = [
   { code: 'uefa.euro', name: 'Euro' },
   { code: 'uefa.nations', name: 'Ligue des Nations' },
   { code: 'conmebol.america', name: 'Copa América' },
+  { code: 'afc.asian.cup', name: 'Coupe d\'Asie' },
+  { code: 'concacaf.gold', name: 'Gold Cup' },
+  { code: 'caf.nations', name: 'CAN' },
 ];
 
 // Women's leagues: always fetched alongside primary

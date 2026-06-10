@@ -43,9 +43,13 @@ export const INTERNATIONAL_CLUB: LeagueConfig[] = [
 export const INTERNATIONAL_TEAM: LeagueConfig[] = [
   { code: 'fifa.rankings', name: 'Classement FIFA', flag: '🌍', category: 'international_team', region: 'World' },
   { code: 'fifa.world', name: 'Coupe du Monde', flag: '🏆', category: 'international_team', region: 'World', hasGroups: true },
+  { code: 'fifa.friendly', name: 'Match Amical', flag: '🤝', category: 'international_team', region: 'World' },
   { code: 'uefa.euro', name: 'Euro', flag: '🇪🇺', category: 'international_team', region: 'Europe', hasGroups: true },
   { code: 'uefa.nations', name: 'Ligue des Nations', flag: '🇪🇺', category: 'international_team', region: 'Europe', hasGroups: true },
   { code: 'conmebol.america', name: 'Copa América', flag: '🌎', category: 'international_team', region: 'South America', hasGroups: true },
+  { code: 'afc.asian.cup', name: "Coupe d'Asie", flag: '🌏', category: 'international_team', region: 'Asia', hasGroups: true },
+  { code: 'concacaf.gold', name: 'Gold Cup', flag: '🌎', category: 'international_team', region: 'North America', hasGroups: true },
+  { code: 'caf.nations', name: 'CAN', flag: '🌍', category: 'international_team', region: 'Africa', hasGroups: true },
 ];
 
 // ─── All leagues combined ─────────────────────────────────────────────────────

@@ -35,6 +35,7 @@ const COUPES_CLUBS = [
 const NATIONALES = [
   { code: 'fifa.rankings', name: 'Classement FIFA', flag: '🌍' },
   { code: 'fifa.world', name: 'Coupe du Monde', flag: '🏆' },
+  { code: 'fifa.friendly', name: 'Match Amical', flag: '🤝' },
   { code: 'uefa.euro', name: 'Euro', flag: '🇪🇺' },
   { code: 'uefa.nations', name: 'Ligue des Nations', flag: '🇪🇺' },
   { code: 'conmebol.america', name: 'Copa América', flag: '🌎' },
@@ -603,6 +604,37 @@ function getWomenFriendliesPlaceholder(): ParsedStanding {
       'Prochaine fenêtre': '6–9 juin 2026',
       'Format': 'Matchs amicaux internationaux — pas de classement',
       'Équipes': 'Sélections nationales féminines',
+      'Statut': 'Consultez les matchs en direct dans l\'onglet Matchs',
+    },
+  };
+}
+
+// ─── Men's Friendlies Placeholder ──────────────────────────────────────────
+
+function getMenFriendliesPlaceholder(): ParsedStanding {
+  const teams: ParsedTeam[] = [
+    { rank: 1, team: 'France 🇫🇷', shortName: '🇫🇷 France', logo: null, teamId: 'mf_fra', leagueCode: 'fifa.friendly', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 2, team: 'Argentine 🇦🇷', shortName: '🇦🇷 Argentine', logo: null, teamId: 'mf_arg', leagueCode: 'fifa.friendly', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 3, team: 'Espagne 🇪🇸', shortName: '🇪🇸 Espagne', logo: null, teamId: 'mf_esp', leagueCode: 'fifa.friendly', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 4, team: 'Allemagne 🇩🇪', shortName: '🇩🇪 Allemagne', logo: null, teamId: 'mf_ger', leagueCode: 'fifa.friendly', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 5, team: 'Brésil 🇧🇷', shortName: '🇧🇷 Brésil', logo: null, teamId: 'mf_bra', leagueCode: 'fifa.friendly', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 6, team: 'Angleterre 🏴󠁧󠁢󠁥󠁮󠁧󠁿', shortName: '🏴󠁧󠁢󠁥󠁮󠁧󠁿 Angleterre', logo: null, teamId: 'mf_eng', leagueCode: 'fifa.friendly', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 7, team: 'Portugal 🇵🇹', shortName: '🇵🇹 Portugal', logo: null, teamId: 'mf_por', leagueCode: 'fifa.friendly', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+    { rank: 8, team: 'Maroc 🇲🇦', shortName: '🇲🇦 Maroc', logo: null, teamId: 'mf_mar', leagueCode: 'fifa.friendly', played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDiff: 0, points: 0, note: null, noteColor: null },
+  ];
+  return {
+    league: 'Matchs Amicaux Internationaux',
+    flag: '🤝',
+    season: 'International — Fenêtres FIFA 2026',
+    leagueCode: 'fifa.friendly',
+    teams,
+    isGroup: false,
+    placeholder: true,
+    placeholderMessage: "Les matchs amicaux n'ont pas de classement. Consultez les résultats dans l'onglet Matchs.",
+    placeholderInfo: {
+      'Prochaine fenêtre': 'Mars 2026 (23–31 mars)',
+      'Format': 'Matchs amicaux internationaux — pas de classement',
+      'Équipes': 'Sélections nationales masculines',
       'Statut': 'Consultez les matchs en direct dans l\'onglet Matchs',
     },
   };
@@ -1470,6 +1502,8 @@ function getFriendlyErrorMessage(code: string, leagueName: string, originalError
       return `${leagueName}: Les données ne sont pas disponibles actuellement`;
     case 'fifa.friendly.w':
       return `${leagueName}: Les matchs amicaux n'ont pas de classement — consultez les résultats dans l'onglet Matchs`;
+    case 'fifa.friendly':
+      return `${leagueName}: Les matchs amicaux n'ont pas de classement — consultez les résultats dans l'onglet Matchs`;
     case 'fifa.wwc':
       return `${leagueName}: Les données de la Coupe du Monde Féminine ne sont pas disponibles actuellement — la prochaine édition aura lieu en 2027`;
     case 'uefa.weuro':
@@ -1516,10 +1550,11 @@ export async function GET(request: Request) {
     let includeAsianCupPlaceholder = false;
     let includeGoldCupPlaceholder = false;
     let includeWomenFriendliesPlaceholder = false;
+    let includeMenFriendliesPlaceholder = false;
 
     // Competitions that are placeholders (not available from ESPN API or handled separately)
     const PLACEHOLDER_CODES = new Set([
-      'fifa.rankings', 'fifa.world', 'conmebol.america', 'afc.asian', 'concacaf.gold', 'fifa.friendly.w',
+      'fifa.rankings', 'fifa.world', 'fifa.friendly', 'conmebol.america', 'afc.asian', 'concacaf.gold', 'fifa.friendly.w',
       // New placeholder codes
       'nascar-cup', 'indycar', 'moto-gp',
       'ipl', 'bbl', 'psl', 'sa20', 'cpl', 'icc.wc',
@@ -1530,6 +1565,9 @@ export async function GET(request: Request) {
     // Specific league routing
     if (league === 'fifa.rankings') {
       includeFIFARankings = true;
+      leaguesToFetch = [];
+    } else if (league === 'fifa.friendly') {
+      includeMenFriendliesPlaceholder = true;
       leaguesToFetch = [];
     } else if (league === 'fifa.friendly.w') {
       includeWomenFriendliesPlaceholder = true;
@@ -1809,6 +1847,10 @@ export async function GET(request: Request) {
 
     if (includeWomenFriendliesPlaceholder) {
       standings.push(getWomenFriendliesPlaceholder());
+    }
+
+    if (includeMenFriendliesPlaceholder) {
+      standings.push(getMenFriendliesPlaceholder());
     }
 
     const response: Record<string, any> = {
