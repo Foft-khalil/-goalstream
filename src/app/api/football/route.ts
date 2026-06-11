@@ -314,7 +314,7 @@ export async function GET(request: NextRequest) {
 
     let dates: string[];
     if (datesParam) {
-      dates = datesParam.split(',').filter(Boolean).slice(0, 7); // Max 7 dates (full week)
+      dates = datesParam.split(',').filter(Boolean).slice(0, 35); // Max 35 dates (full month+)
     } else if (dateParam) {
       dates = [dateParam];
     } else {

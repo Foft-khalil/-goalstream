@@ -3,7 +3,7 @@ import type { BasketballMatch } from '@/lib/basketball/types';
 import { Language, getSavedLanguage, saveLanguage } from '@/lib/i18n';
 
 export type ViewType = 'live' | 'channels' | 'standings' | 'favorites' | 'basketball';
-export type DateTab = 'day0' | 'day1' | 'day2' | 'day3' | 'day4' | 'day5' | 'day6';
+export type DateTab = string; // e.g. 'day0', 'day1', 'day-1', 'day30', etc.
 
 interface Channel {
   tvgId: string;
@@ -274,6 +274,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   fetchFootballMatches: async (dates?: string[]) => {
     // Don't show loading spinner if we already have data (for background refreshes)
     const currentMatches = get().footballMatches;
+    const currentDates = get().footballDates;
     if (currentMatches.length === 0) {
       set({ footballLoading: true });
     }
@@ -314,11 +315,50 @@ export const useAppStore = create<AppState>((set, get) => ({
           throw new Error(errorMsg);
         }
 
+        const newMatches = data.matches || [];
+        const newDates = data.dates || [];
+
+        // Merge with existing matches: replace matches for requested dates, keep others
+        let mergedMatches: typeof currentMatches;
+        if (dates && dates.length > 0 && currentMatches.length > 0) {
+          // Remove existing matches that fall on any of the newly fetched dates
+          const existingKept = currentMatches.filter(m => {
+            if (!m.matchDate) return true;
+            const d = new Date(m.matchDate);
+            const y = d.getFullYear();
+            const mo = String(d.getMonth() + 1).padStart(2, '0');
+            const dy = String(d.getDate()).padStart(2, '0');
+            const ymd = `${y}${mo}${dy}`;
+            return !newDates.includes(ymd);
+          });
+          mergedMatches = [...existingKept, ...newMatches];
+          // Deduplicate by id
+          const seen = new Set<string>();
+          mergedMatches = mergedMatches.filter(m => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+          });
+          // Sort: live first, then upcoming by time, then finished
+          const statusOrder = { live: 0, upcoming: 1, finished: 2 };
+          mergedMatches.sort((a, b) => {
+            const sd = (statusOrder[a.status] ?? 1) - (statusOrder[b.status] ?? 1);
+            if (sd !== 0) return sd;
+            return (a.matchDate ? new Date(a.matchDate).getTime() : Infinity) -
+                   (b.matchDate ? new Date(b.matchDate).getTime() : Infinity);
+          });
+        } else {
+          mergedMatches = newMatches;
+        }
+
+        // Merge dates
+        const mergedDates = Array.from(new Set([...currentDates, ...newDates])).sort();
+
         set({
-          footballMatches: data.matches || [],
+          footballMatches: mergedMatches,
           footballLoading: false,
           footballLastUpdated: data.lastUpdated || new Date().toISOString(),
-          footballDates: data.dates || [],
+          footballDates: mergedDates,
           footballError: data.error || null,
         });
       } catch (error: any) {

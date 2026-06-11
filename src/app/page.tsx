@@ -389,20 +389,27 @@ export default function Home() {
   }, [setTheme]);
 
   useEffect(() => {
-    // Initial fetch: today's matches first (fast), then rest of week in background
+    // Initial fetch: today's matches first (fast), then near future in background
     const timer = setTimeout(() => {
       const now = new Date();
-      const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-      fetchFootballMatches([today]);
-      // Fetch the rest of the week after a delay to avoid OOM
+      const d = (offset: number) => {
+        const dt = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
+        return `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
+      };
+      // Fetch today + past 3 days first
+      fetchFootballMatches([d(-3), d(-2), d(-1), d(0)]);
+      // Fetch next 7 days after a delay to avoid OOM
       setTimeout(() => {
         const dates: string[] = [];
-        for (let i = 1; i <= 6; i++) {
-          const d = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
-          dates.push(`${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`);
-        }
+        for (let i = 1; i <= 7; i++) dates.push(d(i));
         fetchFootballMatches(dates);
       }, 5000);
+      // Pre-fetch next 8-14 days in smaller batches (farther dates fetched on-demand)
+      setTimeout(() => {
+        const dates: string[] = [];
+        for (let i = 8; i <= 14; i++) dates.push(d(i));
+        fetchFootballMatches(dates);
+      }, 12000);
     }, 2000);
     return () => clearTimeout(timer);
   }, [fetchFootballMatches]);

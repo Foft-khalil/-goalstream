@@ -469,3 +469,29 @@ Stage Summary:
 - Iframe sandbox attribute added to prevent top-navigation attacks
 - Security headers middleware created (CSP, HSTS, X-Frame-Options, etc.)
 - App still runs successfully with all security measures in place
+---
+Task ID: 1
+Agent: main
+Task: Expand day navigation bar from 7 days to 34 days (-3 to +30)
+
+Work Log:
+- Changed `DateTab` type from fixed union (`'day0'|'day1'|...|'day6'`) to dynamic `string` type
+- Rewrote `live-matches.tsx` with compact calendar-style date navigation (34 days)
+- Each tab shows: day number (bold), mini weekday abbreviation, match count badge
+- Special labels: "Auj" for today, "Dem" for tomorrow, month abbreviation on 1st of month
+- Updated `basketball-matches.tsx` with same expanded date range (orange theme)
+- Updated API route `football/route.ts` to allow up to 35 dates (was 7)
+- Updated `fetchFootballMatches` in store to properly merge matches from different date batches
+- Updated `page.tsx` initial fetch: 3 batches (past+today, next 7 days, days 8-14)
+- Far future dates (15-30) fetched on-demand when user clicks them
+- Added fade gradients on left/right of date bar for scroll indication
+- Fixed bug: yesterday was showing "—" instead of weekday abbreviation
+- Browser verified: 34 tabs render correctly, clicking dates works, scrolling works
+
+Stage Summary:
+- Day navigation now spans 34 days (3 past + today + 30 future)
+- Compact vertical layout: day number + mini weekday label
+- Match count badges on tabs with matches
+- On-demand fetching for far future dates
+- Proper match merging when fetching dates in batches
+- All lint checks pass, dev server running cleanly

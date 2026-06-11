@@ -4,6 +4,7 @@ import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useAppStore, DateTab } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { formatShort, formatLong } from '@/lib/date-utils';
+import { translations, Language } from '@/lib/i18n';
 import MatchCard from '@/components/match-card';
 import { usePullRefresh } from '@/hooks/use-pull-refresh';
 import { Loader2, Zap, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight, ChevronLeft, Filter, Timer, ArrowRight } from 'lucide-react';
@@ -76,8 +77,28 @@ function formatMatchTime(matchDate: string | null, language: string): string {
   }
 }
 
-/** All 7 date tabs */
-const ALL_DATE_TABS: DateTab[] = ['day0', 'day1', 'day2', 'day3', 'day4', 'day5', 'day6'];
+/** Get very short weekday label (1-2 chars) for compact display */
+function getMiniWeekday(date: Date, lang: Language): string {
+  const weekdays = translations[lang].dates.weekdaysShort;
+  const day = weekdays[date.getDay()];
+  // Take first 2-3 chars for compact display
+  return day.replace('.', '').substring(0, 3);
+}
+
+/** Date range: 3 days back + today + 30 days forward = 34 days total */
+const DAYS_BACK = 3;
+const DAYS_FORWARD = 30;
+
+/** Generate all date tab keys dynamically */
+function generateDateTabs(): DateTab[] {
+  const tabs: DateTab[] = [];
+  for (let i = -DAYS_BACK; i <= DAYS_FORWARD; i++) {
+    tabs.push(`day${i}`);
+  }
+  return tabs;
+}
+
+const ALL_DATE_TABS = generateDateTabs();
 
 export default function LiveMatches() {
   const {
@@ -172,9 +193,9 @@ export default function LiveMatches() {
     threshold: 60,
   });
 
-  // Compute date keys for all 7 tabs
+  // Compute date keys for all tabs on-demand
   const dateKeys = useMemo(() => {
-    const keys: Record<DateTab, string> = {} as any;
+    const keys: Record<string, string> = {};
     for (const tab of ALL_DATE_TABS) {
       keys[tab] = getDateForTab(tab);
     }
@@ -184,6 +205,7 @@ export default function LiveMatches() {
   // On-demand fetch when user switches to a date tab that has no matches
   useEffect(() => {
     const dateKey = dateKeys[selectedDate];
+    if (!dateKey) return;
     const hasMatchesForDate = footballMatches.some((m) => isMatchOnDate(m.matchDate, dateKey));
     if (!hasMatchesForDate && !footballLoading) {
       fetchFootballMatches([dateKey]);
@@ -191,7 +213,7 @@ export default function LiveMatches() {
   }, [selectedDate, dateKeys, footballMatches, footballLoading, fetchFootballMatches]);
 
   // Filter matches by selected date tab — live matches always show regardless of date
-  const dateKey = dateKeys[selectedDate];
+  const dateKey = dateKeys[selectedDate] || getDateForTab('day0');
   const dateFilteredMatches = useMemo(
     () => footballMatches.filter((m) => m.status === 'live' || isMatchOnDate(m.matchDate, dateKey)),
     [footballMatches, dateKey]
@@ -221,11 +243,14 @@ export default function LiveMatches() {
     }
   }, [selectedCompetition, uniqueCompetitions, setSelectedCompetition]);
 
-  // Count per tab — don't count live matches from other days to avoid confusion
+  // Count per tab — only for tabs that have been fetched
   const tabCounts = useMemo(() => {
-    const counts: Record<DateTab, number> = {} as any;
+    const counts: Record<string, number> = {};
     for (const tab of ALL_DATE_TABS) {
-      counts[tab] = footballMatches.filter((m) => m.status !== 'live' && isMatchOnDate(m.matchDate, dateKeys[tab])).length;
+      const dk = dateKeys[tab];
+      if (dk) {
+        counts[tab] = footballMatches.filter((m) => m.status !== 'live' && isMatchOnDate(m.matchDate, dk)).length;
+      }
     }
     return counts;
   }, [footballMatches, dateKeys]);
@@ -265,25 +290,39 @@ export default function LiveMatches() {
 
   const countdownStr = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`;
 
-  // Tab labels with day info — uses language-aware formatting
+  // Build tab info array with compact display data
   const dateTabs = useMemo(() => {
-    return ALL_DATE_TABS.map((tab, idx) => {
+    return ALL_DATE_TABS.map((tab) => {
+      const offset = parseInt(tab.replace('day', ''), 10);
       const d = new Date();
-      d.setDate(d.getDate() + idx);
-      const dayLabel = idx === 0
-        ? t(language, 'common.today')
-        : idx === 1
-          ? t(language, 'common.tomorrow')
-          : formatShort(d, language);
-      const sublabel = idx === 0
-        ? ''
-        : formatShort(d, language);
+      d.setDate(d.getDate() + offset);
+      const ymd = formatDateYMD(d);
+      const isToday = offset === 0;
+      const isTomorrow = offset === 1;
+      const isPast = offset < 0;
+
+      // Compact label: day number
+      const dayNum = d.getDate();
+      // Mini weekday
+      const miniDay = getMiniWeekday(d, language);
+
+      // Month label (show when it's the 1st of the month or today)
+      const isFirstOfMonth = d.getDate() === 1;
+      const monthNames = translations[language].dates.monthsLong;
+      const monthLabel = isFirstOfMonth ? monthNames[d.getMonth()] : '';
+
       return {
         key: tab,
-        label: dayLabel,
-        sublabel,
-        count: tabCounts[tab] || 0,
+        offset,
         dateObj: d,
+        ymd,
+        isToday,
+        isTomorrow,
+        isPast,
+        dayNum,
+        miniDay,
+        monthLabel,
+        count: tabCounts[tab] || 0,
       };
     });
   }, [tabCounts, language]);
@@ -310,6 +349,7 @@ export default function LiveMatches() {
     const idx = parseInt(selectedDate.replace('day', ''), 10);
     if (idx === 0) return formatLong(new Date(), language);
     if (idx === 1) return `${t(language, 'common.tomorrow')} — ${formatShort(selectedDateObj, language)}`;
+    if (idx === -1) return `${formatShort(selectedDateObj, language)}`;
     return formatLong(selectedDateObj, language);
   }, [selectedDate, selectedDateObj, language]);
 
@@ -382,43 +422,87 @@ export default function LiveMatches() {
         </div>
       )}
 
-      {/* Date Tab Selector - Scrollable for 7 days */}
+      {/* Date Tab Selector - Scrollable calendar with 34 days */}
       <div className="relative">
+        {/* Left fade gradient */}
+        <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-muted/40 to-transparent z-10 pointer-events-none rounded-l-xl" />
+        {/* Right fade gradient */}
+        <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-muted/40 to-transparent z-10 pointer-events-none rounded-r-xl" />
+
         <div
           ref={tabScrollRef}
-          className="flex items-center gap-1 overflow-x-auto scrollbar-hide bg-muted/40 rounded-xl p-1"
+          className="flex items-stretch gap-0.5 overflow-x-auto bg-muted/40 rounded-xl p-1.5"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {dateTabs.map((tab) => {
             const isActive = selectedDate === tab.key;
+            const isToday = tab.offset === 0;
+            const isTomorrow = tab.offset === 1;
+
             return (
               <button
                 key={tab.key}
                 data-active={isActive}
                 onClick={() => setSelectedDate(tab.key)}
-                className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg text-sm font-medium transition-all relative min-w-[72px] ${
+                className={`flex-shrink-0 flex flex-col items-center justify-center px-2 py-1.5 rounded-lg text-sm font-medium transition-all relative min-w-[48px] ${
                   isActive
                     ? 'bg-green-500/15 text-green-600 shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    : isToday
+                      ? 'text-green-500/80 hover:bg-green-500/10'
+                      : tab.isPast
+                        ? 'text-muted-foreground/40 hover:text-muted-foreground/70 hover:bg-muted/40'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                 }`}
               >
-                <span className="text-[11px] font-semibold whitespace-nowrap">{tab.label}</span>
-                {tab.key !== 'day0' && (
-                  <span className={`text-[9px] ${isActive ? 'text-green-500/70' : 'text-muted-foreground/50'}`}>
-                    {tab.sublabel}
+                {/* Month separator label on 1st of month */}
+                {tab.monthLabel && (
+                  <span className={`text-[8px] font-bold uppercase tracking-wider mb-0.5 ${
+                    isActive ? 'text-green-500/70' : 'text-muted-foreground/40'
+                  }`}>
+                    {tab.monthLabel.substring(0, 3)}
                   </span>
                 )}
+
+                {/* Day number - larger for today */}
+                <span className={`font-bold leading-none ${
+                  isToday ? 'text-[16px]' : 'text-[14px]'
+                }`}>
+                  {tab.dayNum}
+                </span>
+
+                {/* Mini weekday label */}
+                <span className={`text-[9px] leading-none mt-0.5 ${
+                  isActive ? 'text-green-500/80 font-semibold' : isToday ? 'text-green-500/60 font-semibold' : 'text-muted-foreground/50'
+                }`}>
+                  {isToday
+                    ? t(language, 'common.today').substring(0, 3)
+                    : isTomorrow
+                      ? t(language, 'common.tomorrow').substring(0, 3)
+                      : tab.miniDay
+                  }
+                </span>
+
+                {/* Match count badge */}
                 {tab.count > 0 && (
-                  <span className={`absolute top-0.5 right-1 flex items-center justify-center min-w-[14px] h-4 px-0.5 rounded-full text-[9px] font-bold ${
+                  <span className={`absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[14px] h-3.5 px-0.5 rounded-full text-[8px] font-bold ${
                     isActive
                       ? 'bg-green-500 text-white'
-                      : 'bg-muted text-muted-foreground'
+                      : isToday
+                        ? 'bg-green-500/60 text-white'
+                        : 'bg-muted text-muted-foreground'
                   }`}>
                     {tab.count}
                   </span>
                 )}
+
+                {/* Active indicator */}
                 {isActive && (
-                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full bg-green-500" />
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-green-500" />
+                )}
+
+                {/* Today dot indicator (when not active) */}
+                {isToday && !isActive && (
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-green-500" />
                 )}
               </button>
             );
