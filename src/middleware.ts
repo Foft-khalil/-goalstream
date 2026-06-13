@@ -26,7 +26,7 @@ export function middleware(request: NextRequest) {
     "media-src 'self' blob: https: http:",
     "frame-src 'self' https://streams.center https://streamcenter.pro https://000007.mov https://kora-api.space https://player.twitch.tv https://www.youtube.com",
     "connect-src 'self' https: http: blob: data:",
-    "font-src 'self'",
+    "font-src 'self' https://fonts.gstatic.com data:",
     "worker-src 'self' blob:",
   ].join('; ');
 

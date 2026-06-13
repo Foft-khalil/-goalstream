@@ -194,7 +194,7 @@ function AppHeader() {
                   className="h-9 w-9 relative"
                   title={t(language, 'notifications.title')}
                 >
-                  <Bell className="h-4.5 w-4.5" />
+                  <Bell className="h-5 w-5" />
                   {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-[8px] font-bold text-white">
                       {unreadCount > 9 ? '9+' : unreadCount}
@@ -448,7 +448,7 @@ export default function Home() {
         </div>
       )}
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-5 pb-20 sm:pb-5">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-5 pb-20 sm:pb-5" style={{ touchAction: 'pan-y' }}>
         <ErrorBoundary>
           {currentView === 'live' && <LiveMatches />}
           {currentView === 'basketball' && <BasketballMatches />}

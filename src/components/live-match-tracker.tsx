@@ -36,9 +36,9 @@ function getEventIcon(type: TrackerEvent['type']) {
     case 'own_goal':
       return <CircleDot className="h-4 w-4 text-red-400" />;
     case 'yellow_card':
-      return <div className="w-3.5 h-4.5 rounded-sm bg-yellow-400 border border-yellow-500" />;
+      return <div className="w-3.5 h-5 rounded-sm bg-yellow-400 border border-yellow-500" />;
     case 'red_card':
-      return <div className="w-3.5 h-4.5 rounded-sm bg-red-500 border border-red-600" />;
+      return <div className="w-3.5 h-5 rounded-sm bg-red-500 border border-red-600" />;
     case 'substitution':
       return <ArrowRightLeft className="h-4 w-4 text-blue-400" />;
     case 'var':

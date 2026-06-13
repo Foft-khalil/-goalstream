@@ -1,0 +1,754 @@
+     1→'use client';
+     2→
+     3→import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
+     4→import { useAppStore, DateTab } from '@/lib/store';
+     5→import { t } from '@/lib/i18n';
+     6→import { formatShort, formatLong } from '@/lib/date-utils';
+     7→import { translations, Language } from '@/lib/i18n';
+     8→import MatchCard from '@/components/match-card';
+     9→import { usePullRefresh } from '@/hooks/use-pull-refresh';
+    10→import { Loader2, Zap, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight, ChevronLeft, Filter, Timer, ArrowRight } from 'lucide-react';
+    11→import { Button } from '@/components/ui/button';
+    12→
+    13→/** Get YYYYMMDD string for a Date */
+    14→function formatDateYMD(date: Date): string {
+    15→  const y = date.getFullYear();
+    16→  const m = String(date.getMonth() + 1).padStart(2, '0');
+    17→  const d = String(date.getDate()).padStart(2, '0');
+    18→  return `${y}${m}${d}`;
+    19→}
+    20→
+    21→/** Get the YYYYMMDD for a given DateTab relative to today */
+    22→function getDateForTab(tab: DateTab): string {
+    23→  const offset = parseInt(tab.replace('day', ''), 10);
+    24→  const now = new Date();
+    25→  const target = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
+    26→  return formatDateYMD(target);
+    27→}
+    28→
+    29→/** Check if a match's ISO date falls on a given YYYYMMDD date */
+    30→function isMatchOnDate(matchDate: string | null, ymd: string): boolean {
+    31→  if (!matchDate) return false;
+    32→  try {
+    33→    const d = new Date(matchDate);
+    34→    return formatDateYMD(d) === ymd;
+    35→  } catch {
+    36→    return false;
+    37→  }
+    38→}
+    39→
+    40→/** Format a countdown to a future date */
+    41→function formatCountdown(targetDate: Date, language: string): string {
+    42→  const now = new Date();
+    43→  const diffMs = targetDate.getTime() - now.getTime();
+    44→  if (diffMs <= 0) return '';
+    45→
+    46→  const diffMins = Math.floor(diffMs / 60000);
+    47→  const diffHours = Math.floor(diffMins / 60);
+    48→  const diffDays = Math.floor(diffHours / 24);
+    49→
+    50→  if (diffDays > 0) {
+    51→    const remainingHours = diffHours % 24;
+    52→    if (remainingHours > 0) {
+    53→      return `${diffDays}j ${remainingHours}h`;
+    54→    }
+    55→    return `${diffDays}j`;
+    56→  }
+    57→  if (diffHours > 0) {
+    58→    const remainingMins = diffMins % 60;
+    59→    if (remainingMins > 0) {
+    60→      return `${diffHours}h ${remainingMins}min`;
+    61→    }
+    62→    return `${diffHours}h`;
+    63→  }
+    64→  return `${diffMins}min`;
+    65→}
+    66→
+    67→/** Format match time from ISO date */
+    68→function formatMatchTime(matchDate: string | null, language: string): string {
+    69→  if (!matchDate) return '';
+    70→  try {
+    71→    const d = new Date(matchDate);
+    72→    const hours = String(d.getHours()).padStart(2, '0');
+    73→    const mins = String(d.getMinutes()).padStart(2, '0');
+    74→    return `${hours}:${mins}`;
+    75→  } catch {
+    76→    return '';
+    77→  }
+    78→}
+    79→
+    80→/** Get very short weekday label (1-2 chars) for compact display */
+    81→function getMiniWeekday(date: Date, lang: Language): string {
+    82→  const weekdays = translations[lang].dates.weekdaysShort;
+    83→  const day = weekdays[date.getDay()];
+    84→  // Take first 2-3 chars for compact display
+    85→  return day.replace('.', '').substring(0, 3);
+    86→}
+    87→
+    88→/** Date range: 3 days back + today + 30 days forward = 34 days total */
+    89→const DAYS_BACK = 3;
+    90→const DAYS_FORWARD = 30;
+    91→
+    92→/** Generate all date tab keys dynamically */
+    93→function generateDateTabs(): DateTab[] {
+    94→  const tabs: DateTab[] = [];
+    95→  for (let i = -DAYS_BACK; i <= DAYS_FORWARD; i++) {
+    96→    tabs.push(`day${i}`);
+    97→  }
+    98→  return tabs;
+    99→}
+   100→
+   101→const ALL_DATE_TABS = generateDateTabs();
+   102→
+   103→export default function LiveMatches() {
+   104→  const {
+   105→    footballMatches,
+   106→    footballLoading,
+   107→    footballError,
+   108→    footballLastUpdated,
+   109→    footballDates,
+   110→    selectedDate,
+   111→    setSelectedDate,
+   112→    fetchFootballMatches,
+   113→    selectedCompetition,
+   114→    setSelectedCompetition,
+   115→    language,
+   116→  } = useAppStore();
+   117→
+   118→  const [countdown, setCountdown] = useState(60);
+   119→  const [loadStartedAt, setLoadStartedAt] = useState<number | null>(null);
+   120→  const [forceUpdate, setForceUpdate] = useState(0);
+   121→  const lastUpdatedRef = useRef<string | null>(null);
+   122→  const tabScrollRef = useRef<HTMLDivElement>(null);
+   123→
+   124→  // Track when loading starts to implement a max 8-second loading screen
+   125→  useEffect(() => {
+   126→    if (footballLoading && footballMatches.length === 0) {
+   127→      setLoadStartedAt((prev) => prev ?? Date.now());
+   128→    }
+   129→  }, [footballLoading, footballMatches.length]);
+   130→
+   131→  // Force re-render after 8 seconds of loading to show empty state
+   132→  useEffect(() => {
+   133→    if (loadStartedAt !== null && footballLoading && footballMatches.length === 0) {
+   134→      const elapsed = Date.now() - loadStartedAt;
+   135→      const remaining = Math.max(0, 8000 - elapsed);
+   136→      const timer = setTimeout(() => {
+   137→        setForceUpdate((n) => n + 1);
+   138→      }, remaining + 100);
+   139→      return () => clearTimeout(timer);
+   140→    }
+   141→  }, [loadStartedAt, footballLoading, footballMatches.length, forceUpdate]);
+   142→
+   143→  // Derive loadingTimeout: true if we've been loading for more than 8 seconds
+   144→  const loadingTimeout = loadStartedAt !== null && footballLoading && footballMatches.length === 0 && (Date.now() - loadStartedAt > 8000);
+   145→
+   146→  // Clear loadStartedAt when loading finishes
+   147→  useEffect(() => {
+   148→    if (!footballLoading && loadStartedAt !== null) {
+   149→      setLoadStartedAt(null);
+   150→    }
+   151→  }, [footballLoading, loadStartedAt]);
+   152→
+   153→  // Adaptive polling: 15s when live matches exist, 2 min otherwise
+   154→  const hasLive = footballMatches.some(m => m.status === 'live');
+   155→  const pollInterval = hasLive ? 15 * 1000 : 120 * 1000;
+   156→  const hasFetchedOnce = footballMatches.length > 0 || footballError !== null;
+   157→
+   158→  useEffect(() => {
+   159→    // Only start polling after first fetch has completed
+   160→    if (!hasFetchedOnce) return;
+   161→    const interval = setInterval(() => {
+   162→      // Only fetch today's matches during polling (memory-safe)
+   163→      const now = new Date();
+   164→      const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+   165→      fetchFootballMatches([today]);
+   166→    }, pollInterval);
+   167→    return () => clearInterval(interval);
+   168→  }, [fetchFootballMatches, pollInterval, hasFetchedOnce]);
+   169→
+   170→  useEffect(() => {
+   171→    if (footballLastUpdated !== lastUpdatedRef.current) {
+   172→      lastUpdatedRef.current = footballLastUpdated;
+   173→    }
+   174→    const startTime = Date.now();
+   175→    const duration = hasLive ? 15 : 120;
+   176→    const timer = setInterval(() => {
+   177→      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+   178→      setCountdown(Math.max(0, duration - elapsed));
+   179→    }, 1000);
+   180→    return () => clearInterval(timer);
+   181→  }, [footballLastUpdated, hasLive]);
+   182→
+   183→  const handleRetry = useCallback(() => {
+   184→    const now = new Date();
+   185→    const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+   186→    fetchFootballMatches([today]);
+   187→    setCountdown(60);
+   188→  }, [fetchFootballMatches]);
+   189→
+   190→  // Pull-to-refresh integration
+   191→  const { pullDistance, isRefreshing } = usePullRefresh({
+   192→    onRefresh: handleRetry,
+   193→    threshold: 60,
+   194→  });
+   195→
+   196→  // Compute date keys for all tabs on-demand
+   197→  const dateKeys = useMemo(() => {
+   198→    const keys: Record<string, string> = {};
+   199→    for (const tab of ALL_DATE_TABS) {
+   200→      keys[tab] = getDateForTab(tab);
+   201→    }
+   202→    return keys;
+   203→  }, []);
+   204→
+   205→  // On-demand fetch when user switches to a date tab that has no matches
+   206→  useEffect(() => {
+   207→    const dateKey = dateKeys[selectedDate];
+   208→    if (!dateKey) return;
+   209→    const hasMatchesForDate = footballMatches.some((m) => isMatchOnDate(m.matchDate, dateKey));
+   210→    if (!hasMatchesForDate && !footballLoading) {
+   211→      fetchFootballMatches([dateKey]);
+   212→    }
+   213→  }, [selectedDate, dateKeys, footballMatches, footballLoading, fetchFootballMatches]);
+   214→
+   215→  // Filter matches by selected date tab — live matches always show regardless of date
+   216→  const dateKey = dateKeys[selectedDate] || getDateForTab('day0');
+   217→  const dateFilteredMatches = useMemo(
+   218→    () => footballMatches.filter((m) => m.status === 'live' || isMatchOnDate(m.matchDate, dateKey)),
+   219→    [footballMatches, dateKey]
+   220→  );
+   221→
+   222→  // Extract unique competitions from the current day's matches
+   223→  const uniqueCompetitions = useMemo(() => {
+   224→    const comps = new Set<string>();
+   225→    dateFilteredMatches.forEach((m) => {
+   226→      if (m.competition) comps.add(m.competition);
+   227→    });
+   228→    return Array.from(comps).sort();
+   229→  }, [dateFilteredMatches]);
+   230→
+   231→  // Apply competition filter on top of date filter
+   232→  const filteredMatches = useMemo(
+   233→    () => selectedCompetition
+   234→      ? dateFilteredMatches.filter((m) => m.competition === selectedCompetition || m.status === 'live')
+   235→      : dateFilteredMatches,
+   236→    [dateFilteredMatches, selectedCompetition]
+   237→  );
+   238→
+   239→  // Reset competition filter when it no longer exists in the current filtered matches
+   240→  useEffect(() => {
+   241→    if (selectedCompetition && !uniqueCompetitions.includes(selectedCompetition)) {
+   242→      setSelectedCompetition('');
+   243→    }
+   244→  }, [selectedCompetition, uniqueCompetitions, setSelectedCompetition]);
+   245→
+   246→  // Count per tab — only for tabs that have been fetched
+   247→  const tabCounts = useMemo(() => {
+   248→    const counts: Record<string, number> = {};
+   249→    for (const tab of ALL_DATE_TABS) {
+   250→      const dk = dateKeys[tab];
+   251→      if (dk) {
+   252→        counts[tab] = footballMatches.filter((m) => m.status !== 'live' && isMatchOnDate(m.matchDate, dk)).length;
+   253→      }
+   254→    }
+   255→    return counts;
+   256→  }, [footballMatches, dateKeys]);
+   257→
+   258→  const liveMatches = filteredMatches.filter((m) => m.status === 'live');
+   259→  const upcomingMatches = filteredMatches.filter((m) => m.status === 'upcoming');
+   260→  const finishedMatches = filteredMatches.filter((m) => m.status === 'finished');
+   261→
+   262→  // Find the next upcoming match across ALL dates (not just selected date)
+   263→  const nextMatch = useMemo(() => {
+   264→    const now = new Date();
+   265→    const upcoming = footballMatches
+   266→      .filter((m) => m.status === 'upcoming' && m.matchDate && new Date(m.matchDate) > now)
+   267→      .sort((a, b) => {
+   268→        const dateA = a.matchDate ? new Date(a.matchDate).getTime() : Infinity;
+   269→        const dateB = b.matchDate ? new Date(b.matchDate).getTime() : Infinity;
+   270→        return dateA - dateB;
+   271→      });
+   272→    return upcoming[0] || null;
+   273→  }, [footballMatches]);
+   274→
+   275→  // Group upcoming matches by competition
+   276→  const competitionGroups = upcomingMatches.reduce<Record<string, typeof upcomingMatches>>((acc, match) => {
+   277→    const comp = match.competition || 'Football';
+   278→    if (!acc[comp]) acc[comp] = [];
+   279→    acc[comp].push(match);
+   280→    return acc;
+   281→  }, {});
+   282→
+   283→  // Group finished matches by competition
+   284→  const finishedGroups = finishedMatches.reduce<Record<string, typeof finishedMatches>>((acc, match) => {
+   285→    const comp = match.competition || 'Football';
+   286→    if (!acc[comp]) acc[comp] = [];
+   287→    acc[comp].push(match);
+   288→    return acc;
+   289→  }, {});
+   290→
+   291→  const countdownStr = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`;
+   292→
+   293→  // Build tab info array with compact display data
+   294→  const dateTabs = useMemo(() => {
+   295→    return ALL_DATE_TABS.map((tab) => {
+   296→      const offset = parseInt(tab.replace('day', ''), 10);
+   297→      const d = new Date();
+   298→      d.setDate(d.getDate() + offset);
+   299→      const ymd = formatDateYMD(d);
+   300→      const isToday = offset === 0;
+   301→      const isTomorrow = offset === 1;
+   302→      const isPast = offset < 0;
+   303→
+   304→      // Compact label: day number
+   305→      const dayNum = d.getDate();
+   306→      // Mini weekday
+   307→      const miniDay = getMiniWeekday(d, language);
+   308→
+   309→      // Month label (show when it's the 1st of the month or today)
+   310→      const isFirstOfMonth = d.getDate() === 1;
+   311→      const monthNames = translations[language].dates.monthsLong;
+   312→      const monthLabel = isFirstOfMonth ? monthNames[d.getMonth()] : '';
+   313→
+   314→      return {
+   315→        key: tab,
+   316→        offset,
+   317→        dateObj: d,
+   318→        ymd,
+   319→        isToday,
+   320→        isTomorrow,
+   321→        isPast,
+   322→        dayNum,
+   323→        miniDay,
+   324→        monthLabel,
+   325→        count: tabCounts[tab] || 0,
+   326→      };
+   327→    });
+   328→  }, [tabCounts, language]);
+   329→
+   330→  // Auto-scroll to active tab
+   331→  useEffect(() => {
+   332→    if (tabScrollRef.current) {
+   333→      const activeBtn = tabScrollRef.current.querySelector('[data-active="true"]');
+   334→      if (activeBtn) {
+   335→        activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+   336→      }
+   337→    }
+   338→  }, [selectedDate]);
+   339→
+   340→  // Get the formatted date for the header
+   341→  const selectedDateObj = useMemo(() => {
+   342→    const offset = parseInt(selectedDate.replace('day', ''), 10);
+   343→    const d = new Date();
+   344→    d.setDate(d.getDate() + offset);
+   345→    return d;
+   346→  }, [selectedDate]);
+   347→
+   348→  const headerDateStr = useMemo(() => {
+   349→    const idx = parseInt(selectedDate.replace('day', ''), 10);
+   350→    if (idx === 0) return formatLong(new Date(), language);
+   351→    if (idx === 1) return `${t(language, 'common.tomorrow')} — ${formatShort(selectedDateObj, language)}`;
+   352→    if (idx === -1) return `${formatShort(selectedDateObj, language)}`;
+   353→    return formatLong(selectedDateObj, language);
+   354→  }, [selectedDate, selectedDateObj, language]);
+   355→
+   356→  // Next match countdown string
+   357→  const nextMatchCountdown = useMemo(() => {
+   358→    if (!nextMatch?.matchDate) return '';
+   359→    return formatCountdown(new Date(nextMatch.matchDate), language);
+   360→  }, [nextMatch, language]);
+   361→
+   362→  // ─── Loading state (max 8 seconds, then show empty state) ─────────────────
+   363→  if (footballLoading && footballMatches.length === 0 && !loadingTimeout) {
+   364→    return (
+   365→      <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
+   366→        <div className="relative mb-6">
+   367→          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-600/20 flex items-center justify-center">
+   368→            <Loader2 className="h-10 w-10 animate-spin text-green-500" />
+   369→          </div>
+   370→          <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 animate-ping opacity-60" />
+   371→        </div>
+   372→        <p className="text-base font-semibold mb-1">{t(language, 'common.loadingMatches')}</p>
+   373→        <p className="text-sm text-muted-foreground/60">...</p>
+   374→        <div className="flex items-center gap-1.5 mt-4">
+   375→          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+   376→          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+   377→          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+   378→        </div>
+   379→      </div>
+   380→    );
+   381→  }
+   382→
+   383→  // Error state
+   384→  if (footballError && footballMatches.length === 0 && !loadingTimeout) {
+   385→    return (
+   386→      <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
+   387→        <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
+   388→          <WifiOff className="h-8 w-8 text-red-400" />
+   389→        </div>
+   390→        <h3 className="text-lg font-semibold mb-2">{t(language, 'errors.cannotLoad')}</h3>
+   391→        <p className="text-sm text-muted-foreground mb-5 max-w-xs">{footballError}</p>
+   392→        <Button onClick={handleRetry} size="sm" className="gap-2 bg-green-600 hover:bg-green-700 text-white">
+   393→          <RefreshCw className="h-4 w-4" />
+   394→          {t(language, 'common.retry')}
+   395→        </Button>
+   396→      </div>
+   397→    );
+   398→  }
+   399→
+   400→  // When loading timed out or no matches at all — show empty state with next match
+   401→  const showEmptyState = filteredMatches.length === 0 && (footballMatches.length > 0 || loadingTimeout || footballError);
+   402→
+   403→  return (
+   404→    <div className="space-y-5 pb-4">
+   405→      {/* Pull-to-refresh indicator */}
+   406→      {(pullDistance > 0 || isRefreshing) && (
+   407→        <div
+   408→          className="flex items-center justify-center transition-all duration-150 ease-out overflow-hidden"
+   409→          style={{ height: `${isRefreshing ? 40 : pullDistance}px`, opacity: Math.min(pullDistance / 40, 1) }}
+   410→        >
+   411→          <div className="flex items-center gap-2 text-green-500">
+   412→            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+   413→            <span className="text-xs font-medium">
+   414→              {isRefreshing
+   415→                ? t(language, 'standings.updating')
+   416→                : pullDistance >= 60
+   417→                  ? t(language, 'common.retry')
+   418→                  : '↓'
+   419→              }
+   420→            </span>
+   421→          </div>
+   422→        </div>
+   423→      )}
+   424→
+   425→      {/* Date Tab Selector - Scrollable calendar with 34 days */}
+   426→      <div className="relative">
+   427→        {/* Left fade gradient */}
+   428→        <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-muted/40 to-transparent z-10 pointer-events-none rounded-l-xl" />
+   429→        {/* Right fade gradient */}
+   430→        <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-muted/40 to-transparent z-10 pointer-events-none rounded-r-xl" />
+   431→
+   432→        <div
+   433→          ref={tabScrollRef}
+   434→          className="flex items-stretch gap-0.5 overflow-x-auto bg-muted/40 rounded-xl p-1.5"
+   435→          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', touchAction: 'pan-x', overscrollBehaviorX: 'contain' }}
+   436→        >
+   437→          {dateTabs.map((tab) => {
+   438→            const isActive = selectedDate === tab.key;
+   439→            const isToday = tab.offset === 0;
+   440→            const isTomorrow = tab.offset === 1;
+   441→
+   442→            return (
+   443→              <button
+   444→                key={tab.key}
+   445→                data-active={isActive}
+   446→                onClick={() => setSelectedDate(tab.key)}
+   447→                className={`flex-shrink-0 flex flex-col items-center justify-center px-2 py-1.5 rounded-lg text-sm font-medium transition-all relative min-w-[48px] ${
+   448→                  isActive
+   449→                    ? 'bg-green-500/15 text-green-600 shadow-sm'
+   450→                    : isToday
+   451→                      ? 'text-green-500/80 hover:bg-green-500/10'
+   452→                      : tab.isPast
+   453→                        ? 'text-muted-foreground/40 hover:text-muted-foreground/70 hover:bg-muted/40'
+   454→                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+   455→                }`}
+   456→              >
+   457→                {/* Month separator label on 1st of month */}
+   458→                {tab.monthLabel && (
+   459→                  <span className={`text-[8px] font-bold uppercase tracking-wider mb-0.5 ${
+   460→                    isActive ? 'text-green-500/70' : 'text-muted-foreground/40'
+   461→                  }`}>
+   462→                    {tab.monthLabel.substring(0, 3)}
+   463→                  </span>
+   464→                )}
+   465→
+   466→                {/* Day number - larger for today */}
+   467→                <span className={`font-bold leading-none ${
+   468→                  isToday ? 'text-[16px]' : 'text-[14px]'
+   469→                }`}>
+   470→                  {tab.dayNum}
+   471→                </span>
+   472→
+   473→                {/* Mini weekday label */}
+   474→                <span className={`text-[9px] leading-none mt-0.5 ${
+   475→                  isActive ? 'text-green-500/80 font-semibold' : isToday ? 'text-green-500/60 font-semibold' : 'text-muted-foreground/50'
+   476→                }`}>
+   477→                  {isToday
+   478→                    ? t(language, 'common.today').substring(0, 3)
+   479→                    : isTomorrow
+   480→                      ? t(language, 'common.tomorrow').substring(0, 3)
+   481→                      : tab.miniDay
+   482→                  }
+   483→                </span>
+   484→
+   485→                {/* Match count badge */}
+   486→                {tab.count > 0 && (
+   487→                  <span className={`absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[14px] h-3.5 px-0.5 rounded-full text-[8px] font-bold ${
+   488→                    isActive
+   489→                      ? 'bg-green-500 text-white'
+   490→                      : isToday
+   491→                        ? 'bg-green-500/60 text-white'
+   492→                        : 'bg-muted text-muted-foreground'
+   493→                  }`}>
+   494→                    {tab.count}
+   495→                  </span>
+   496→                )}
+   497→
+   498→                {/* Active indicator */}
+   499→                {isActive && (
+   500→                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-green-500" />
+   501→                )}
+   502→
+   503→                {/* Today dot indicator (when not active) */}
+   504→                {isToday && !isActive && (
+   505→                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-green-500" />
+   506→                )}
+   507→              </button>
+   508→            );
+   509→          })}
+   510→        </div>
+   511→      </div>
+   512→
+   513→      {/* Competition Filter Bar */}
+   514→      {uniqueCompetitions.length > 1 && (
+   515→        <div className="flex items-center gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', touchAction: 'pan-x', overscrollBehaviorX: 'contain' }}>
+   516→          <button
+   517→            onClick={() => setSelectedCompetition('')}
+   518→            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
+   519→              selectedCompetition === ''
+   520→                ? 'bg-green-500/15 text-green-600 border border-green-500/30'
+   521→                : 'bg-muted/50 text-muted-foreground border border-transparent hover:bg-muted/80 hover:text-foreground'
+   522→            }`}
+   523→          >
+   524→            <Filter className="h-3 w-3" />
+   525→            {t(language, 'common.all')}
+   526→          </button>
+   527→          {uniqueCompetitions.map((comp) => (
+   528→            <button
+   529→              key={comp}
+   530→              onClick={() => setSelectedCompetition(comp === selectedCompetition ? '' : comp)}
+   531→              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
+   532→                selectedCompetition === comp
+   533→                  ? 'bg-green-500/15 text-green-600 border border-green-500/30'
+   534→                  : 'bg-muted/50 text-muted-foreground border border-transparent hover:bg-muted/80 hover:text-foreground'
+   535→              }`}
+   536→            >
+   537→              {comp}
+   538→            </button>
+   539→          ))}
+   540→        </div>
+   541→      )}
+   542→
+   543→      {/* Header with date info */}
+   544→      <div className="flex items-center justify-between">
+   545→        <div>
+   546→          <h2 className="text-xl font-bold capitalize flex items-center gap-2">
+   547→            {headerDateStr}
+   548→          </h2>
+   549→          <div className="flex items-center gap-2 mt-0.5">
+   550→            {liveMatches.length > 0 ? (
+   551→              <div className="flex items-center gap-1.5">
+   552→                <Wifi className="h-3.5 w-3.5 text-green-500" />
+   553→                <span className="text-sm text-green-500 font-semibold">
+   554→                  {liveMatches.length} {t(language, 'common.live').toLowerCase()}
+   555→                </span>
+   556→              </div>
+   557→            ) : (
+   558→              <div className="flex items-center gap-1.5">
+   559→                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+   560→                <span className="text-sm text-muted-foreground">
+   561→                  {upcomingMatches.length + finishedMatches.length} {t(language, 'nav.matches').toLowerCase()}
+   562→                </span>
+   563→              </div>
+   564→            )}
+   565→          </div>
+   566→        </div>
+   567→        <div className="flex items-center gap-2">
+   568→          <span className="text-[10px] text-muted-foreground/40 tabular-nums">
+   569→            {t(language, 'common.update')} {countdownStr}
+   570→          </span>
+   571→          <Button
+   572→            variant="outline"
+   573→            size="icon"
+   574→            onClick={handleRetry}
+   575→            disabled={footballLoading}
+   576→            className="h-8 w-8 rounded-lg border-border/50"
+   577→          >
+   578→            <RefreshCw className={`h-3.5 w-3.5 ${footballLoading ? 'animate-spin' : ''}`} />
+   579→          </Button>
+   580→        </div>
+   581→      </div>
+   582→
+   583→      {/* Error banner */}
+   584→      {footballError && footballMatches.length > 0 && (
+   585→        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/15 text-xs text-red-400">
+   586→          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+   587→          <span>{footballError}</span>
+   588→          <Button variant="ghost" size="sm" onClick={handleRetry} className="ml-auto h-5 px-2 text-[10px] text-red-400">
+   589→            {t(language, 'common.retry')}
+   590→          </Button>
+   591→        </div>
+   592→      )}
+   593→
+   594→      {/* ─── No matches state with next match info ─── */}
+   595→      {showEmptyState && (
+   596→        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+   597→          <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+   598→            <Calendar className="h-8 w-8 text-muted-foreground/40" />
+   599→          </div>
+   600→          <h3 className="text-base font-semibold mb-1">{t(language, 'common.noMatchesNow')}</h3>
+   601→          <p className="text-sm text-muted-foreground/60 mb-6">
+   602→            {t(language, 'common.checkBackLater')}
+   603→          </p>
+   604→
+   605→          {/* Next upcoming match card */}
+   606→          {nextMatch && (
+   607→            <div className="w-full max-w-sm rounded-xl border border-green-500/20 bg-green-500/5 p-4">
+   608→              <div className="flex items-center gap-2 mb-3">
+   609→                <Timer className="h-4 w-4 text-green-500" />
+   610→                <span className="text-sm font-semibold text-green-500">{t(language, 'common.nextMatch')}</span>
+   611→                {nextMatchCountdown && (
+   612→                  <span className="ml-auto text-xs font-bold text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">
+   613→                    {nextMatchCountdown}
+   614→                  </span>
+   615→                )}
+   616→              </div>
+   617→
+   618→              <div className="flex items-center justify-between gap-3">
+   619→                <div className="flex-1 text-right">
+   620→                  <div className="flex items-center justify-end gap-2">
+   621→                    {nextMatch.homeLogo && (
+   622→                      <img src={nextMatch.homeLogo} alt="" className="w-6 h-6 object-contain" />
+   623→                    )}
+   624→                    <span className="text-sm font-semibold truncate">{nextMatch.homeTeam}</span>
+   625→                  </div>
+   626→                </div>
+   627→
+   628→                <div className="flex flex-col items-center gap-0.5 px-2">
+   629→                  <span className="text-[10px] text-muted-foreground/60 uppercase font-bold">
+   630→                    {t(language, 'common.vs')}
+   631→                  </span>
+   632→                  {nextMatch.matchDate && (
+   633→                    <span className="text-xs font-bold text-green-500">
+   634→                      {formatMatchTime(nextMatch.matchDate, language)}
+   635→                    </span>
+   636→                  )}
+   637→                </div>
+   638→
+   639→                <div className="flex-1 text-left">
+   640→                  <div className="flex items-center gap-2">
+   641→                    {nextMatch.awayLogo && (
+   642→                      <img src={nextMatch.awayLogo} alt="" className="w-6 h-6 object-contain" />
+   643→                    )}
+   644→                    <span className="text-sm font-semibold truncate">{nextMatch.awayTeam}</span>
+   645→                  </div>
+   646→                </div>
+   647→              </div>
+   648→
+   649→              {nextMatch.competition && (
+   650→                <div className="mt-3 pt-2 border-t border-border/20 flex items-center justify-between">
+   651→                  <span className="text-[10px] text-muted-foreground/50 font-medium">{nextMatch.competition}</span>
+   652→                  {nextMatch.matchDate && (
+   653→                    <span className="text-[10px] text-muted-foreground/50">
+   654→                      {formatShort(new Date(nextMatch.matchDate), language)}
+   655→                    </span>
+   656→                  )}
+   657→                </div>
+   658→              )}
+   659→
+   660→              {/* Navigate to next match day */}
+   661→              {nextMatch.matchDate && (() => {
+   662→                const nextMatchYMD = formatDateYMD(new Date(nextMatch.matchDate));
+   663→                const nextTab = ALL_DATE_TABS.find(tab => dateKeys[tab] === nextMatchYMD);
+   664→                if (nextTab && nextTab !== selectedDate) {
+   665→                  return (
+   666→                    <button
+   667→                      onClick={() => setSelectedDate(nextTab)}
+   668→                      className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-green-500/10 border border-green-500/20 text-green-500 text-xs font-semibold hover:bg-green-500/20 transition-all"
+   669→                    >
+   670→                      {t(language, 'common.nextMatch')}
+   671→                      <ArrowRight className="h-3.5 w-3.5" />
+   672→                    </button>
+   673→                  );
+   674→                }
+   675→                return null;
+   676→              })()}
+   677→            </div>
+   678→          )}
+   679→        </div>
+   680→      )}
+   681→
+   682→      {/* ===== LIVE MATCHES ===== */}
+   683→      {liveMatches.length > 0 && (
+   684→        <section>
+   685→          <div className="flex items-center gap-2 mb-3">
+   686→            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/15">
+   687→              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+   688→              <span className="text-xs font-bold text-red-500 uppercase tracking-wide">{t(language, 'common.live')}</span>
+   689→            </div>
+   690→          </div>
+   691→          <div className="space-y-3">
+   692→            {liveMatches.map((match) => (
+   693→              <MatchCard key={match.id} match={match} />
+   694→            ))}
+   695→          </div>
+   696→        </section>
+   697→      )}
+   698→
+   699→      {/* ===== UPCOMING MATCHES BY COMPETITION ===== */}
+   700→      {Object.entries(competitionGroups).map(([competition, matches]) => (
+   701→        <section key={competition}>
+   702→          {/* Competition header */}
+   703→          <div className="flex items-center gap-2.5 mb-2.5">
+   704→            <div className="h-px flex-1 bg-border/40" />
+   705→            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/60 border border-border/30">
+   706→              <Sparkles className="h-3 w-3 text-amber-500" />
+   707→              <span className="text-xs font-semibold text-muted-foreground">{competition}</span>
+   708→              <span className="text-[10px] text-muted-foreground/50">{matches.length}</span>
+   709→            </div>
+   710→            <div className="h-px flex-1 bg-border/40" />
+   711→          </div>
+   712→          {/* Match list */}
+   713→          <div className="space-y-2">
+   714→            {matches.map((match) => (
+   715→              <MatchCard key={match.id} match={match} />
+   716→            ))}
+   717→          </div>
+   718→        </section>
+   719→      ))}
+   720→
+   721→      {/* ===== FINISHED MATCHES BY COMPETITION ===== */}
+   722→      {Object.entries(finishedGroups).length > 0 && (
+   723→        <section>
+   724→          <div className="flex items-center gap-2 mb-3">
+   725→            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/50 border border-border/30">
+   726→              <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+   727→              <span className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wide">{t(language, 'common.finished')}</span>
+   728→              <span className="text-[10px] text-muted-foreground/40">{finishedMatches.length}</span>
+   729→            </div>
+   730→          </div>
+   731→          <div className="space-y-2">
+   732→            {Object.entries(finishedGroups).map(([competition, matches]) => (
+   733→              <div key={competition}>
+   734→                <div className="flex items-center gap-2 mb-1.5">
+   735→                  <span className="text-[10px] font-medium text-muted-foreground/40">{competition}</span>
+   736→                  <div className="h-px flex-1 bg-border/20" />
+   737→                </div>
+   738→                {matches.map((match) => (
+   739→                  <MatchCard key={match.id} match={match} />
+   740→                ))}
+   741→              </div>
+   742→            ))}
+   743→          </div>
+   744→        </section>
+   745→      )}
+   746→
+   747→      {/* Footer info */}
+   748→      <div className="text-center text-[10px] text-muted-foreground/30 pt-1">
+   749→        {t(language, 'common.update')} {hasLive ? '15s' : '2 min'}{hasLive ? ` (${t(language, 'common.live').toLowerCase()})` : ''}
+   750→      </div>
+   751→    </div>
+   752→  );
+   753→}
+   754→

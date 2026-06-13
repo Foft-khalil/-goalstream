@@ -109,9 +109,9 @@ function EventIcon({ type }: { type: MatchEvent['type'] }) {
     case 'goal':
       return <span className="text-base">⚽</span>;
     case 'yellow_card':
-      return <div className="w-3.5 h-4.5 rounded-[2px] bg-yellow-400 border border-yellow-500/50" />;
+      return <div className="w-3.5 h-5 rounded-[2px] bg-yellow-400 border border-yellow-500/50" />;
     case 'red_card':
-      return <div className="w-3.5 h-4.5 rounded-[2px] bg-red-500 border border-red-600/50" />;
+      return <div className="w-3.5 h-5 rounded-[2px] bg-red-500 border border-red-600/50" />;
     case 'substitution':
       return <ArrowRightLeft className="h-3.5 w-3.5 text-green-500" />;
     case 'var_review':
