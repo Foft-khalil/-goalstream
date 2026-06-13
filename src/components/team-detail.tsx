@@ -202,7 +202,7 @@ export default function TeamDetail({ teamId, leagueCode, open, onClose }: TeamDe
           setData(result);
           setLoading(false);
         }
-      } catch {
+      } catch(_e) {
         if (!cancelled) {
           setData({ team: null, stats: null, players: [], recentResults: [], upcomingMatches: [], remainingMatches: 0, totalSeasonMatches: 0, error: 'Erreur réseau' });
           setLoading(false);

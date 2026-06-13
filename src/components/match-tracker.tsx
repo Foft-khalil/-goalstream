@@ -1089,7 +1089,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                           return;
                         }
                       }
-                    } catch {
+                    } catch(_e) {
                       // kora-api failed, fall through to IPTV
                     }
 

@@ -204,7 +204,7 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): FootballMatch | n
       awayLogo,
       matchDate: event.date,
     };
-  } catch {
+  } catch(_e) {
     return null;
   }
 }
@@ -221,7 +221,7 @@ async function fetchLeague(league: typeof ESPN_LEAGUES_PRIMARY[0], date: string)
     const data = await res.json();
     const events: ESPNEvent[] = data.events || [];
     return events.map(e => parseESPNMatch(e, league.name)).filter(Boolean) as FootballMatch[];
-  } catch {
+  } catch(_e) {
     return [];
   }
 }
@@ -277,7 +277,7 @@ async function fetchESPNMatches(dates: string[], includeAllLeagues: boolean): Pr
     try {
       const dayMatches = await fetchESPNMatchesForDate(date, includeAllLeagues);
       allMatches.push(...dayMatches);
-    } catch {
+    } catch(_e) {
       // Continue with other dates even if one fails
     }
   }

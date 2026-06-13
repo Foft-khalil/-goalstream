@@ -243,8 +243,7 @@
   box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
 }
 
-/* ─── iPad / Safari fixes ─── */
-/* Ensure proper rendering on iPad */
+/* ─── iPad / Safari 12 fixes ─── */
 @supports (-webkit-touch-callout: none) {
   /* Fix backdrop-filter on older Safari */
   .backdrop-blur-xl {
@@ -254,6 +253,10 @@
   .backdrop-blur-sm {
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
+  }
+  .backdrop-blur-md {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
   }
 
   /* Fix sticky positioning on iPad */
@@ -267,6 +270,16 @@
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
+
+  /* Fix overflow scrolling on iPad */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Ensure images have proper sizing on older Safari */
+  img {
+    -webkit-transform: translateZ(0);
+  }
 }
 
 /* Fix for iPad layout - treat iPad like desktop, not mobile */
@@ -278,13 +291,38 @@
   .sm\:hidden {
     display: none !important;
   }
+  /* Ensure proper font sizing on iPad */
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
 }
 
-/* Fix flex gap on older Safari */
+/* ─── Flex gap polyfill for Safari 12 ─── */
 @supports not (gap: 10px) {
-  .gap-0\.5 > * + * { margin-left: 0.125rem; }
-  .gap-1 > * + * { margin-left: 0.25rem; }
-  .gap-1\.5 > * + * { margin-left: 0.375rem; }
-  .gap-2 > * + * { margin-left: 0.5rem; }
-  .gap-3 > * + * { margin-left: 0.75rem; }
+  /* Horizontal gaps for flex rows */
+  .flex.gap-0\.5 > * + * { margin-left: 0.125rem; }
+  .flex.gap-1 > * + * { margin-left: 0.25rem; }
+  .flex.gap-1\.5 > * + * { margin-left: 0.375rem; }
+  .flex.gap-2 > * + * { margin-left: 0.5rem; }
+  .flex.gap-2\.5 > * + * { margin-left: 0.625rem; }
+  .flex.gap-3 > * + * { margin-left: 0.75rem; }
+  .flex.gap-4 > * + * { margin-left: 1rem; }
+  .flex.gap-5 > * + * { margin-left: 1.25rem; }
+  .flex.gap-6 > * + * { margin-left: 1.5rem; }
+
+  /* Vertical gaps for flex columns */
+  .flex-col.gap-0\.5 > * + * { margin-left: 0; margin-top: 0.125rem; }
+  .flex-col.gap-1 > * + * { margin-left: 0; margin-top: 0.25rem; }
+  .flex-col.gap-1\.5 > * + * { margin-left: 0; margin-top: 0.375rem; }
+  .flex-col.gap-2 > * + * { margin-left: 0; margin-top: 0.5rem; }
+  .flex-col.gap-3 > * + * { margin-left: 0; margin-top: 0.75rem; }
+  .flex-col.gap-4 > * + * { margin-left: 0; margin-top: 1rem; }
+  .flex-col.gap-5 > * + * { margin-left: 0; margin-top: 1.25rem; }
+  .flex-col.gap-6 > * + * { margin-left: 0; margin-top: 1.5rem; }
+
+  /* space-y uses margin-top, so it works fine on Safari 12 */
+  /* But gap-based space needs this fallback */
+  .space-y-2 > * + * { margin-top: 0.5rem; }
+  .space-y-3 > * + * { margin-top: 0.75rem; }
+  .space-y-5 > * + * { margin-top: 1.25rem; }
 }

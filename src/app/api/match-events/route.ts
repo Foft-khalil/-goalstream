@@ -445,7 +445,7 @@ function parseCommentaryItems(
       }
 
       events.push(event);
-    } catch {
+    } catch(_e) {
       // Skip malformed items
     }
   }

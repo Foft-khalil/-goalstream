@@ -208,7 +208,7 @@ async function getCurrentSeasonYear(leagueCode: string): Promise<number> {
         return year;
       }
     }
-  } catch {
+  } catch(_e) {
     // Fall back to default calculation
   }
 
@@ -384,7 +384,7 @@ async function fetchTeamInfo(
               nationality: a.nationality || a.birthPlace?.country || null,
               image: a.headshot?.href || null,
             } as Player;
-          } catch {
+          } catch(_e) {
             return null;
           }
         });
@@ -399,7 +399,7 @@ async function fetchTeamInfo(
         if (roster.length > 0) {
           console.log(`[Team API] Found ${roster.length} athletes using season ${trySeason} for ${leagueCode}`);
         }
-      } catch {
+      } catch(_e) {
         // Try next season
       }
     }
@@ -478,7 +478,7 @@ async function fetchTeamSchedule(teamId: string, leagueCode: string): Promise<Te
           awayScore,
           competition: competitionName,
         });
-      } catch {
+      } catch(_e) {
         continue;
       }
     }
@@ -533,7 +533,7 @@ async function fetchFIFATeamInfo(teamName: string, teamId?: string): Promise<Tea
             if (!realTeamId.startsWith('fifa_')) break;
           }
           if (!realTeamId.startsWith('fifa_')) break;
-        } catch {
+        } catch(_e) {
           continue;
         }
       }
@@ -577,7 +577,7 @@ async function fetchFIFATeamInfo(teamName: string, teamId?: string): Promise<Tea
                     nationality: a.nationality || a.birthPlace?.country || null,
                     image: a.headshot?.href || null,
                   } as Player;
-                } catch {
+                } catch(_e) {
                   return null;
                 }
               });
@@ -588,7 +588,7 @@ async function fetchFIFATeamInfo(teamName: string, teamId?: string): Promise<Tea
                   roster.push(result.value);
                 }
               }
-            } catch {
+            } catch(_e) {
               // Roster not available
             }
 
@@ -631,18 +631,18 @@ async function fetchFIFATeamInfo(teamName: string, teamId?: string): Promise<Tea
                     awayScore,
                     competition: competitionName,
                   });
-                } catch {
+                } catch(_e) {
                   continue;
                 }
               }
-            } catch {
+            } catch(_e) {
               // Schedule not available
             }
 
             // If we got data from this league, use it
             if (logo || roster.length > 0) break;
           }
-        } catch {
+        } catch(_e) {
           continue;
         }
       }
@@ -682,10 +682,10 @@ async function fetchFIFATeamInfo(teamName: string, teamId?: string): Promise<Tea
               if (!coach) coach = parsed.coach || null;
               if (!venue) venue = parsed.venue || null;
             }
-          } catch {}
+          } catch(_e) {}
         }
       }
-    } catch {
+    } catch(_e) {
       // Web search failed, continue with what we have
     }
 
@@ -709,7 +709,7 @@ async function fetchFIFATeamInfo(teamName: string, teamId?: string): Promise<Tea
       stats: [],
       lastUpdated: new Date().toISOString(),
     };
-  } catch {
+  } catch(_e) {
     return null;
   }
 }

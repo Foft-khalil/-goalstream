@@ -452,7 +452,7 @@ export default function AdminDashboard() {
                             </span>
                             {(match.homeScore !== null || match.awayScore !== null) && (
                               <span className="text-xs font-semibold tabular-nums">
-                                {match.homeScore ?? 0}-{match.awayScore ?? 0}
+                                {match.homeScore != null ? match.homeScore : 0}-{match.awayScore != null ? match.awayScore : 0}
                               </span>
                             )}
                             {match.minute != null && (

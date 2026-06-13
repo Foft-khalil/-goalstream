@@ -52,7 +52,7 @@ export function validateProxyUrl(url: string): string | null {
   let parsed: URL;
   try {
     parsed = new URL(url);
-  } catch {
+  } catch(_e) {
     return 'Invalid URL format';
   }
 

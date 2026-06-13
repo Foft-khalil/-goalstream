@@ -145,7 +145,7 @@ async function fetchNBATeamInfo(teamId: string): Promise<NBATeamInfo | null> {
           }
         }
       }
-    } catch {
+    } catch(_e) {
       // Record fetch failed, use basic info
     }
 
@@ -182,7 +182,7 @@ async function fetchNBARoster(teamId: string): Promise<NBAPlayer[]> {
           nationality: a.nationality || a.birthPlace?.country || null,
           image: a.headshot?.href || null,
         } as NBAPlayer;
-      } catch {
+      } catch(_e) {
         return null;
       }
     });
@@ -249,7 +249,7 @@ async function fetchNBASchedule(teamId: string): Promise<NBATeamMatch[]> {
           homeScore,
           awayScore,
         });
-      } catch {
+      } catch(_e) {
         continue;
       }
     }

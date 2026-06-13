@@ -40,7 +40,7 @@ function decodeInputUrl(raw: string): string {
     if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
       return decoded;
     }
-  } catch {
+  } catch(_e) {
     // Not valid base64, continue
   }
 
@@ -50,7 +50,7 @@ function decodeInputUrl(raw: string): string {
     if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
       return decoded;
     }
-  } catch {
+  } catch(_e) {
     // Not valid, continue
   }
 
@@ -60,7 +60,7 @@ function decodeInputUrl(raw: string): string {
     if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
       return decoded;
     }
-  } catch {
+  } catch(_e) {
     // Not valid, continue
   }
 
@@ -83,7 +83,7 @@ function resolveUrl(target: string, baseUrl: string): string {
     // Relative path
     const basePath = base.pathname.substring(0, base.pathname.lastIndexOf('/') + 1);
     return `${base.origin}${basePath}${target}`;
-  } catch {
+  } catch(_e) {
     return target;
   }
 }
@@ -143,7 +143,7 @@ function extractStreamIdFromUrl(url: string): string | null {
     const parsed = new URL(url);
     const streamParam = parsed.searchParams.get('stream');
     if (streamParam) return streamParam;
-  } catch {
+  } catch(_e) {
     // Not a valid URL
   }
 
@@ -313,7 +313,7 @@ async function tryDecryptPost(
 ): Promise<string | null> {
   try {
     const origin = (() => {
-      try { return new URL(referer).origin; } catch { return ''; }
+      try { return new URL(referer).origin; } catch(_e) { return ''; }
     })();
 
     const response = await fetch(decryptUrl, {
@@ -351,7 +351,7 @@ async function tryDecryptPost(
       if (jsonUrl && typeof jsonUrl === 'string' && M3U8_PATTERNS.some(p => p.test(jsonUrl))) {
         return jsonUrl;
       }
-    } catch {
+    } catch(_e) {
       // Check if raw text is a URL
       const trimmed = text.trim();
       if (trimmed.startsWith('http') && M3U8_PATTERNS.some(p => p.test(trimmed))) {
@@ -360,7 +360,7 @@ async function tryDecryptPost(
     }
 
     return null;
-  } catch {
+  } catch(_e) {
     return null;
   }
 }
@@ -416,7 +416,7 @@ async function tryKnownDecryptEndpoints(
     }
 
     return null;
-  } catch {
+  } catch(_e) {
     return null;
   }
 }
@@ -629,7 +629,7 @@ async function resolveEmbedChain(embedUrl: string): Promise<ResolveResult> {
               }
             }
           }
-        } catch {
+        } catch(_e) {
           // Not JSON, check if the raw text is a URL
           const trimmed = decryptResponse.trim();
           if (trimmed.startsWith('http') && M3U8_PATTERNS.some(p => p.test(trimmed))) {

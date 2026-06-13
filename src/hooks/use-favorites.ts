@@ -53,7 +53,7 @@ function loadFromStorage(): Favorites {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch(_e) {}
   return EMPTY_FAVORITES;
 }
 
@@ -61,7 +61,7 @@ function saveToStorage(favs: Favorites) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(favs));
-  } catch {}
+  } catch(_e) {}
 }
 
 function updateSnapshot(favs: Favorites) {

@@ -176,7 +176,7 @@ function parseTeamStats(recordData: any): TeamStats | null {
       streak: Math.round(statsMap.get('streak') ?? 0),
       deductions: Math.round(statsMap.get('deductions') ?? 0),
     };
-  } catch {
+  } catch(_e) {
     return null;
   }
 }
@@ -241,7 +241,7 @@ function parseMatchResult(event: any): MatchResult | null {
       status,
       competition: comp.type?.group?.name || event.league?.name || '',
     };
-  } catch {
+  } catch(_e) {
     return null;
   }
 }

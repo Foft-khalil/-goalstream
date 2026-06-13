@@ -61,7 +61,7 @@ function loadLanguageFromStorage(): Language {
     if (raw && ['fr', 'en', 'ar', 'es'].includes(raw)) {
       return raw as Language;
     }
-  } catch {
+  } catch(_e) {
     // ignore
   }
   return DEFAULT_LANGUAGE;
@@ -71,7 +71,7 @@ function saveLanguage(lang: Language) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
-  } catch {
+  } catch(_e) {
     // ignore
   }
 }

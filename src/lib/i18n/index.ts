@@ -10,7 +10,7 @@ export function getSavedLanguage(): Language {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved && saved in translations) return saved as Language;
-  } catch {
+  } catch(_e) {
     // localStorage not available
   }
   return 'fr';
@@ -20,7 +20,7 @@ export function saveLanguage(lang: Language): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, lang);
-  } catch {
+  } catch(_e) {
     // localStorage not available
   }
 }

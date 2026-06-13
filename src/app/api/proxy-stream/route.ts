@@ -33,10 +33,10 @@ export async function GET(request: NextRequest) {
   let targetUrl: string;
   try {
     targetUrl = atob(decodeURIComponent(encodedUrl));
-  } catch {
+  } catch(_e) {
     try {
       targetUrl = atob(encodedUrl);
-    } catch {
+    } catch(_e) {
       return NextResponse.json({ error: 'Invalid base64 url parameter' }, { status: 400 });
     }
   }
@@ -218,10 +218,10 @@ export async function POST(request: NextRequest) {
   let targetUrl: string;
   try {
     targetUrl = atob(decodeURIComponent(encodedUrl));
-  } catch {
+  } catch(_e) {
     try {
       targetUrl = atob(encodedUrl);
-    } catch {
+    } catch(_e) {
       return NextResponse.json({ error: 'Invalid base64 url parameter' }, { status: 400 });
     }
   }

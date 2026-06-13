@@ -100,7 +100,7 @@ export async function GET() {
             const status: 'online' | 'offline' = res.ok ? 'online' : 'offline';
             setChannelHealth(url, status);
             return status;
-          } catch {
+          } catch(_e) {
             setChannelHealth(url, 'offline');
             return 'offline' as const;
           }

@@ -483,7 +483,7 @@ function parseCommentaryItems(
       if (detailText) event.detail = detailText;
 
       events.push(event);
-    } catch {
+    } catch(_e) {
       // Skip malformed items
     }
   }
@@ -802,7 +802,7 @@ async function fetchBasketballMatchEvents(eventId: string, league: string): Prom
         if (detailText) event.detail = detailText;
 
         events.push(event);
-      } catch {
+      } catch(_e) {
         // Skip malformed plays
       }
     }

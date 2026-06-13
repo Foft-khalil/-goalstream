@@ -43,7 +43,7 @@ function getProxiedUrl(url: string): string {
   try {
     const encoded = btoa(url);
     return `/api/proxy-stream?url=${encodeURIComponent(encoded)}`;
-  } catch {
+  } catch(_e) {
     return url;
   }
 }
@@ -360,7 +360,7 @@ export default function VideoPlayer() {
       if (data.resolved && data.type === 'hls' && data.resolvedUrl) {
         setResolvedUrl(data.resolvedUrl);
       }
-    } catch {
+    } catch(_e) {
       // Silently fail — user can still use iframe or external sites
     } finally {
       setIsResolving(false);

@@ -656,7 +656,7 @@ function MatchRow({ match, language }: { match: TeamMatch; language: string }) {
         <div className="flex items-center gap-1 shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
           <span className="text-xs font-bold tabular-nums text-red-400">
-            {match.homeScore ?? 0} - {match.awayScore ?? 0}
+            {match.homeScore != null ? match.homeScore : 0} - {match.awayScore != null ? match.awayScore : 0}
           </span>
         </div>
       ) : isFinished && teamGoals != null && oppGoals != null ? (

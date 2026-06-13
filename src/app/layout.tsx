@@ -17,6 +17,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
+  minimumScale: 0.5,
   userScalable: true,
   themeColor: "#16a34a",
   viewportFit: "cover",
@@ -60,6 +61,16 @@ export default function RootLayout({
   return (
     <html lang="fr" className="dark" suppressHydrationWarning>
       <head>
+        {/* Critical iOS 12 Safari polyfills - must load before React */}
+        <script dangerouslySetInnerHTML={{ __html: [
+          'if(typeof Object.fromEntries!=="function"){Object.fromEntries=function(e){var o={};if(Array.isArray(e)){for(var i=0;i<e.length;i++){o[e[i][0]]=e[i][1];}}else{for(var k of e){o[k[0]]=k[1];}}return o;};}',
+          'if(typeof globalThis==="undefined"){window.globalThis=window;}',
+          'if(typeof Promise.allSettled!=="function"){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:"fulfilled",value:r};},function(e){return{status:"rejected",reason:e};});}));};}',
+          'if(typeof String.prototype.replaceAll!=="function"){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.split(s).join(n);};}',
+          'if(typeof Array.prototype.at!=="function"){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}',
+          'if(typeof IntersectionObserver==="undefined"){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}',
+        ].join('\n') }} />
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="application-name" content="GoalStream" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />

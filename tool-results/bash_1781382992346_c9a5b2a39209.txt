@@ -1,0 +1,369 @@
+[info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[log] [HMR] connected
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 142ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 255ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 110ms
+[log] [HMR] connected
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [PWA] Install prompt captured
+[log] [PWA] Install prompt captured
+[log] [Fast Refresh] rebuilding
+[log] [HMR] connected
+[log] [HMR] connected
+[log] [HMR] connected
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 230ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 114ms
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 210ms
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[warning] [Football] Fetch failed, retrying in 5s... Réponse invalide du serveur
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[warning] [Football] Fetch failed, retrying in 5s... Réponse invalide du serveur
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[warning] [Football] Fetch failed, retrying in 5s... Réponse invalide du serveur
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[log] [Fast Refresh] rebuilding
+[warning] [Football] Fetch failed, retrying in 5s... Réponse invalide du serveur
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[warning] [Football] Fetch failed, retrying in 5s... Réponse invalide du serveur
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[warning] [Football] Fetch failed, retrying in 5s... Réponse invalide du serveur
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[warning] [Football] Fetch failed, retrying in 5s... Réponse invalide du serveur
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] rebuilding
+[error] ./src/app/layout.tsx:70:211
+Parsing ecmascript source code failed
+  68 |           if(typeof globalThis==='undefined'){window.globalThis=window;}
+  69 |           if(typeof Promise.allSettled!=='function'){Promise.allSettled=function(p){return Promise.all(p.map(function(v){return Promise.resolve(v).then(function(r){return{status:'fulfilled',value:r};},function(e){return{status:'rejected',reason:e};});}));};}
+> 70 |           if(typeof String.prototype.replaceAll!=='function'){String.prototype.replaceAll=function(s,n){if(s instanceof RegExp)return this.replace(s,n);return this.replace(new RegExp(String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\\\$&'),'g'),n);};}
+     |                                                                                                                                                                                                                   ^
+  71 |           if(typeof Array.prototype.at!=='function'){Array.prototype.at=function(i){var l=this.length;var x=i>=0?i:l+i;return x>=0&&x<l?this[x]:void 0;};}
+  72 |           if(typeof IntersectionObserver==='undefined'){window.IntersectionObserver=function(c){this.observe=function(e){c([{isIntersecting:true,target:e}],this);};this.unobserve=function(){};this.disconnect=function(){};};}
+  73 |         `}} />
+
+Expected '</', got '}'
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 174ms
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [PWA] Install prompt captured
+[log] [PWA] Install prompt captured
+[error] %o
+
+%s {stack: "ReferenceError: _match_homeScore is not defined
+  …t_dist_compiled_react-dom_1e674e59._.js:10249:158", message: "_match_homeScore is not defined"} The above error occurred in the <MatchCard> component. It was handled by the <ErrorBoundary> error boundary.
+[error] ErrorBoundary caught an error: {stack: "ReferenceError: _match_homeScore is not defined
+  …t_dist_compiled_react-dom_1e674e59._.js:10249:158", message: "_match_homeScore is not defined", Symbol(next.console.error.digest): "NEXT_CONSOLE_ERROR"} {componentStack: "
+    at MatchCard (http://localhost:3000/_next/sta…_modules_next_dist_client_17643121._.js:12602:17)"}
+[log] [Fast Refresh] rebuilding
+[error] %o
+
+%s {stack: "ReferenceError: _match_homeScore is not defined
+  …e_modules_next_dist_compiled_a0e4c7b4._.js:886:13", message: "_match_homeScore is not defined"} The above error occurred in the <MatchCard> component. It was handled by the <ErrorBoundary> error boundary.
+[error] ErrorBoundary caught an error: {stack: "ReferenceError: _match_homeScore is not defined
+  …e_modules_next_dist_compiled_a0e4c7b4._.js:886:13", message: "_match_homeScore is not defined", Symbol(next.console.error.digest): "NEXT_CONSOLE_ERROR"} {componentStack: "
+    at MatchCard (http://localhost:3000/_next/sta…_modules_next_dist_client_17643121._.js:12602:17)"}
+[log] [Fast Refresh] done in 202ms
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [Fast Refresh] rebuilding
+[error] %o
+
+%s {stack: "ReferenceError: _match_homeScore is not defined
+  …e_modules_next_dist_compiled_a0e4c7b4._.js:886:13", message: "_match_homeScore is not defined"} The above error occurred in the <MatchCard> component. It was handled by the <ErrorBoundary> error boundary.
+[error] ErrorBoundary caught an error: {stack: "ReferenceError: _match_homeScore is not defined
+  …e_modules_next_dist_compiled_a0e4c7b4._.js:886:13", message: "_match_homeScore is not defined", Symbol(next.console.error.digest): "NEXT_CONSOLE_ERROR"} {componentStack: "
+    at MatchCard (http://localhost:3000/_next/sta…_modules_next_dist_client_17643121._.js:12602:17)"}
+[log] [Fast Refresh] done in 167ms
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 241ms
+[log] [Fast Refresh] rebuilding
+[error] %o
+
+%s {stack: "ReferenceError: _match_homeScore is not defined
+  …e_modules_next_dist_compiled_a0e4c7b4._.js:886:13", message: "_match_homeScore is not defined"} The above error occurred in the <MatchCard> component. It was handled by the <ErrorBoundary> error boundary.
+[error] ErrorBoundary caught an error: {stack: "ReferenceError: _match_homeScore is not defined
+  …e_modules_next_dist_compiled_a0e4c7b4._.js:886:13", message: "_match_homeScore is not defined", Symbol(next.console.error.digest): "NEXT_CONSOLE_ERROR"} {componentStack: "
+    at MatchCard (http://localhost:3000/_next/sta…_modules_next_dist_client_17643121._.js:12602:17)"}
+[log] [Fast Refresh] done in 164ms
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [Fast Refresh] rebuilding
+[error] %o
+
+%s {stack: "ReferenceError: _match_homeScore is not defined
+  …e_modules_next_dist_compiled_a0e4c7b4._.js:886:13", message: "_match_homeScore is not defined"} The above error occurred in the <MatchCard> component. It was handled by the <ErrorBoundary> error boundary.
+[error] ErrorBoundary caught an error: {stack: "ReferenceError: _match_homeScore is not defined
+  …e_modules_next_dist_compiled_a0e4c7b4._.js:886:13", message: "_match_homeScore is not defined", Symbol(next.console.error.digest): "NEXT_CONSOLE_ERROR"} {componentStack: "
+    at MatchCard (http://localhost:3000/_next/sta…_modules_next_dist_client_17643121._.js:12602:17)"}
+[log] [Fast Refresh] done in 177ms
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [Fast Refresh] rebuilding
+[log] [Fast Refresh] done in 509ms
+[log] [HMR] connected
+[log] [PWA] Install prompt captured
+[log] [PWA] Install prompt captured
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[log] [PWA] Service Worker registered: http://localhost:3000/
+[error] %o
+
+%s {stack: "ReferenceError: _match_homeScore is not defined
+  …t_dist_compiled_react-dom_1e674e59._.js:10249:158", message: "_match_homeScore is not defined"} The above error occurred in the <MatchCard> component. It was handled by the <ErrorBoundary> error boundary.
+[error] ErrorBoundary caught an error: {stack: "ReferenceError: _match_homeScore is not defined
+  …t_dist_compiled_react-dom_1e674e59._.js:10249:158", message: "_match_homeScore is not defined", Symbol(next.console.error.digest): "NEXT_CONSOLE_ERROR"} {componentStack: "
+    at MatchCard (http://localhost:3000/_next/sta…_modules_next_dist_client_17643121._.js:12696:11)"}

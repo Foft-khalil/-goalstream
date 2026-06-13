@@ -100,7 +100,7 @@ export default function StreamOptions({
         if (data.streams && data.streams.length > 0 && !cancelled) {
           setKoraStreams(data.streams);
         }
-      } catch {
+      } catch(_e) {
         // Silently fail — external sites are the primary option
       } finally {
         if (!cancelled) {

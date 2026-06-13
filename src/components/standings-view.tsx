@@ -901,7 +901,7 @@ export default function StandingsView() {
             allStandings.push(...json.standings);
           }
           if (json.errors) allErrors.push(...json.errors);
-        } catch {
+        } catch(_e) {
           // Track per-league errors for retry functionality
           newLeagueErrors.push({
             code: league.code,
@@ -966,7 +966,7 @@ export default function StandingsView() {
 
       // Remove the league from errors list
       setLeagueErrors((prev) => prev.filter((e) => e.code !== leagueCode));
-    } catch {
+    } catch(_e) {
       // Still failed, keep the error
     } finally {
       setRetryingLeague(null);
@@ -1012,7 +1012,7 @@ export default function StandingsView() {
         if ((!data.scorers || data.scorers.length === 0) && data.error) {
           setTopScorersError(data.error);
         }
-      } catch {
+      } catch(_e) {
         setTopScorersError(t(language, 'standings.dataUnavailable'));
         setTopScorers([]);
       } finally {

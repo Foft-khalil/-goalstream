@@ -54,7 +54,7 @@ export default function ChannelCard({ channel }: ChannelCardProps) {
           });
         }
       }
-    } catch {
+    } catch(_e) {
       // If check fails, try playing anyway
       handleWatch();
     } finally {

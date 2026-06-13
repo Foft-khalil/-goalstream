@@ -39,7 +39,7 @@ function loadFromStorage(): NotificationItem[] {
       const now = Date.now();
       return parsed.filter((item) => now - item.timestamp < MAX_AGE_MS);
     }
-  } catch {
+  } catch(_e) {
     // ignore
   }
   return [];
@@ -49,7 +49,7 @@ function saveToStorage(items: NotificationItem[]): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  } catch {
+  } catch(_e) {
     // ignore
   }
 }

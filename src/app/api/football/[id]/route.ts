@@ -81,7 +81,7 @@ function parseDetailResponse(llmContent: string): Pick<MatchDetail, 'lineups' | 
     }
 
     return result;
-  } catch {
+  } catch(_e) {
     console.error('[Football Detail API] Failed to parse LLM response as JSON');
     return { lineups: { home: [], away: [] }, events: [], stats: [] };
   }

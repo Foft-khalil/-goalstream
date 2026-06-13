@@ -40,7 +40,7 @@ async function checkStreamsBatchLight(urls: string[], concurrency: number = 4, t
         });
         clearTimeout(t);
         return { url, healthy: res.ok || res.status === 206 || res.status === 302 };
-      } catch { return { url, healthy: false }; }
+      } catch(_e) { return { url, healthy: false }; }
     }));
     for (const r of batchResults) {
       if (r.status === 'fulfilled') results.set(r.value.url, r.value.healthy);
@@ -586,7 +586,7 @@ export async function POST(request: NextRequest) {
         findBroadcasterViaSearch(homeTeam, awayTeam, competition || '', sport || 'football'),
         new Promise<string[]>(resolve => setTimeout(() => resolve([]), 8000)), // 8s timeout for web search
       ]);
-    } catch {
+    } catch(_e) {
       // Web search failed, continue without it
     }
 

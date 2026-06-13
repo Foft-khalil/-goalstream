@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
             status: res.ok ? 'online' as const : 'offline' as const,
             statusCode: res.status,
           };
-        } catch {
+        } catch(_e) {
           return {
             url,
             status: 'offline' as const,

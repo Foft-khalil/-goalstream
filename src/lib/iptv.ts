@@ -333,7 +333,7 @@ export async function checkStreamHealth(url: string, timeoutMs: number = 5000): 
       clearTimeout(timeout);
       return res.ok;
     }
-  } catch {
+  } catch(_e) {
     return false;
   }
 }

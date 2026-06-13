@@ -305,7 +305,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         let data: any;
         try {
           data = await res.json();
-        } catch {
+        } catch(_e) {
           throw new Error('Réponse invalide du serveur');
         }
 

@@ -15,6 +15,8 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
   const [showStreamOptions, setShowStreamOptions] = useState(false);
 
   const isLive = match.status === 'live';
+  const homeScore = match.homeScore ?? 0;
+  const awayScore = match.awayScore ?? 0;
   const matchDate = match.matchDate ? new Date(match.matchDate) : null;
   const timeStr = matchDate ? matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
@@ -102,9 +104,9 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
             <div className="flex flex-col items-center shrink-0 px-1">
               {isLive ? (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-lg font-black tabular-nums text-red-400">{match.homeScore ?? 0}</span>
+                  <span className="text-lg font-black tabular-nums text-red-400">{homeScore}</span>
                   <span className="text-xs text-muted-foreground/40 font-medium">-</span>
-                  <span className="text-lg font-black tabular-nums text-red-400">{match.awayScore ?? 0}</span>
+                  <span className="text-lg font-black tabular-nums text-red-400">{awayScore}</span>
                 </div>
               ) : (
                 <div className="px-3 py-1 rounded-md bg-muted/40 border border-border/20">

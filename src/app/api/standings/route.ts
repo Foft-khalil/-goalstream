@@ -334,7 +334,7 @@ function parseStandings(data: any, leagueName: string, leagueFlag: string, code:
     }
 
     return results;
-  } catch {
+  } catch(_e) {
     return [];
   }
 }

@@ -40,7 +40,7 @@ async function getCurrentSeason(league: string): Promise<number> {
         return seasons[0].year || new Date().getFullYear();
       }
     }
-  } catch {
+  } catch(_e) {
     // Fallback to current year
   }
   return new Date().getFullYear();
@@ -56,7 +56,7 @@ async function fetchAthleteName(refUrl: string): Promise<string> {
       const data = await res.json();
       return data.displayName || data.shortName || 'Unknown';
     }
-  } catch {
+  } catch(_e) {
     // Fallback
   }
   return 'Unknown';
@@ -75,7 +75,7 @@ async function fetchTeamDetails(refUrl: string): Promise<{ name: string; logo: s
         logo: data.logos?.[0]?.href || null,
       };
     }
-  } catch {
+  } catch(_e) {
     // Fallback
   }
   return { name: '', logo: null };
@@ -172,7 +172,7 @@ async function fetchTopScorersForLeague(league: string): Promise<TopScorer[]> {
           athleteName = nameResult;
           teamName = teamResult.name;
           teamLogo = teamResult.logo;
-        } catch {
+        } catch(_e) {
           // Use fallback values
         }
 

@@ -32,7 +32,7 @@ function getSetting(key: string, defaultValue: boolean): boolean {
   try {
     const raw = localStorage.getItem(key);
     return raw === null ? defaultValue : raw === 'true';
-  } catch {
+  } catch(_e) {
     return defaultValue;
   }
 }
@@ -41,7 +41,7 @@ function saveSetting(key: string, value: boolean) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(key, String(value));
-  } catch {
+  } catch(_e) {
     // ignore
   }
 }
@@ -79,7 +79,7 @@ function getNotifiedIds(storageKey: string): Set<string> {
       const parsed = JSON.parse(raw) as string[];
       return new Set(parsed);
     }
-  } catch {
+  } catch(_e) {
     // ignore
   }
   return new Set();
@@ -89,7 +89,7 @@ function saveNotifiedIds(storageKey: string, ids: Set<string>) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(storageKey, JSON.stringify([...ids]));
-  } catch {
+  } catch(_e) {
     // ignore
   }
 }
@@ -99,7 +99,7 @@ function getNotificationsEnabled(): boolean {
   try {
     const raw = localStorage.getItem(NOTIFICATIONS_ENABLED_KEY);
     return raw === 'true';
-  } catch {
+  } catch(_e) {
     return false;
   }
 }
@@ -108,7 +108,7 @@ function saveNotificationsEnabled(enabled: boolean) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(NOTIFICATIONS_ENABLED_KEY, String(enabled));
-  } catch {
+  } catch(_e) {
     // ignore
   }
 }
@@ -554,7 +554,7 @@ export function useNotifications() {
                 body,
                 matchId: match.id,
               });
-            } catch {
+            } catch(_e) {
               // Notification might fail in some environments
             }
 
@@ -602,7 +602,7 @@ export function useNotifications() {
                 title,
                 body,
               });
-            } catch {
+            } catch(_e) {
               // Notification might fail
             }
 
@@ -652,7 +652,7 @@ export function useNotifications() {
               body,
               matchId: goal.matchId,
             });
-          } catch {
+          } catch(_e) {
             // Notification might fail
           }
         }

@@ -163,7 +163,7 @@ function parseESPNMatch(event: ESPNEvent, leagueName: string): BasketballMatch |
       awayRecord,
       matchDate: event.date,
     };
-  } catch {
+  } catch(_e) {
     return null;
   }
 }

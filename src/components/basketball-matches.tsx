@@ -23,7 +23,7 @@ function isMatchOnDate(matchDate: string | null, ymd: string): boolean {
   try {
     const d = new Date(matchDate);
     return formatDateYMD(d) === ymd;
-  } catch {
+  } catch(_e) {
     return false;
   }
 }
