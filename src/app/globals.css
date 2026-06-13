@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (.dark &);
 
 @theme inline {
   --color-background: var(--background);
@@ -325,4 +325,31 @@
   .space-y-2 > * + * { margin-top: 0.5rem; }
   .space-y-3 > * + * { margin-top: 0.75rem; }
   .space-y-5 > * + * { margin-top: 1.25rem; }
+}
+
+/* ─── Hide loading fallback once React hydrates ─── */
+/* React will replace the body content, which naturally removes #app-loading.
+   But we also hide it via CSS as a backup once the app content is rendered. */
+
+/* ─── Spin animation for loading states ─── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Safari 12 specific: ensure :is() and :where() don't break everything ─── */
+/* These rules provide fallbacks for CSS that uses :is()/:where() on Safari 12 */
+@supports not selector(:is(*)) {
+  /* Ensure basic layout works even without :is() */
+  .group:hover .group-hover\:visible {
+    visibility: visible;
+  }
+  .group:hover .group-hover\:opacity-100 {
+    opacity: 1;
+  }
+  .peer:checked ~ .peer-checked\:flex {
+    display: flex;
+  }
+  .peer:checked ~ .peer-checked\:block {
+    display: block;
+  }
 }
