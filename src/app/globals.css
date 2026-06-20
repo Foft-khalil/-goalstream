@@ -1,120 +1,96 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@custom-variant dark (.dark &);
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+/* ─── Custom utilities for Tailwind v3 compatibility ─── */
+@layer utilities {
+  .field-sizing-content {
+    field-sizing: content;
+  }
+  /* Safari 12 fallback for svh/dvh/lvh viewport units (Safari 15.4+) */
+  .h-svh { height: 100vh; height: 100svh; }
+  .min-h-svh { min-height: 100vh; min-height: 100svh; }
+  .max-h-svh { max-height: 100vh; max-height: 100svh; }
+  .h-dvh { height: 100vh; height: 100dvh; }
+  .min-h-dvh { min-height: 100vh; min-height: 100dvh; }
+  .h-lvh { height: 100vh; height: 100lvh; }
+  .min-h-lvh { min-height: 100vh; min-height: 100lvh; }
 }
 
-/* ─── Light theme with hex fallbacks (Safari/iPad compatible) ─── */
+/* ─── Light theme (HSL values for Tailwind v3 compatibility + Safari 12 support) ─── */
 :root {
   --radius: 0.625rem;
-  --background: #ffffff;
-  --foreground: #141414;
-  --card: #ffffff;
-  --card-foreground: #141414;
-  --popover: #ffffff;
-  --popover-foreground: #141414;
-  --primary: #1a1a1a;
-  --primary-foreground: #fafafa;
-  --secondary: #f4f4f4;
-  --secondary-foreground: #1a1a1a;
-  --muted: #f4f4f4;
-  --muted-foreground: #a0a0a0;
-  --accent: #f4f4f4;
-  --accent-foreground: #1a1a1a;
-  --destructive: #dc2626;
-  --border: #e6e6e6;
-  --input: #e6e6e6;
-  --ring: #a0a0a0;
-  --chart-1: #ea580c;
-  --chart-2: #14b8a6;
-  --chart-3: #64748b;
-  --chart-4: #84cc16;
-  --chart-5: #eab308;
-  --sidebar: #f9f9f9;
-  --sidebar-foreground: #141414;
-  --sidebar-primary: #1a1a1a;
-  --sidebar-primary-foreground: #fafafa;
-  --sidebar-accent: #f4f4f4;
-  --sidebar-accent-foreground: #1a1a1a;
-  --sidebar-border: #e6e6e6;
-  --sidebar-ring: #a0a0a0;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 8%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 8%;
+  --primary: 0 0% 10%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 10%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 63%;
+  --accent: 0 0% 96%;
+  --accent-foreground: 0 0% 10%;
+  --destructive: 0 84% 51%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
+  --ring: 0 0% 63%;
+  --chart-1: 22 91% 48%;
+  --chart-2: 172 76% 40%;
+  --chart-3: 215 16% 47%;
+  --chart-4: 84 81% 44%;
+  --chart-5: 48 85% 57%;
+  --sidebar: 0 0% 98%;
+  --sidebar-foreground: 0 0% 8%;
+  --sidebar-primary: 0 0% 10%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 0 0% 96%;
+  --sidebar-accent-foreground: 0 0% 10%;
+  --sidebar-border: 0 0% 90%;
+  --sidebar-ring: 0 0% 63%;
 }
 
-/* ─── Dark theme with hex fallbacks (Safari/iPad compatible) ─── */
+/* ─── Dark theme (HSL values for Tailwind v3 compatibility + Safari 12 support) ─── */
 .dark {
-  --background: #1a1a1a;
-  --foreground: #f9f9f9;
-  --card: #282828;
-  --card-foreground: #f9f9f9;
-  --popover: #282828;
-  --popover-foreground: #f9f9f9;
-  --primary: #e6e6e6;
-  --primary-foreground: #1a1a1a;
-  --secondary: #383838;
-  --secondary-foreground: #f9f9f9;
-  --muted: #383838;
-  --muted-foreground: #9e9e9e;
-  --accent: #383838;
-  --accent-foreground: #f9f9f9;
-  --destructive: #dc2626;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.15);
-  --ring: #777777;
-  --chart-1: #3b82f6;
-  --chart-2: #22c55e;
-  --chart-3: #eab308;
-  --chart-4: #a855f7;
-  --chart-5: #f97316;
-  --sidebar: #282828;
-  --sidebar-foreground: #f9f9f9;
-  --sidebar-primary: #3b82f6;
-  --sidebar-primary-foreground: #f9f9f9;
-  --sidebar-accent: #383838;
-  --sidebar-accent-foreground: #f9f9f9;
-  --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-ring: #777777;
+  --background: 0 0% 10%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 16%;
+  --card-foreground: 0 0% 98%;
+  --popover: 0 0% 16%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 90%;
+  --primary-foreground: 0 0% 10%;
+  --secondary: 0 0% 22%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 22%;
+  --muted-foreground: 0 0% 62%;
+  --accent: 0 0% 22%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 84% 51%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 28%;
+  --input: 0 0% 32%;
+  --ring: 0 0% 47%;
+  --chart-1: 217 91% 60%;
+  --chart-2: 142 71% 45%;
+  --chart-3: 48 85% 57%;
+  --chart-4: 271 91% 65%;
+  --chart-5: 25 95% 53%;
+  --sidebar: 0 0% 16%;
+  --sidebar-foreground: 0 0% 98%;
+  --sidebar-primary: 217 91% 60%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 0 0% 22%;
+  --sidebar-accent-foreground: 0 0% 98%;
+  --sidebar-border: 0 0% 28%;
+  --sidebar-ring: 0 0% 47%;
 }
 
-/* ─── Override with oklch for modern browsers ─── */
+/* ─── Override with oklch for modern browsers (Safari 15.4+) ─── */
 @supports (color: oklch(0 0 0)) {
   :root {
     --background: oklch(1 0 0);
@@ -321,35 +297,12 @@
   .flex-col.gap-6 > * + * { margin-left: 0; margin-top: 1.5rem; }
 
   /* space-y uses margin-top, so it works fine on Safari 12 */
-  /* But gap-based space needs this fallback */
   .space-y-2 > * + * { margin-top: 0.5rem; }
   .space-y-3 > * + * { margin-top: 0.75rem; }
   .space-y-5 > * + * { margin-top: 1.25rem; }
 }
 
-/* ─── Hide loading fallback once React hydrates ─── */
-/* React will replace the body content, which naturally removes #app-loading.
-   But we also hide it via CSS as a backup once the app content is rendered. */
-
 /* ─── Spin animation for loading states ─── */
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-/* ─── Safari 12 specific: ensure :is() and :where() don't break everything ─── */
-/* These rules provide fallbacks for CSS that uses :is()/:where() on Safari 12 */
-@supports not selector(:is(*)) {
-  /* Ensure basic layout works even without :is() */
-  .group:hover .group-hover\:visible {
-    visibility: visible;
-  }
-  .group:hover .group-hover\:opacity-100 {
-    opacity: 1;
-  }
-  .peer:checked ~ .peer-checked\:flex {
-    display: flex;
-  }
-  .peer:checked ~ .peer-checked\:block {
-    display: block;
-  }
 }

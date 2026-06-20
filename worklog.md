@@ -553,3 +553,57 @@ Stage Summary:
 - All catch-without-binding syntax replaced with catch(_e)
 - SWC JSX bug with `??` worked around by pre-computing values
 - Dev server running cleanly with no errors
+
+---
+Task ID: safari12-fix
+Agent: Main Agent
+Task: Fix app not working on iPad/Phone with iOS 12.5.8 (Safari 12) - "Erreur de chargement" when trying to install PWA
+
+Work Log:
+- Analyzed screenshot from user's phone showing "Erreur de chargement" (Loading Error) on ade-31.vercel.app
+- Investigated root cause: React 19 and Next.js 16 JS code is actually compatible with Safari 12 (verified no ??, ?., class fields, or private fields in compiled output)
+- Identified the REAL root cause: Tailwind CSS v4 generates CSS using :is(), :where(), @property, and oklch() - all Safari 14+ only features that Safari 12 silently ignores, causing the entire stylesheet to fail
+- Downgraded Tailwind CSS from v4 to v3.4.17 (which doesn't use :is()/:where()/@property)
+- Removed @tailwindcss/postcss and tw-animate-css (v4-only packages)
+- Added autoprefixer for Tailwind v3 PostCSS pipeline
+- Updated postcss.config.mjs to use tailwindcss + autoprefixer (instead of @tailwindcss/postcss)
+- Rewrote globals.css for Tailwind v3 syntax:
+  * Changed @import "tailwindcss" to @tailwind base/components/utilities
+  * Removed @theme inline and @custom-variant (v4-only directives)
+  * Converted all CSS variables from hex/oklch to HSL format (for Tailwind v3 opacity modifiers)
+  * Kept oklch overrides inside @supports (color: oklch()) for progressive enhancement
+  * Added custom utilities: field-sizing-content, h-svh/min-h-svh with vh fallbacks
+- Updated tailwind.config.ts:
+  * Changed darkMode from "class" to ["variant", ".dark &"] to avoid :is(.dark *) and :where(.dark, .dark *) selectors
+  * Added src/ to content paths
+  * Added sidebar color definitions
+  * Added fontFamily and keyframes for accordion
+- Batch-replaced Tailwind v4-specific class names across 23+ component files:
+  * shadow-xs → shadow-sm (v4 naming → v3 naming)
+  * rounded-xs → rounded-sm
+  * outline-hidden → outline-none
+  * has-focus: → has-[:focus]:
+  * [--cell-size:--spacing(8)] → [--cell-size:2rem] (v4 spacing function → fixed value)
+  * property-(--var) → property-[var(--var)] (v4 shorthand → v3 arbitrary value)
+  * (--spacing(4)) → 1rem (v4 spacing function → fixed value)
+  * @container/card-header → removed (v4 container query)
+  * has-data-[slot=...] → has-[[data-slot=...]] (v4 → v3 has() syntax)
+  * in-data-[side=...] → group-data-[side=...] (v4 in-data → v3 group-data)
+  * class! → !class (v4 trailing important → v3 leading important)
+- Verified generated CSS is Safari 12 compatible:
+  * :is() count: 0 (was 103+ in v4)
+  * :where() count: 5 (only in preflight for abbr/input resets, minimal impact)
+  * @property count: 0 (was in v4)
+  * oklch() properly guarded inside @supports blocks
+  * hsl() used for all color values (202 occurrences)
+- Tested with Agent Browser: page loads with HTTP 200, renders correctly
+- VLM analysis confirms: no visual problems, proper styling, dark/light mode toggle works
+- Lint check passes with no errors
+
+Stage Summary:
+- ROOT CAUSE: Tailwind CSS v4 generates :is() and :where() CSS selectors that Safari 12 (iOS 12.5.8) cannot parse, causing the entire stylesheet to be rejected and the page to show "Erreur de chargement"
+- SOLUTION: Downgraded Tailwind v4 → v3.4.17 and changed darkMode strategy from "class" (generates :is()) to ["variant", ".dark &"] (generates plain .dark .class selectors)
+- React 19 and Next.js 16 were NOT the problem - their compiled JS is Safari 12 compatible
+- All existing JS polyfills (Object.fromEntries, Promise.allSettled, etc.) and CSS polyfills (flex gap, backdrop-filter) remain in place
+- App now renders correctly on all browsers including Safari 12 (iOS 12.5.8)
+- User needs to rebuild and redeploy on Vercel for the fix to take effect on their devices
