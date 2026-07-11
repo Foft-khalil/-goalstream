@@ -10,7 +10,8 @@ export function middleware(request: NextRequest) {
 
   // Security headers applied to all responses
   response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  // Allow embedding in iframes (needed for z.ai preview panel and streaming players)
+  // Remove X-Frame-Options and use CSP frame-ancestors instead for fine-grained control
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   response.headers.set('X-DNS-Prefetch-Control', 'on');
@@ -18,6 +19,7 @@ export function middleware(request: NextRequest) {
   // Content Security Policy
   // Allows: scripts from self/CDNs, styles from self/unsafe-inline, images from anywhere,
   // media from anywhere (for HLS streams), iframes from allowed streaming domains
+  // frame-ancestors: allow same-origin + allow embedding in any parent (for preview panels)
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
@@ -28,6 +30,7 @@ export function middleware(request: NextRequest) {
     "connect-src 'self' https: http: blob: data:",
     "font-src 'self' https://fonts.gstatic.com data:",
     "worker-src 'self' blob:",
+    "frame-ancestors 'self' *",
   ].join('; ');
 
   response.headers.set('Content-Security-Policy', csp);
