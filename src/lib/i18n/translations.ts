@@ -377,6 +377,11 @@ export interface Translations {
     rojaDirectaDesc: string;
     youtubeDesc: string;
     disclaimer: string;
+    hesgoalDesc: string;
+    hesgoalLive: string;
+    resolvingStream: string;
+    directPlayback: string;
+    embedPlayback: string;
   };
   footer: {
     description: string;
@@ -786,6 +791,11 @@ export const translations: Record<Language, Translations> = {
       rojaDirectaDesc: 'Streaming en direct de football et plus',
       youtubeDesc: 'Rechercher des diffusions en direct sur YouTube',
       disclaimer: 'Les liens redirigent vers des sites tiers. GoalStream ne héberge aucun contenu.',
+      hesgoalDesc: 'Matchs de football en direct HD — Premier League, Champions League, La Liga et plus',
+      hesgoalLive: 'Flux HesGoal en direct',
+      resolvingStream: 'Résolution du flux en cours...',
+      directPlayback: 'Lecture directe HD dans l\'application',
+      embedPlayback: 'Lecture via lecteur intégré',
     },
     footer: {
       description: 'Streaming sportif gratuit via IPTV',
@@ -1193,6 +1203,11 @@ export const translations: Record<Language, Translations> = {
       rojaDirectaDesc: 'Live football streaming and more',
       youtubeDesc: 'Search for live broadcasts on YouTube',
       disclaimer: 'Links redirect to third-party sites. GoalStream does not host any content.',
+      hesgoalDesc: 'Live HD football matches — Premier League, Champions League, La Liga and more',
+      hesgoalLive: 'HesGoal Live Stream',
+      resolvingStream: 'Resolving stream...',
+      directPlayback: 'Direct HD playback in app',
+      embedPlayback: 'Playback via embedded player',
     },
     footer: {
       description: 'Free sports streaming via IPTV',
@@ -1600,6 +1615,11 @@ export const translations: Record<Language, Translations> = {
       rojaDirectaDesc: 'بث مباشر لكرة القدم والمزيد',
       youtubeDesc: 'البحث عن بث مباشر على يوتيوب',
       disclaimer: 'الروابط تعيد التوجيه إلى مواقع خارجية. GoalStream لا يستضيف أي محتوى.',
+      hesgoalDesc: 'مباريات كرة قدم مباشرة بجودة عالية — الدوري الإنجليزي ودوري الأبطال والمزيد',
+      hesgoalLive: 'بث HesGoal المباشر',
+      resolvingStream: 'جاري حل البث...',
+      directPlayback: 'تشغيل مباشر بجودة عالية',
+      embedPlayback: 'تشغيل عبر المشغل المدمج',
     },
     footer: {
       description: 'بث رياضي مجاني عبر IPTV',
@@ -2007,6 +2027,11 @@ export const translations: Record<Language, Translations> = {
       rojaDirectaDesc: 'Streaming en vivo de fútbol y más',
       youtubeDesc: 'Buscar transmisiones en vivo en YouTube',
       disclaimer: 'Los enlaces redirigen a sitios de terceros. GoalStream no aloja ningún contenido.',
+      hesgoalDesc: 'Partidos de fútbol en vivo HD — Premier League, Champions League, La Liga y más',
+      hesgoalLive: 'Stream HesGoal en vivo',
+      resolvingStream: 'Resolviendo stream...',
+      directPlayback: 'Reproducción directa HD en la app',
+      embedPlayback: 'Reproducción vía reproductor integrado',
     },
     footer: {
       description: 'Streaming deportivo gratuito vía IPTV',
@@ -2414,6 +2439,11 @@ export const translations: Record<Language, Translations> = {
       rojaDirectaDesc: 'Streaming ao vivo de futebol e mais',
       youtubeDesc: 'Pesquisar transmissões ao vivo no YouTube',
       disclaimer: 'Os links redirecionam para sites de terceiros. GoalStream não hospeda nenhum conteúdo.',
+      hesgoalDesc: 'Jogos de futebol ao vivo em HD — Premier League, Champions League, La Liga e mais',
+      hesgoalLive: 'Stream HesGoal ao vivo',
+      resolvingStream: 'Resolvendo stream...',
+      directPlayback: 'Reprodução direta HD no app',
+      embedPlayback: 'Reprodução via player integrado',
     },
     footer: {
       description: 'Streaming esportivo gratuito via IPTV',

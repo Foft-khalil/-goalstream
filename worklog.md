@@ -607,3 +607,30 @@ Stage Summary:
 - All existing JS polyfills (Object.fromEntries, Promise.allSettled, etc.) and CSS polyfills (flex gap, backdrop-filter) remain in place
 - App now renders correctly on all browsers including Safari 12 (iOS 12.5.8)
 - User needs to rebuild and redeploy on Vercel for the fix to take effect on their devices
+---
+Task ID: 1
+Agent: Main
+Task: Integrate hes-goal.eu API for football channels and live match streaming
+
+Work Log:
+- Analyzed hes-goal.eu website structure: uses kora-api.space API backend
+- Discovered API endpoints: /api/matches/{date}/{page}, team/league image CDN
+- Found stream resolution chain: go4score.app/?m=ID → iframe → m3u8
+- Created /api/hesgoal route: fetches match data from kora-api.space, maps to HesGoalMatch format
+- Created /api/hesgoal-stream route: resolves match stream URLs to playable m3u8/iframe
+- Updated stream-options.tsx: added HesGoal as PRIMARY streaming source with auto-detection
+- Updated video-player.tsx: added go4score.app/smartagro.mov/goalz.zip to needsProxy domains
+- Updated match-card.tsx: auto-detects HesGoal streams for live matches, adds direct play button
+- Added i18n translations for FR/EN/AR/ES/PT: hesgoalDesc, hesgoalLive, resolvingStream, directPlayback, embedPlayback
+- Updated proxy-stream/route.ts and resolve-stream/route.ts to support new domains
+- Tested all API endpoints: /api/hesgoal returns match data, /api/hesgoal-stream resolves streams
+- Verified with agent-browser: stream options dialog shows HesGoal as primary source
+
+Stage Summary:
+- HesGoal API fully integrated into GoalStream
+- Live football matches from kora-api.space displayed with stream URLs
+- Stream options panel shows HesGoal as #1 priority source
+- Match cards auto-detect HesGoal streams for live football matches
+- Video player supports HesGoal embed URLs via proxy
+- All 5 languages (FR/EN/AR/ES/PT) have translations for new UI text
+

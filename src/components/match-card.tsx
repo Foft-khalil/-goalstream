@@ -6,7 +6,7 @@ import { Play, Tv, Clock, Loader2, Radio, Heart, Activity, ExternalLink, Globe, 
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import LiveMatchClock from '@/components/live-match-clock';
 import MatchTracker from '@/components/match-tracker';
 import StreamOptions from '@/components/stream-options';
@@ -41,6 +41,8 @@ export default function MatchCard({ match }: MatchCardProps) {
   const [showTracker, setShowTracker] = useState(false);
   const [showStreamOptions, setShowStreamOptions] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [hesgoalMatchId, setHesgoalMatchId] = useState<string | null>(null);
+  const [hesgoalResolving, setHesgoalResolving] = useState(false);
 
   const isLive = match.status === 'live';
   const isFinished = match.status === 'finished';
@@ -53,6 +55,51 @@ export default function MatchCard({ match }: MatchCardProps) {
   const isTomorrow = matchDate ? new Date(Date.now() + 86400000).toDateString() === matchDate.toDateString() : false;
   const homeFav = isTeamFavorite(match.homeTeam);
   const awayFav = isTeamFavorite(match.awayTeam);
+
+  // Auto-detect HesGoal stream for live football matches
+  useEffect(() => {
+    if (!isLive) return;
+    // Only for football (not basketball)
+    if (match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba')) return;
+
+    let cancelled = false;
+
+    const findHesgoalMatch = async () => {
+      try {
+        const res = await fetch('/api/hesgoal', {
+          signal: AbortSignal.timeout(6000),
+        });
+
+        if (!res.ok || cancelled) return;
+
+        const data = await res.json();
+        const matches = data.matches || [];
+
+        // Find matching match by team names
+        const homeLower = match.homeTeam.toLowerCase();
+        const awayLower = match.awayTeam.toLowerCase();
+
+        const found = matches.find((m: { homeTeam: string; awayTeam: string; hasStream: boolean; status: string }) => {
+          const mHome = m.homeTeam.toLowerCase();
+          const mAway = m.awayTeam.toLowerCase();
+          const homeWords = homeLower.split(/\s+/).filter((w: string) => w.length > 3);
+          const awayWords = awayLower.split(/\s+/).filter((w: string) => w.length > 3);
+          const homeMatch = homeWords.some((w: string) => mHome.includes(w)) || mHome.includes(homeLower) || homeLower.includes(mHome);
+          const awayMatch = awayWords.some((w: string) => mAway.includes(w)) || mAway.includes(awayLower) || awayLower.includes(mAway);
+          return homeMatch && awayMatch && m.hasStream && m.status === 'live';
+        });
+
+        if (found && !cancelled) {
+          setHesgoalMatchId(found.id);
+        }
+      } catch(_e) {
+        // Silently fail
+      }
+    };
+
+    findHesgoalMatch();
+    return () => { cancelled = true; };
+  }, [isLive, match.homeTeam, match.awayTeam, match.competition]);
 
   // Determine if match is about to start (within 30 min of kickoff)
   const isAboutToStart = (() => {
@@ -318,6 +365,43 @@ export default function MatchCard({ match }: MatchCardProps) {
               <Share className="h-3.5 w-3.5" />
               {shareCopied && <span className="text-green-500 text-[10px]">{t(language, 'match.copied')}</span>}
             </Button>
+            {/* Quick HesGoal play button — only for live matches with HesGoal stream detected */}
+            {canWatchLive && hesgoalMatchId && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  if (hesgoalResolving) return;
+                  setHesgoalResolving(true);
+                  try {
+                    const res = await fetch(`/api/hesgoal-stream?id=${hesgoalMatchId}`, {
+                      signal: AbortSignal.timeout(15000),
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (data.url) {
+                        const streamName = `HesGoal — ${match.homeTeam} vs ${match.awayTeam}`;
+                        if (data.type === 'm3u8') {
+                          openPlayer(data.url, streamName);
+                        } else {
+                          openPlayer(data.url, streamName);
+                        }
+                      }
+                    }
+                  } catch(_e) {
+                    // Fallback to stream options
+                    setShowStreamOptions(true);
+                  } finally {
+                    setHesgoalResolving(false);
+                  }
+                }}
+                disabled={hesgoalResolving}
+                className="h-8 px-3 rounded-lg border-green-500/30 text-green-400 hover:bg-green-500/10 text-xs gap-1"
+                title="HesGoal Live"
+              >
+                {hesgoalResolving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Tv className="h-3.5 w-3.5" />}
+              </Button>
+            )}
             {/* Quick external streaming site button */}
             {canWatchLive && (
               <Button
@@ -352,6 +436,7 @@ export default function MatchCard({ match }: MatchCardProps) {
         awayTeam={match.awayTeam}
         competition={match.competition}
         sport={sportType}
+        hesgoalMatchId={hesgoalMatchId}
       />
     </>
   );

@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Also proxy other known embed domains
-    const PROXY_DOMAINS = ['streamcenter.pro', '000007.mov'];
+    const PROXY_DOMAINS = ['streamcenter.pro', '000007.mov', 'go4score.app', 'smartagro.mov', 'goalz.zip'];
     for (const domain of PROXY_DOMAINS) {
       const escapedDomain = domain.replace('.', '\\.');
       const regex = new RegExp(

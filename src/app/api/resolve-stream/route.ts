@@ -27,6 +27,9 @@ const DECRYPT_CHAIN_DOMAINS = [
   'streams.center',
   'streamcenter.pro',
   'kora-api.top',
+  'go4score.app',
+  'smartagro.mov',
+  'goalz.zip',
   '000007.mov',
 ];
 

@@ -29,6 +29,10 @@ function needsProxy(url: string): boolean {
     '000007.mov',
     'streamcenter.pro',
     'tvtvhd.com',
+    'go4score.app',
+    'smartagro.mov',
+    'hes-goal.eu',
+    'goalz.zip',
   ];
   return proxyDomains.some(domain => url.includes(domain));
 }
@@ -51,6 +55,7 @@ function getProxiedUrl(url: string): string {
 /** External site URLs for fallback viewing */
 const SPORTSTREAM_URL = 'https://us-sport.eu';
 const ROJADIRECTA_URL = 'https://tarjetarojaenvivo.cx';
+const HESGOAL_URL = 'https://hes-goal.eu';
 
 export default function VideoPlayer() {
   // language is used for i18n throughout this component
@@ -367,17 +372,27 @@ export default function VideoPlayer() {
     }
   };
 
-  /** Render external site fallback buttons (SportStream & RojaDirecta) */
+  /** Render external site fallback buttons (HesGoal, SportStream & RojaDirecta) */
   const renderExternalSiteButtons = () => (
     <div className="flex flex-col gap-1.5 w-full max-w-xs mt-2">
       <p className="text-white/50 text-xs mb-1">{t(language, 'player.watchElsewhere')}</p>
+      <a
+        href={HESGOAL_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-full flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
+      >
+        <Tv className="h-4 w-4 text-green-400 shrink-0" />
+        <span className="text-white text-sm truncate flex-1">HesGoal</span>
+        <ExternalLink className="h-3.5 w-3.5 text-white/40 shrink-0" />
+      </a>
       <a
         href={SPORTSTREAM_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="w-full flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
       >
-        <Globe className="h-4 w-4 text-green-400 shrink-0" />
+        <Globe className="h-4 w-4 text-blue-400 shrink-0" />
         <span className="text-white text-sm truncate flex-1">SportStream</span>
         <ExternalLink className="h-3.5 w-3.5 text-white/40 shrink-0" />
       </a>
@@ -637,6 +652,16 @@ export default function VideoPlayer() {
                   {isResolving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
                   {t(language, 'player.tryDirectStream')}
                 </Button>
+                <a
+                  href={HESGOAL_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button size="sm" className="bg-green-700/60 hover:bg-green-600/60 text-green-100 gap-1.5 text-xs h-8">
+                    <ExternalLink className="h-3 w-3" />
+                    HesGoal
+                  </Button>
+                </a>
                 <a
                   href={SPORTSTREAM_URL}
                   target="_blank"
