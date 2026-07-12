@@ -327,7 +327,7 @@ export default function LiveMatchTracker() {
                         <>
                           <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
                           <span className="text-[11px] font-bold text-orange-500 tracking-wide">
-                            {trackerData.period && trackerData.period <= 4 ? `Q${trackerData.period}` : `OT${(trackerData.period ?? 5) - 4}`}
+                            {trackerData.period && trackerData.period <= 4 ? `Q${trackerData.period}` : `OT${(trackerData.period != null ? trackerData.period : 5) - 4}`}
                           </span>
                           {trackerData.displayClock && (
                             <span className="text-[11px] font-semibold text-orange-400 tabular-nums">{trackerData.displayClock}</span>

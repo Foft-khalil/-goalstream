@@ -450,8 +450,8 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
             awayColor="#22c55e"
             isLive={isLive}
             lastEventType={events.length > 0 ? events[0].type : null}
-            clockDisplay={match.clockDisplay ?? null}
-            periodDisplay={match.periodDisplay ?? null}
+            clockDisplay={match.clockDisplay != null ? match.clockDisplay : null}
+            periodDisplay={match.periodDisplay != null ? match.periodDisplay : null}
             events={events.map(e => ({ type: e.type, minute: e.minute, period: e.period, team: e.team, scoringPlay: e.scoringPlay }))}
           />
         </div>

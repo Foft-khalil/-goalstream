@@ -589,7 +589,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
               possession={possession}
               isLive={isLive}
               lastEventType={events.length > 0 ? events[events.length - 1].type : null}
-              matchMinute={match.minute ?? (events.length > 0 ? events[events.length - 1].minute : null)}
+              matchMinute={match.minute != null ? match.minute : (events.length > 0 ? events[events.length - 1].minute : null)}
               events={events.map(e => ({ type: e.type, minute: e.minute, team: e.team }))}
             />
           </div>

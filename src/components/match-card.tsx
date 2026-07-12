@@ -191,12 +191,12 @@ export default function MatchCard({ match }: MatchCardProps) {
             </span>
             {isLive ? (
               <LiveMatchClock
-                displayClock={match.displayClock ?? null}
-                period={match.period ?? null}
-                statusDescription={match.statusDescription ?? null}
-                isHalftime={match.isHalftime ?? false}
-                lastUpdated={match.lastUpdated ?? null}
-                minute={match.minute ?? null}
+                displayClock={match.displayClock != null ? match.displayClock : null}
+                period={match.period != null ? match.period : null}
+                statusDescription={match.statusDescription != null ? match.statusDescription : null}
+                isHalftime={match.isHalftime != null ? match.isHalftime : false}
+                lastUpdated={match.lastUpdated != null ? match.lastUpdated : null}
+                minute={match.minute != null ? match.minute : null}
               />
             ) : isFinished ? (
               <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted/50 border border-border/30">

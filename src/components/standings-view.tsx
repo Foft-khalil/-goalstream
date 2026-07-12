@@ -1339,15 +1339,24 @@ export default function StandingsView() {
         {t(language, 'favorites.savedLocally')}
       </div>
 
-      {/* Team Detail Dialog */}
-      <TeamDetailDialog
-        teamId={selectedTeam?.teamId ?? null}
-        leagueCode={selectedTeam?.leagueCode ?? ''}
-        teamName={selectedTeam?.teamName ?? ''}
-        teamLogo={selectedTeam?.teamLogo ?? null}
-        open={!!selectedTeam}
-        onClose={() => setSelectedTeam(null)}
-      />
+      {/* Team Detail Dialog - pre-compute values to avoid SWC ?? bug in JSX */}
+      {(() => {
+        const _teamId = selectedTeam ? selectedTeam.teamId : null;
+        const _leagueCode = selectedTeam ? selectedTeam.leagueCode : '';
+        const _teamName = selectedTeam ? selectedTeam.teamName : '';
+        const _teamLogo = selectedTeam ? selectedTeam.teamLogo : null;
+        const _isOpen = !!selectedTeam;
+        return (
+          <TeamDetailDialog
+            teamId={_teamId}
+            leagueCode={_leagueCode}
+            teamName={_teamName}
+            teamLogo={_teamLogo}
+            open={_isOpen}
+            onClose={() => setSelectedTeam(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
