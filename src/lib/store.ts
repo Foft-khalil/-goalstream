@@ -490,8 +490,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectedCompetition: '',
   setSelectedCompetition: (comp) => set({ selectedCompetition: comp }),
 
-  // Theme
-  // Always default to 'dark' for SSR consistency — actual theme is applied in useEffect after hydration
+  // Theme - always 'dark' initially (matches SSR HTML).
+  // The inline script in layout.tsx adjusts <html> class before hydration.
+  // The useEffect in page.tsx updates the store from localStorage after hydration.
   theme: 'dark' as const,
   setTheme: (theme) => {
     if (typeof window !== 'undefined') {

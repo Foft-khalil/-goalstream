@@ -28,7 +28,6 @@ import { useNotifications } from '@/hooks/use-notifications';
 function AppHeader() {
   const { currentView, setCurrentView, footballMatches, basketballMatches, language, theme, setTheme } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const { installPrompt, installApp, isOnline } = usePWA();
   const { totalFavorites } = useFavorites();
   const { settings, updateSettings } = useNotifications();
@@ -36,9 +35,6 @@ function AppHeader() {
   const [notifSettingsOpen, setNotifSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
-
-  // Track client mount to avoid hydration mismatch with theme-dependent UI
-  useEffect(() => { setMounted(true); }, []);
 
   const footballLiveCount = footballMatches.filter((m) => m.status === 'live').length;
   const bballLiveCount = basketballMatches.filter((m) => m.status === 'live').length;
@@ -89,9 +85,9 @@ function AppHeader() {
               size="icon"
               className="h-8 w-8 rounded-lg"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              title={mounted ? (theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')) : ''}
+              title={theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')}
             >
-              {mounted ? (theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />) : <Moon className="h-4 w-4" />}
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
             <Popover>
               <PopoverTrigger asChild>
@@ -186,9 +182,9 @@ function AppHeader() {
               size="icon"
               className="h-9 w-9"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              title={mounted ? (theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')) : ''}
+              title={theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')}
             >
-              {mounted ? (theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />) : <Moon className="h-4 w-4" />}
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
             <Popover>
               <PopoverTrigger asChild>
@@ -375,22 +371,27 @@ function MobileBottomNav() {
 }
 
 export default function Home() {
-  const { currentView, fetchChannels, fetchFootballMatches, fetchBasketballMatches, language, theme, setTheme } = useAppStore();
+  const { currentView, fetchChannels, fetchFootballMatches, fetchBasketballMatches, language, theme, setTheme, setLanguage } = useAppStore();
   const { isOnline } = usePWA();
   const [footerPrivacyOpen, setFooterPrivacyOpen] = useState(false);
 
-  // Initialize theme from localStorage on mount
+  // Initialize theme and language from localStorage on mount (after hydration)
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('goalstream_theme');
-      if (saved === 'light' || saved === 'dark') {
-        setTheme(saved);
+      // Theme
+      const savedTheme = localStorage.getItem('goalstream_theme');
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        setTheme(savedTheme);
       } else {
-        // Apply default dark class if not set
         document.documentElement.classList.add('dark');
       }
+      // Language
+      const savedLang = localStorage.getItem('goalstream_language');
+      if (savedLang && ['en', 'fr', 'ar', 'es', 'pt'].includes(savedLang)) {
+        setLanguage(savedLang);
+      }
     }
-  }, [setTheme]);
+  }, [setTheme, setLanguage]);
 
   useEffect(() => {
     // Initial fetch: today's matches first (fast), then near future in background

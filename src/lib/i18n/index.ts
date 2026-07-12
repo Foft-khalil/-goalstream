@@ -6,13 +6,8 @@ export { translations };
 const STORAGE_KEY = 'goalstream_language';
 
 export function getSavedLanguage(): Language {
-  if (typeof window === 'undefined') return 'fr';
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved && saved in translations) return saved as Language;
-  } catch(_e) {
-    // localStorage not available
-  }
+  // Always return 'fr' for SSR/client consistency —
+  // actual language is loaded from localStorage in useEffect after hydration
   return 'fr';
 }
 

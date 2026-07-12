@@ -61,6 +61,12 @@ export default function RootLayout({
   return (
     <html lang="fr" className="dark" suppressHydrationWarning>
       <head>
+        {/* Theme initialization - must run BEFORE React hydration to avoid mismatch */}
+        <script dangerouslySetInnerHTML={{ __html: [
+          '(function(){try{var t=localStorage.getItem("goalstream_theme");',
+          'if(t==="light"){document.documentElement.classList.remove("dark");}',
+          '}catch(e){}})();',
+        ].join('') }} />
         {/* Critical iOS 12 Safari polyfills - must load before React */}
         <script dangerouslySetInnerHTML={{ __html: [
           // Object.fromEntries - Safari 12.1+
