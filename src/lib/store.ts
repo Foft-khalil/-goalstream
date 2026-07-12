@@ -491,7 +491,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSelectedCompetition: (comp) => set({ selectedCompetition: comp }),
 
   // Theme
-  theme: (typeof window !== 'undefined' && localStorage.getItem('goalstream_theme') === 'light') ? 'light' as const : 'dark' as const,
+  // Always default to 'dark' for SSR consistency — actual theme is applied in useEffect after hydration
+  theme: 'dark' as const,
   setTheme: (theme) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('goalstream_theme', theme);

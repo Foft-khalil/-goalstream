@@ -28,6 +28,7 @@ import { useNotifications } from '@/hooks/use-notifications';
 function AppHeader() {
   const { currentView, setCurrentView, footballMatches, basketballMatches, language, theme, setTheme } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { installPrompt, installApp, isOnline } = usePWA();
   const { totalFavorites } = useFavorites();
   const { settings, updateSettings } = useNotifications();
@@ -35,6 +36,9 @@ function AppHeader() {
   const [notifSettingsOpen, setNotifSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
+
+  // Track client mount to avoid hydration mismatch with theme-dependent UI
+  useEffect(() => { setMounted(true); }, []);
 
   const footballLiveCount = footballMatches.filter((m) => m.status === 'live').length;
   const bballLiveCount = basketballMatches.filter((m) => m.status === 'live').length;
@@ -85,9 +89,9 @@ function AppHeader() {
               size="icon"
               className="h-8 w-8 rounded-lg"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              title={theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')}
+              title={mounted ? (theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')) : ''}
             >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {mounted ? (theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />) : <Moon className="h-4 w-4" />}
             </Button>
             <Popover>
               <PopoverTrigger asChild>
@@ -182,9 +186,9 @@ function AppHeader() {
               size="icon"
               className="h-9 w-9"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              title={theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')}
+              title={mounted ? (theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')) : ''}
             >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {mounted ? (theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />) : <Moon className="h-4 w-4" />}
             </Button>
             <Popover>
               <PopoverTrigger asChild>
