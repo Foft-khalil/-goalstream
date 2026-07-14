@@ -19,7 +19,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * to handle the resolution chain.
  */
 
-const STREAM_BASE = 'https://go4score.app/';
+const STREAM_BASE = 'https://xyzhes-goal-eu.smartagro.mov/';
 
 const COMMON_HEADERS: Record<string, string> = {
   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',

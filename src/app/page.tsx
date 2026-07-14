@@ -371,7 +371,7 @@ function MobileBottomNav() {
 }
 
 export default function Home() {
-  const { currentView, fetchChannels, fetchFootballMatches, fetchBasketballMatches, language, theme, setTheme, setLanguage } = useAppStore();
+  const { currentView, fetchChannels, fetchFootballMatches, fetchBasketballMatches, fetchHesgoalMatches, mergeHesgoalStreams, language, theme, setTheme, setLanguage, footballMatches } = useAppStore();
   const { isOnline } = usePWA();
   const [footerPrivacyOpen, setFooterPrivacyOpen] = useState(false);
 
@@ -418,6 +418,31 @@ export default function Home() {
     }, 2000);
     return () => clearTimeout(timer);
   }, [fetchFootballMatches]);
+
+  // Fetch HesGoal stream data and merge with football matches
+  useEffect(() => {
+    if (footballMatches.length === 0) return;
+    const hasLive = footballMatches.some(m => m.status === 'live');
+    if (!hasLive) return;
+
+    const timer = setTimeout(() => {
+      fetchHesgoalMatches().then(() => {
+        mergeHesgoalStreams();
+      });
+    }, 3000);
+
+    // Refresh HesGoal data periodically when live matches exist
+    const interval = setInterval(() => {
+      fetchHesgoalMatches().then(() => {
+        mergeHesgoalStreams();
+      });
+    }, 60000); // Every 60 seconds
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+  }, [footballMatches.length, footballMatches.filter(m => m.status === 'live').length, fetchHesgoalMatches, mergeHesgoalStreams]);
 
   // Fetch secondary data when user navigates to those views
   // Basketball also pre-fetches after a delay so live badge shows immediately

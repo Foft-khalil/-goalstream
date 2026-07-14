@@ -6,7 +6,7 @@ import { Play, Tv, Clock, Loader2, Radio, Heart, Activity, ExternalLink, Globe, 
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import LiveMatchClock from '@/components/live-match-clock';
 import MatchTracker from '@/components/match-tracker';
 import StreamOptions from '@/components/stream-options';
@@ -36,12 +36,11 @@ interface MatchCardProps {
 }
 
 export default function MatchCard({ match }: MatchCardProps) {
-  const { openPlayer, language } = useAppStore();
+  const { openPlayer, language, hesgoalMatches } = useAppStore();
   const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
   const [showTracker, setShowTracker] = useState(false);
   const [showStreamOptions, setShowStreamOptions] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
-  const [hesgoalMatchId, setHesgoalMatchId] = useState<string | null>(null);
   const [hesgoalResolving, setHesgoalResolving] = useState(false);
 
   const isLive = match.status === 'live';
@@ -56,50 +55,28 @@ export default function MatchCard({ match }: MatchCardProps) {
   const homeFav = isTeamFavorite(match.homeTeam);
   const awayFav = isTeamFavorite(match.awayTeam);
 
-  // Auto-detect HesGoal stream for live football matches
-  useEffect(() => {
-    if (!isLive) return;
-    // Only for football (not basketball)
-    if (match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba')) return;
+  // Auto-detect HesGoal stream for live football matches from store data
+  // (fetched once centrally in page.tsx instead of per-card API calls)
+  const hesgoalMatchId = useMemo(() => {
+    if (!isLive) return null;
+    if (match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba')) return null;
 
-    let cancelled = false;
+    const homeLower = match.homeTeam.toLowerCase();
+    const awayLower = match.awayTeam.toLowerCase();
 
-    const findHesgoalMatch = async () => {
-      try {
-        const res = await fetch('/api/hesgoal', {
-          signal: AbortSignal.timeout(6000),
-        });
+    const found = hesgoalMatches.find((hm) => {
+      if (!hm.hasStream) return false;
+      const mHome = hm.homeTeam.toLowerCase();
+      const mAway = hm.awayTeam.toLowerCase();
+      const homeWords = homeLower.split(/\s+/).filter((w: string) => w.length > 3);
+      const awayWords = awayLower.split(/\s+/).filter((w: string) => w.length > 3);
+      const homeMatch = homeWords.some((w: string) => mHome.includes(w)) || mHome.includes(homeLower) || homeLower.includes(mHome);
+      const awayMatch = awayWords.some((w: string) => mAway.includes(w)) || mAway.includes(awayLower) || awayLower.includes(mAway);
+      return homeMatch && awayMatch;
+    });
 
-        if (!res.ok || cancelled) return;
-
-        const data = await res.json();
-        const matches = data.matches || [];
-
-        // Find matching match by team names
-        const homeLower = match.homeTeam.toLowerCase();
-        const awayLower = match.awayTeam.toLowerCase();
-
-        const found = matches.find((m: { homeTeam: string; awayTeam: string; hasStream: boolean; status: string }) => {
-          const mHome = m.homeTeam.toLowerCase();
-          const mAway = m.awayTeam.toLowerCase();
-          const homeWords = homeLower.split(/\s+/).filter((w: string) => w.length > 3);
-          const awayWords = awayLower.split(/\s+/).filter((w: string) => w.length > 3);
-          const homeMatch = homeWords.some((w: string) => mHome.includes(w)) || mHome.includes(homeLower) || homeLower.includes(mHome);
-          const awayMatch = awayWords.some((w: string) => mAway.includes(w)) || mAway.includes(awayLower) || awayLower.includes(mAway);
-          return homeMatch && awayMatch && m.hasStream && m.status === 'live';
-        });
-
-        if (found && !cancelled) {
-          setHesgoalMatchId(found.id);
-        }
-      } catch(_e) {
-        // Silently fail
-      }
-    };
-
-    findHesgoalMatch();
-    return () => { cancelled = true; };
-  }, [isLive, match.homeTeam, match.awayTeam, match.competition]);
+    return found ? found.id : null;
+  }, [isLive, match.homeTeam, match.awayTeam, match.competition, hesgoalMatches]);
 
   // Determine if match is about to start (within 30 min of kickoff)
   const isAboutToStart = (() => {
@@ -381,11 +358,7 @@ export default function MatchCard({ match }: MatchCardProps) {
                       const data = await res.json();
                       if (data.url) {
                         const streamName = `HesGoal — ${match.homeTeam} vs ${match.awayTeam}`;
-                        if (data.type === 'm3u8') {
-                          openPlayer(data.url, streamName);
-                        } else {
-                          openPlayer(data.url, streamName);
-                        }
+                        openPlayer(data.url, streamName);
                       }
                     }
                   } catch(_e) {

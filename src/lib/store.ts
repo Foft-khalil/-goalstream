@@ -133,6 +133,20 @@ interface AppState {
   selectedCompetition: string;
   setSelectedCompetition: (comp: string) => void;
 
+  // HesGoal streams
+  hesgoalMatches: Array<{
+    id: string;
+    homeTeam: string;
+    awayTeam: string;
+    status: string;
+    hasStream: boolean;
+    streamUrl: string | null;
+    channelName: string | null;
+  }>;
+  hesgoalLoading: boolean;
+  fetchHesgoalMatches: (date?: string) => Promise<void>;
+  mergeHesgoalStreams: () => void;
+
   // Theme
   theme: 'dark' | 'light';
   setTheme: (theme: 'dark' | 'light') => void;
@@ -489,6 +503,65 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Competition filter
   selectedCompetition: '',
   setSelectedCompetition: (comp) => set({ selectedCompetition: comp }),
+
+  // HesGoal streams
+  hesgoalMatches: [],
+  hesgoalLoading: false,
+  fetchHesgoalMatches: async (date?: string) => {
+    set({ hesgoalLoading: true });
+    try {
+      const dateParam = date || new Date().toISOString().split('T')[0];
+      const res = await fetch(`/api/hesgoal?date=${dateParam}`, {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) throw new Error('Failed to fetch HesGoal data');
+      const data = await res.json();
+      const matches = (data.matches || []).map((m: any) => ({
+        id: m.id,
+        homeTeam: m.homeTeam,
+        awayTeam: m.awayTeam,
+        status: m.status,
+        hasStream: m.hasStream || !!m.streamUrl,
+        streamUrl: m.streamUrl || null,
+        channelName: m.channelName || null,
+      }));
+      set({ hesgoalMatches: matches, hesgoalLoading: false });
+    } catch(_e) {
+      set({ hesgoalLoading: false });
+    }
+  },
+  mergeHesgoalStreams: () => {
+    const { hesgoalMatches, footballMatches } = get();
+    if (hesgoalMatches.length === 0) return;
+
+    // Fuzzy match HesGoal data to existing football matches and add stream URLs
+    const updated = footballMatches.map((fm) => {
+      const homeLower = fm.homeTeam.toLowerCase();
+      const awayLower = fm.awayTeam.toLowerCase();
+
+      const found = hesgoalMatches.find((hm) => {
+        if (!hm.hasStream) return false;
+        const mHome = hm.homeTeam.toLowerCase();
+        const mAway = hm.awayTeam.toLowerCase();
+        const homeWords = homeLower.split(/\s+/).filter((w: string) => w.length > 3);
+        const awayWords = awayLower.split(/\s+/).filter((w: string) => w.length > 3);
+        const homeMatch = homeWords.some((w: string) => mHome.includes(w)) || mHome.includes(homeLower) || homeLower.includes(mHome);
+        const awayMatch = awayWords.some((w: string) => mAway.includes(w)) || mAway.includes(awayLower) || awayLower.includes(mAway);
+        return homeMatch && awayMatch;
+      });
+
+      if (found && found.streamUrl) {
+        return {
+          ...fm,
+          streamUrl: found.streamUrl,
+          channelName: found.channelName || 'HesGoal',
+        };
+      }
+      return fm;
+    });
+
+    set({ footballMatches: updated });
+  },
 
   // Theme - always 'dark' initially (matches SSR HTML).
   // The inline script in layout.tsx adjusts <html> class before hydration.

@@ -1,129 +1,214 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * HesGoal API Integration
- * 
+ * HesGoal API Proxy
+ *
  * Fetches live football match data from kora-api.space (same API used by hes-goal.eu)
- * and resolves playable stream URLs for each match.
- * 
- * API Endpoints used:
- * - GET https://ws.kora-api.space/api/matches/{YYYY-MM-DD}/{page} — daily match list
- * - GET https://ws.kora-api.space/api/matches/{id} — specific match data
- * 
- * Stream resolution:
- * - Matches with has_channels=1 and active=1 have stream URLs
- * - Stream page URL: https://go4score.app/?m={matchId}&lang=en
- * - The stream page contains embedded players that resolve to m3u8 via our proxy
+ * and transforms it into the app's FootballMatch format.
+ *
+ * API Endpoint:
+ *   GET https://ws.kora-api.space/api/matches/{YYYY-MM-DD}/1?t={YYYYMMDDHHmm}
+ *
+ * The "1" is the sport type (1 = football).
+ * The "t" parameter is a cache-busting timestamp in YYYYMMDDHHmm format.
  */
 
+// ─── Constants ──────────────────────────────────────────────────────────────
 const KORA_API_BASE = 'https://ws.kora-api.space';
 const TEAM_IMG_BASE = 'https://cdn.kora-api.space/uploads/team/';
 const LEAGUE_IMG_BASE = 'https://cdn.kora-api.space/uploads/league/';
-const STREAM_BASE = 'https://go4score.app/';
+const STREAM_BASE = 'https://xyzhes-goal-eu.smartagro.mov/';
 
-// ─── In-memory cache ────────────────────────────────────────────────────────
+// ─── In-memory cache (60-second TTL) ────────────────────────────────────────
 interface CacheEntry {
-  data: HesGoalMatch[];
+  matches: FootballMatchTransformed[];
   timestamp: number;
 }
 
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds
 const cache = new Map<string, CacheEntry>();
 
 // ─── Types ──────────────────────────────────────────────────────────────────
+/** Raw match object from kora-api.space */
 interface KoraMatch {
   id: string;
-  page_id: string;
-  page: number;
-  category: string;
-  sitemap: number;
-  api_matche_id: string;
+  page_id?: string;
+  page?: number;
+  category?: string;
+  sitemap?: number;
+  api_matche_id?: string;
   status: number; // 1 = live, 2 = finished, 0/3 = upcoming
-  date: string;
+  date?: string;
   time: string;
   score: string;
-  home_score: string;
-  away_score: string;
-  league: string;
+  home_score?: string;
+  away_score?: string;
+  league?: string;
   league_en: string;
   league_logo: string;
-  home: string;
+  home?: string;
   home_en: string;
   home_logo: string;
-  away: string;
+  away?: string;
   away_en: string;
   away_logo: string;
-  tv: string;
-  selected: string;
-  english: string;
-  has_channels: string; // "1" or "0"
-  event: string;
-  event_desc: string;
-  active: string; // "1" or "0"
-  redirect_url: string;
-  redirect_domain_ids: string[];
-  edges: string[];
-  edge_domain: string | null;
-  ext_domain: string | null;
-  ar_ext_links: string[];
-  en_ext_links: string[];
+  tv?: string;
+  selected?: string;
+  english?: string;
+  has_channels?: string; // "1" or "0"
+  event?: string;
+  event_desc?: string;
+  active?: string; // "1" or "0"
+  redirect_url?: string;
+  redirect_domain_ids?: string[];
+  edges?: string[];
+  edge_domain?: string | null;
+  ext_domain?: string | null;
+  ar_ext_links?: string[];
+  en_ext_links?: string[];
 }
 
-interface HesGoalMatch {
+/** Transformed match matching the app's FootballMatch interface */
+interface FootballMatchTransformed {
   id: string;
-  status: 'live' | 'finished' | 'upcoming';
-  date: string;
-  time: string;
-  score: string;
   homeTeam: string;
   awayTeam: string;
-  homeLogo: string;
-  awayLogo: string;
-  league: string;
-  leagueLogo: string;
-  hasStream: boolean;
+  homeScore: number | null;
+  awayScore: number | null;
+  status: 'live' | 'upcoming' | 'finished';
+  minute: number | null;
+  displayClock: string | null;
+  period: number | null;
+  statusDescription: string | null;
+  isHalftime: boolean;
+  lastUpdated: number | null;
+  competition: string | null;
+  homeLogo: string | null;
+  awayLogo: string | null;
+  matchDate: string | null;
   streamUrl: string | null;
-  category: string;
+  channelName: string | null;
+  channelLogo: string | null;
+  // Kept for backward compatibility with existing consumers (match-card, stream-options)
+  hasStream?: boolean;
+  league?: string;
+  leagueLogo?: string;
+  date?: string;
+  time?: string;
+  score?: string;
+  category?: string;
 }
 
-// ─── Helper: status mapping ─────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Map kora-api status number to our status string */
 function mapStatus(status: number): 'live' | 'finished' | 'upcoming' {
   if (status === 1) return 'live';
   if (status === 2) return 'finished';
   return 'upcoming';
 }
 
-// ─── Helper: build full image URL ───────────────────────────────────────────
-function teamLogoUrl(logo: string): string {
-  if (!logo) return '';
+/** Parse kora score string like "2 - 1" into [home, away] numbers */
+function parseScore(score: string): [number | null, number | null] {
+  if (!score || score === '-' || score.trim() === '') return [null, null];
+
+  const parts = score.split('-').map((s) => s.trim());
+  if (parts.length !== 2) return [null, null];
+
+  const home = parseInt(parts[0], 10);
+  const away = parseInt(parts[1], 10);
+
+  if (isNaN(home) || isNaN(away)) return [null, null];
+  return [home, away];
+}
+
+/** Build full team logo URL */
+function teamLogoUrl(logo: string): string | null {
+  if (!logo) return null;
   if (logo.startsWith('http')) return logo;
   return `${TEAM_IMG_BASE}${logo}`;
 }
 
+/** Build full league logo URL */
 function leagueLogoUrl(logo: string): string {
   if (!logo) return '';
   if (logo.startsWith('http')) return logo;
   return `${LEAGUE_IMG_BASE}${logo}`;
 }
 
-// ─── Helper: build stream URL ───────────────────────────────────────────────
+/** Build cache-busting timestamp in YYYYMMDDHHmm format */
+function buildTimestamp(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const h = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  return `${y}${m}${d}${h}${min}`;
+}
+
+/** Get today's date in YYYY-MM-DD format */
+function getTodayDate(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+/** Build HesGoal stream URL for a match */
 function buildStreamUrl(matchId: string): string {
   return `${STREAM_BASE}?m=${matchId}&lang=en`;
 }
 
+/** Transform a KoraMatch into our FootballMatchTransformed format */
+function transformMatch(m: KoraMatch, targetDate: string): FootballMatchTransformed {
+  const mappedStatus = mapStatus(m.status);
+  const [homeScore, awayScore] = parseScore(m.score);
+  const isLive = mappedStatus === 'live';
+  const hasStream = isLive && m.active === '1' && m.has_channels === '1';
+
+  return {
+    id: m.id,
+    homeTeam: m.home_en || m.home || '',
+    awayTeam: m.away_en || m.away || '',
+    homeScore,
+    awayScore,
+    status: mappedStatus,
+    minute: null, // kora doesn't provide minute info
+    displayClock: mappedStatus === 'upcoming' ? (m.time || null) : null,
+    period: null,
+    statusDescription: null,
+    isHalftime: false,
+    lastUpdated: Date.now(),
+    competition: m.league_en || m.league || null,
+    homeLogo: teamLogoUrl(m.home_logo),
+    awayLogo: teamLogoUrl(m.away_logo),
+    matchDate: targetDate || null,
+    streamUrl: hasStream ? buildStreamUrl(m.id) : null,
+    channelName: hasStream ? 'HesGoal' : null,
+    channelLogo: null,
+    // Backward compatibility fields
+    hasStream,
+    league: m.league_en || m.league || '',
+    leagueLogo: leagueLogoUrl(m.league_logo),
+    date: m.date || targetDate,
+    time: m.time || '',
+    score: m.score !== '-' ? m.score : '',
+    category: m.category || '',
+  };
+}
+
 // ─── Fetch matches for a date ───────────────────────────────────────────────
 async function fetchMatchesForDate(date: string): Promise<KoraMatch[]> {
-  const allMatches: KoraMatch[] = [];
-  let page = 1;
+  const timestamp = buildTimestamp();
+  const url = `${KORA_API_BASE}/api/matches/${date}/1?t=${timestamp}`;
+
+  console.log(`[HesGoal API] Fetching: ${url}`);
 
   try {
-    // Fetch first page (usually all matches fit in one page)
-    const url = `${KORA_API_BASE}/api/matches/${date}/${page}`;
-    console.log(`[HesGoal API] Fetching: ${url}`);
-
     const res = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(10000),
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      signal: AbortSignal.timeout(10000), // 10s timeout
     });
 
     if (!res.ok) {
@@ -132,89 +217,69 @@ async function fetchMatchesForDate(date: string): Promise<KoraMatch[]> {
     }
 
     const data = await res.json();
-    const matches: KoraMatch[] = data.matches || [];
+    const matches: KoraMatch[] = data.matches || data.data || [];
 
-    if (matches.length === 0) {
-      console.log(`[HesGoal API] No matches for ${date}`);
-      return [];
-    }
-
-    allMatches.push(...matches);
     console.log(`[HesGoal API] Fetched ${matches.length} matches for ${date}`);
+    return matches;
   } catch (err) {
     console.warn('[HesGoal API] Error fetching from kora-api:', err);
+    return [];
   }
-
-  return allMatches;
 }
 
 // ─── GET handler ────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get('date'); // YYYY-MM-DD format
-    const matchId = searchParams.get('id'); // specific match
+    const dateParam = searchParams.get('date'); // YYYY-MM-DD format
+    const matchIdParam = searchParams.get('id'); // specific match lookup
+
+    const targetDate = dateParam || getTodayDate();
 
     // ─── Single match lookup ────────────────────────────────────────────
-    if (matchId) {
-      const cacheKey = `match-${matchId}`;
+    if (matchIdParam) {
+      const cacheKey = `match-${matchIdParam}-${targetDate}`;
       const cached = cache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-        return NextResponse.json({ match: cached.data[0] });
-      }
-
-      try {
-        // Fetch today's matches and find the specific one
-        const today = new Date().toISOString().split('T')[0];
-        const matches = await fetchMatchesForDate(today);
-        const found = matches.find((m) => m.id === matchId);
-
-        if (!found) {
-          return NextResponse.json({ error: 'Match not found' }, { status: 404 });
+        const found = cached.matches.find((m) => m.id === matchIdParam);
+        if (found) {
+          return NextResponse.json({ match: found });
         }
-
-        const mapped: HesGoalMatch = {
-          id: found.id,
-          status: mapStatus(found.status),
-          date: found.date,
-          time: found.time,
-          score: found.score !== '0 - 0' && found.score !== '-' ? found.score : '',
-          homeTeam: found.home_en,
-          awayTeam: found.away_en,
-          homeLogo: teamLogoUrl(found.home_logo),
-          awayLogo: teamLogoUrl(found.away_logo),
-          league: found.league_en,
-          leagueLogo: leagueLogoUrl(found.league_logo),
-          hasStream: found.active === '1' && found.has_channels === '1',
-          streamUrl: found.active === '1' && found.has_channels === '1'
-            ? buildStreamUrl(found.id)
-            : null,
-          category: found.category,
-        };
-
-        cache.set(cacheKey, [mapped]);
-
-        return NextResponse.json({ match: mapped });
-      } catch (err) {
-        console.error('[HesGoal API] Error fetching match:', err);
-        return NextResponse.json({ error: 'Failed to fetch match' }, { status: 500 });
       }
+
+      // Fetch all matches for the date and find the specific one
+      const koraMatches = await fetchMatchesForDate(targetDate);
+      const found = koraMatches.find((m) => m.id === matchIdParam);
+
+      if (!found) {
+        return NextResponse.json({ error: 'Match not found' }, { status: 404 });
+      }
+
+      const transformed = transformMatch(found, targetDate);
+
+      // Cache the full list so subsequent lookups benefit
+      const allTransformed = koraMatches
+        .filter((m) => m.category === 'Soccer' || m.category === 'soccer' || !m.category)
+        .map((m) => transformMatch(m, targetDate));
+      cache.set(cacheKey, { matches: allTransformed, timestamp: Date.now() });
+
+      return NextResponse.json({ match: transformed });
     }
 
     // ─── Date-based match list ──────────────────────────────────────────
-    const targetDate = date || new Date().toISOString().split('T')[0];
     const cacheKey = `date-${targetDate}`;
-
     const cached = cache.get(cacheKey);
+
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-      console.log(`[HesGoal API] Cache hit for ${targetDate} (${cached.data.length} matches)`);
+      console.log(`[HesGoal API] Cache hit for ${targetDate} (${cached.matches.length} matches)`);
       return NextResponse.json({
-        matches: cached.data,
+        matches: cached.matches,
         date: targetDate,
-        liveCount: cached.data.filter((m) => m.status === 'live').length,
+        liveCount: cached.matches.filter((m) => m.status === 'live').length,
       });
     }
 
+    // Fetch from kora-api
     const koraMatches = await fetchMatchesForDate(targetDate);
 
     // Filter to only football/soccer matches
@@ -222,46 +287,35 @@ export async function GET(request: NextRequest) {
       (m) => m.category === 'Soccer' || m.category === 'soccer' || !m.category
     );
 
-    // Map to our format
-    const mapped: HesGoalMatch[] = soccerMatches.map((m) => ({
-      id: m.id,
-      status: mapStatus(m.status),
-      date: m.date,
-      time: m.time,
-      score: m.score !== '0 - 0' && m.score !== '-' ? m.score : '',
-      homeTeam: m.home_en,
-      awayTeam: m.away_en,
-      homeLogo: teamLogoUrl(m.home_logo),
-      awayLogo: teamLogoUrl(m.away_logo),
-      league: m.league_en,
-      leagueLogo: leagueLogoUrl(m.league_logo),
-      hasStream: m.active === '1' && m.has_channels === '1',
-      streamUrl: m.active === '1' && m.has_channels === '1'
-        ? buildStreamUrl(m.id)
-        : null,
-      category: m.category,
-    }));
+    // Transform to our format
+    const matches: FootballMatchTransformed[] = soccerMatches.map((m) =>
+      transformMatch(m, targetDate)
+    );
 
     // Sort: live first, then upcoming, then finished
-    mapped.sort((a, b) => {
+    matches.sort((a, b) => {
       const order = { live: 0, upcoming: 1, finished: 2 };
       return order[a.status] - order[b.status];
     });
 
-    cache.set(cacheKey, { data: mapped, timestamp: Date.now() });
+    // Cache the result
+    cache.set(cacheKey, { matches, timestamp: Date.now() });
 
-    console.log(`[HesGoal API] Returning ${mapped.length} matches for ${targetDate}`);
+    console.log(`[HesGoal API] Returning ${matches.length} matches for ${targetDate}`);
 
     return NextResponse.json({
-      matches: mapped,
+      matches,
       date: targetDate,
-      liveCount: mapped.filter((m) => m.status === 'live').length,
+      liveCount: matches.filter((m) => m.status === 'live').length,
     });
   } catch (err) {
     console.error('[HesGoal API] Error:', err);
-    return NextResponse.json(
-      { error: 'Failed to fetch HesGoal data' },
-      { status: 500 }
-    );
+    // Return empty matches array on failure (graceful error handling)
+    return NextResponse.json({
+      matches: [],
+      date: new Date().toISOString().split('T')[0],
+      liveCount: 0,
+      error: 'Failed to fetch match data',
+    });
   }
 }
