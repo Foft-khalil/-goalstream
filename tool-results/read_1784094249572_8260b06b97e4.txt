@@ -729,3 +729,128 @@
    729→- All components updated: match cards, channel cards, basketball cards, favorites, navigation
    730→- App compiles and runs without errors
    731→
+   732→---
+   733→Task ID: 2+3 (combined)
+   734→Agent: Full-Stack Developer
+   735→Task: Modern Premium UI Redesign + Integrate Streams Directly (Remove External Redirects)
+   736→
+   737→Work Log:
+   738→- Updated globals.css with new premium DAZN/beIN SPORTS-inspired color palette:
+   739→  - Dark theme uses deeper blacks (#0A0A0F), darker grays, subtler borders
+   740→  - Light theme refined with cleaner whites and subtle grays
+   741→  - Added header-glass and bottom-nav-glass classes for glass-morphism effects
+   742→  - Added animate-slide-up and animate-fade-in animations
+   743→  - Refined glass-card, glass-card-live, glass-card-basketball with subtler opacities
+   744→  - Updated shimmer, live-pulse, and score-pulse animations for subtlety
+   745→
+   746→- Redesigned page.tsx (AppHeader + MobileBottomNav + Home):
+   747→  - Header now uses header-glass backdrop blur with saturated effect
+   748→  - Desktop nav has subtler background (secondary/50 with white/[0.02])
+   749→  - Nav items use smaller text-[13px] and lighter inactive states
+   750→  - Mobile bottom nav uses bottom-nav-glass with refined active pill indicator
+   751→  - Active indicator is now a thinner 3px pill instead of 4px bar
+   752→  - Footer simplified, removed iptv-org link
+   753→  - All opacity values reduced for more subtle UI
+   754→
+   755→- Redesigned match-card.tsx:
+   756→  - REMOVED the Globe external link button (us-sport.eu redirect)
+   757→  - REMOVED the separate HesGoal button
+   758→  - MERGED HesGoal resolution into the main "Watch Live" button flow:
+   759→    1. If direct m3u8 stream available → play directly
+   760→    2. If HesGoal match found → resolve and play in-app
+   761→    3. Fallback → open stream options panel (no external links)
+   762→  - Added watchLoading state for unified button feedback
+   763→  - Refined card styling: subtler borders, lower opacities, secondary/30 backgrounds
+   764→  - Finished matches now have lower opacity (opacity-60 → opacity-80 on hover)
+   765→  - Action buttons use more transparent backgrounds
+   766→
+   767→- Redesigned stream-options.tsx:
+   768→  - REMOVED all external site redirect links (externalSources array, HesGoal/SportStream/RojaDirecta external links)
+   769→  - REMOVED handleOpenLink function and ChevronRightIcon component
+   770→  - REMOVED ExternalLink icon from imports
+   771→  - ADDED auto-play: When HesGoal stream is found, automatically starts playing it
+   772→  - All streams now play in-app via openPlayer():
+   773→    - m3u8 URLs → play directly with hls.js
+   774→    - Non-HLS URLs → proxied through /api/proxy-stream and shown as iframe
+   775→    - Embed URLs → proxied and played in-app
+   776→  - Added "No streams found" empty state with helpful message
+   777→  - Panel uses animate-slide-up and animate-fade-in for smooth entry
+   778→  - Premium panel design with subtler colors and rounded elements
+   779→  - Added Zap icon for kora streams (replaced Globe)
+   780→
+   781→- Redesigned video-player.tsx:
+   782→  - REMOVED all external site fallbacks (renderExternalSiteButtons, SPORTSTREAM_URL, ROJADIRECTA_URL, HESGOAL_URL)
+   783→  - REMOVED ExternalLink import
+   784→  - Error/iframe error overlays now only show retry, try-direct-stream, and alternative channels
+   785→  - Iframe timeout warning now only shows resolve and retry buttons (no external links)
+   786→  - Premium player UI: refined header gradient, rounded-xl buttons, subtle opacity values
+   787→  - Loading overlay uses rounded-2xl container with ping animation
+   788→  - Better typography: channel name in header, smaller status indicators
+   789→  - Bottom controls show channel name for context
+   790→
+   791→- Redesigned channel-card.tsx:
+   792→  - Subtler glass-morphism with bg-white/[0.02] (was /[0.03])
+   793→  - Thinner status dots (w-3 h-3, was w-3.5 h-3.5)
+   794→  - Smaller group badges with text-[9px]
+   795→  - Watch button text changed to "Watch" (more universal)
+   796→  - Retry button text shortened
+   797→  - Favorite heart uses lower opacity (white/15)
+   798→
+   799→- Updated basketball-match-card.tsx:
+   800→  - REMOVED the Globe external link button (SportStream/us-sport.eu redirect)
+   801→  - Matching the same premium styling as football match-card
+   802→  - Subtler borders and opacities throughout
+   803→
+   804→- Updated live-matches.tsx:
+   805→  - Competition filter pills use subtler colors (secondary/30, border/20)
+   806→  - Live section badge uses bg-red-500/8 with border-red-500/10
+   807→  - Competition headers have smaller font sizes and lower opacities
+   808→  - Date headers use text-[12px] (was text-sm)
+   809→  - Countdown timer uses text-[9px] (was text-[10px])
+   810→  - Refresh button uses transparent backgrounds
+   811→  - All accent colors are subtler (emerald-500/8, /10, /15)
+   812→
+   813→- Updated channels-list.tsx:
+   814→  - Search input uses subtler secondary/30 backgrounds
+   815→  - All filter controls use lower opacity values
+   816→  - Stats text uses text-[10px] with lower opacity
+   817→  - Group tags use secondary/30 backgrounds
+   818→
+   819→- Updated match-tracker.tsx:
+   820→  - REMOVED external streaming links (SportStream and RojaDirecta buttons)
+   821→  - REMOVED ExternalLink from lucide-react imports
+   822→  - Watch button still works (opens stream in-app via kora-api)
+   823→
+   824→Stage Summary:
+   825→- All external site redirects completely removed (no more us-sport.eu, tarjetarojaenvivo.cx, hes-goal.eu external links)
+   826→- All streams now play in-app through openPlayer() with proxy support
+   827→- Stream options panel auto-plays the best available HesGoal stream
+   828→- Unified "Watch Live" button flow in match-card (HesGoal → kora-api → stream options)
+   829→- Premium DAZN/beIN-style UI with deeper dark colors, subtler glass-morphism, and refined animations
+   830→- Lint passes with no errors, app compiles and runs correctly on port 3000
+   831→
+   832→---
+   833→Task ID: 1+2+3
+   834→Agent: Main Agent
+   835→Task: Fix theme toggle, redesign UI to premium football app, integrate streams directly in app
+   836→
+   837→Work Log:
+   838→- Fixed theme toggle by changing `darkMode: ["variant", ".dark &"]` to `darkMode: "class"` in tailwind.config.ts (invalid Tailwind v3 syntax was preventing dark: variants from working)
+   839→- Delegated comprehensive UI redesign + stream integration to full-stack developer agent
+   840→- Agent redesigned globals.css with premium DAZN/beIN-style color palette (deeper blacks #0A0A0F, refined HSL variables for both light/dark themes)
+   841→- Added new CSS utilities: header-glass, bottom-nav-glass (glass-morphism with backdrop-blur+saturate), animate-slide-up, animate-fade-in, online-glow
+   842→- Redesigned page.tsx header with glass effect, refined desktop nav (pill-style active states with emerald/orange accents), premium bottom nav with 3px active indicator pills
+   843→- Redesigned match-card.tsx: removed Globe button (us-sport.eu redirect) and separate HesGoal button, unified "Watch Live" flow with auto-resolution (m3u8 → HesGoal → stream options)
+   844→- Redesigned stream-options.tsx: removed ALL external site links (HesGoal website, SportStream, RojaDirecta), added auto-play when HesGoal stream found, all streams play in-app via openPlayer/proxy-stream
+   845→- Redesigned video-player.tsx: removed external site fallback buttons, error states only show retry + alternatives
+   846→- Redesigned basketball-match-card.tsx: removed Globe external link
+   847→- Redesigned match-tracker.tsx: removed SportStream and RojaDirecta external buttons
+   848→- Verified with Agent Browser: theme toggle works correctly (dark ↔ light), match cards render with new design, channels view works, no page errors
+   849→
+   850→Stage Summary:
+   851→- Theme toggle FIXED: darkMode config corrected for Tailwind v3 compatibility
+   852→- All external redirects REMOVED: no more window.open to us-sport.eu, hes-goal.eu, or tarjetaroja
+   853→- Streams integrated in-app: HesGoal streams resolved and played via proxy-stream, kora-api streams played via openPlayer, auto-play feature added
+   854→- Premium UI redesign: new color palette, glass-morphism effects, refined animations, modern card designs
+   855→- Only remaining external links: YouTube highlights search (acceptable for post-match content)
+   856→

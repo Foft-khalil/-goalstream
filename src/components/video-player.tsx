@@ -18,29 +18,29 @@ function isHlsUrl(url: string): boolean {
 }
 
 /**
- * Check if a URL is a kora-api/embed-style stream that needs proxying.
- * These are URLs from providers like streams.center that contain nested iframes
- * and won't work directly in a sandboxed iframe.
+ * Determine if a URL needs to go through our server-side proxy.
+ * ALL non-HLS URLs (anything that isn't an m3u8 stream) need proxying
+ * because they are web pages that will be blocked by X-Frame-Options
+ * or Content-Security-Policy frame-ancestors when loaded directly in an iframe.
+ *
+ * The proxy fetches the page server-side, strips blocking headers,
+ * rewrites nested iframes to also go through the proxy, and serves
+ * the content from our own domain.
  */
 function needsProxy(url: string): boolean {
-  const proxyDomains = [
-    'streams.center',
-    'kora-api.top',
-    '000007.mov',
-    'streamcenter.pro',
-    'tvtvhd.com',
-    'go4score.app',
-    'smartagro.mov',
-    'hes-goal.eu',
-    'goalz.zip',
-  ];
-  return proxyDomains.some(domain => url.includes(domain));
+  // HLS streams don't need proxying — they play natively in the video element
+  if (isHlsUrl(url)) return false;
+  // Our own proxy URLs don't need re-proxying
+  if (url.includes('/api/proxy-stream')) return false;
+  // Any other URL (web page / embed) needs proxying to bypass iframe restrictions
+  return true;
 }
 
 /**
- * Convert a direct stream URL to our proxy URL.
- * This allows embed-style streams to work in our iframe by serving
- * them from our own domain (same method used by us-sport.eu).
+ * Convert a stream URL to our proxy URL.
+ * For HLS (.m3u8) streams, returns the URL as-is (plays in video element).
+ * For web page / embed URLs, routes through our server-side proxy
+ * to bypass X-Frame-Options and frame-ancestors restrictions.
  */
 function getProxiedUrl(url: string): string {
   if (!needsProxy(url)) return url;

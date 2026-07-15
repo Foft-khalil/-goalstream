@@ -853,3 +853,32 @@ Stage Summary:
 - Streams integrated in-app: HesGoal streams resolved and played via proxy-stream, kora-api streams played via openPlayer, auto-play feature added
 - Premium UI redesign: new color palette, glass-morphism effects, refined animations, modern card designs
 - Only remaining external links: YouTube highlights search (acceptable for post-match content)
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Fix "Ce contenu est bloqué" iframe blocking and theme toggle not working
+
+Work Log:
+- Diagnosed root cause of "Ce contenu est bloqué" (blocked content) error in iframes
+- Issue 1: CSP `frame-src` was too restrictive — only allowed specific domains, blocking streaming sources
+- Issue 2: proxy-stream route only rewrote iframe URLs from known domains, not all external iframes
+- Issue 3: video-player.tsx `needsProxy()` only proxied specific domains, missing many streaming sources
+- Fixed CSP: Changed `frame-src` from whitelist of specific domains to `frame-src 'self' https: http:` (allows all HTTPS/HTTP iframes)
+- Fixed proxy-stream route: Made iframe URL rewriting universal (ALL external iframe URLs now go through proxy, not just known domains)
+- Enhanced proxy-stream with more anti-iframe-breakout script removal patterns
+- Enhanced proxy-stream with broader fetch() rewriting (not just .php URLs, but all same-origin fetches)
+- Added XMLHttpRequest.open() rewriting to handle XHR-based streaming players
+- Enhanced proxy CSP response headers to be permissive for streaming content
+- Fixed video-player.tsx: `needsProxy()` now proxies ALL non-HLS URLs (not just specific domains)
+- Fixed stream-options.tsx: `handlePlayDirectStream` now properly handles already-proxied URLs
+- Diagnosed theme toggle bug: CSS specificity issue with `:root .header-glass` always overriding `.header-glass`
+- Fixed CSS: Changed `.header-glass` (dark) / `:root .header-glass` (light) to `:root .header-glass` (light) / `.dark .header-glass` (dark)
+- Fixed CSS: Same fix for `.bottom-nav-glass`
+- Verified both fixes with Agent Browser — channels play without blocking, theme toggle works correctly
+
+Stage Summary:
+- "Ce contenu est bloqué" error is resolved — all streams now work through the universal proxy
+- Theme toggle now works correctly (dark ↔ light switching confirmed)
+- Proxy architecture: ALL non-HLS URLs → `/api/proxy-stream` → server-side fetch → strip X-Frame-Options → rewrite nested iframes → serve from our domain
+- CSS specificity fix ensures `.dark` class properly toggles header and bottom nav appearance

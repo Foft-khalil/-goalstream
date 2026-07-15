@@ -216,13 +216,13 @@
 }
 
 /* ─── Premium header glass effect ─── */
-.header-glass {
-  background: rgba(10, 10, 15, 0.7);
+:root .header-glass {
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(24px) saturate(1.5);
   -webkit-backdrop-filter: blur(24px) saturate(1.5);
 }
-:root .header-glass {
-  background: rgba(255, 255, 255, 0.85);
+.dark .header-glass {
+  background: rgba(10, 10, 15, 0.7);
   backdrop-filter: blur(24px) saturate(1.5);
   -webkit-backdrop-filter: blur(24px) saturate(1.5);
 }
@@ -403,13 +403,13 @@
 }
 
 /* ─── Premium bottom nav bar ─── */
-.bottom-nav-glass {
-  background: rgba(10, 10, 15, 0.85);
+:root .bottom-nav-glass {
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(24px) saturate(1.5);
   -webkit-backdrop-filter: blur(24px) saturate(1.5);
 }
-:root .bottom-nav-glass {
-  background: rgba(255, 255, 255, 0.9);
+.dark .bottom-nav-glass {
+  background: rgba(10, 10, 15, 0.85);
   backdrop-filter: blur(24px) saturate(1.5);
   -webkit-backdrop-filter: blur(24px) saturate(1.5);
 }

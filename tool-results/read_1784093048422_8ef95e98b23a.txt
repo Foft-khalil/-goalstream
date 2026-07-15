@@ -11,7 +11,7 @@
     11→import VideoPlayer from '@/components/video-player';
     12→import LanguageSelector from '@/components/language-selector';
     13→import ErrorBoundary from '@/components/error-boundary';
-    14→import { Zap, Tv, BarChart3, Menu, Download, WifiOff, Heart, Dribbble, Bell, Sun, Moon, Search, Shield, Trophy, ChevronRight } from 'lucide-react';
+    14→import { Zap, Tv, BarChart3, Menu, Download, WifiOff, Heart, Dribbble, Bell, Sun, Moon, Search, Shield, Trophy, ChevronRight, Settings2 } from 'lucide-react';
     15→import { Button } from '@/components/ui/button';
     16→import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
     17→import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -53,15 +53,15 @@
     53→  };
     54→
     55→  return (
-    56→    <header className="sticky top-0 z-40 border-b border-border/50 header-gradient">
-    57→      <div className="bg-background/80 backdrop-blur-2xl">
+    56→    <header className="sticky top-0 z-40 border-b border-border/30">
+    57→      <div className="header-glass">
     58→        <div className="max-w-6xl mx-auto px-4">
     59→          <div className="flex items-center justify-between h-14">
     60→            {/* Logo */}
     61→            <button
     62→              onClick={() => setCurrentView('live')}
     63→              className="flex items-center gap-2.5 hover:opacity-80 active:scale-[0.97] transition-all duration-200"
-    64→              title="Retour aux matchs"
+    64→              title="GoalStream"
     65→            >
     66→              <div className="relative">
     67→                <img
@@ -77,7 +77,7 @@
     77→                <h1 className="text-[15px] font-extrabold leading-tight tracking-tight">
     78→                  <span className="gradient-text">Goal</span>Stream
     79→                </h1>
-    80→                <p className="text-[9px] text-muted-foreground/50 leading-tight font-semibold uppercase tracking-[0.15em]">{t(language, 'common.liveSport')}</p>
+    80→                <p className="text-[9px] text-muted-foreground/40 leading-tight font-semibold uppercase tracking-[0.15em]">{t(language, 'common.liveSport')}</p>
     81→              </div>
     82→            </button>
     83→
@@ -86,7 +86,7 @@
     86→              <Button
     87→                variant="ghost"
     88→                size="icon"
-    89→                className="h-8 w-8 rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-white/5"
+    89→                className="h-8 w-8 rounded-xl text-muted-foreground/60 hover:text-foreground hover:bg-white/5 dark:hover:bg-white/5"
     90→                onClick={() => setSearchOpen(true)}
     91→                title={t(language, 'search.title')}
     92→              >
@@ -96,7 +96,7 @@
     96→              <Button
     97→                variant="ghost"
     98→                size="icon"
-    99→                className="h-8 w-8 rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-white/5"
+    99→                className="h-8 w-8 rounded-xl text-muted-foreground/60 hover:text-foreground hover:bg-white/5 dark:hover:bg-white/5"
    100→                onClick={handleThemeToggle}
    101→                title={theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')}
    102→              >
@@ -107,7 +107,7 @@
    107→                  <Button
    108→                    variant="ghost"
    109→                    size="icon"
-   110→                    className="h-8 w-8 relative rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-white/5"
+   110→                    className="h-8 w-8 relative rounded-xl text-muted-foreground/60 hover:text-foreground hover:bg-white/5 dark:hover:bg-white/5"
    111→                    title={t(language, 'notifications.title')}
    112→                  >
    113→                    <Bell className="h-4 w-4" />
@@ -142,7 +142,7 @@
    142→              )}
    143→            </div>
    144→            {/* Desktop Nav */}
-   145→            <nav className="hidden sm:flex items-center gap-0.5 bg-card dark:bg-white/[0.03] rounded-xl p-1 border border-border dark:border-white/[0.04]">
+   145→            <nav className="hidden sm:flex items-center gap-0.5 bg-secondary/50 dark:bg-white/[0.02] rounded-xl p-0.5 border border-border/50 dark:border-white/[0.03]">
    146→              {navItems.map((item) => {
    147→                const isActive = currentView === item.view;
    148→                const accentColor = item.view === 'basketball' ? 'orange' : 'emerald';
@@ -150,12 +150,12 @@
    150→                  <button
    151→                    key={item.view}
    152→                    onClick={() => setCurrentView(item.view)}
-   153→                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+   153→                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
    154→                      isActive
    155→                        ? accentColor === 'orange'
    156→                          ? 'bg-orange-500/10 text-orange-400 shadow-sm'
    157→                          : 'bg-emerald-500/10 text-emerald-400 shadow-sm'
-   158→                        : 'text-muted-foreground/60 hover:text-foreground hover:bg-white/5'
+   158→                        : 'text-muted-foreground/50 hover:text-foreground hover:bg-white/[0.03]'
    159→                    }`}
    160→                  >
    161→                    {item.icon}
@@ -187,7 +187,7 @@
    187→              <Button
    188→                variant="ghost"
    189→                size="icon"
-   190→                className="h-9 w-9 rounded-xl text-muted-foreground/70"
+   190→                className="h-9 w-9 rounded-xl text-muted-foreground/60"
    191→                onClick={() => setSearchOpen(true)}
    192→                title={t(language, 'search.title')}
    193→              >
@@ -198,7 +198,7 @@
    198→                  <Button
    199→                    variant="ghost"
    200→                    size="icon"
-   201→                    className="h-9 w-9 relative rounded-xl text-muted-foreground/70"
+   201→                    className="h-9 w-9 relative rounded-xl text-muted-foreground/60"
    202→                    title={t(language, 'notifications.title')}
    203→                  >
    204→                    <Bell className="h-[18px] w-[18px]" />
@@ -217,11 +217,11 @@
    217→              </Popover>
    218→              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
    219→                <SheetTrigger asChild>
-   220→                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground/70">
+   220→                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground/60">
    221→                    <Menu className="h-[18px] w-[18px]" />
    222→                  </Button>
    223→                </SheetTrigger>
-   224→              <SheetContent side="right" className="w-72 bg-background border-border/50">
+   224→              <SheetContent side="right" className="w-72 bg-background border-border/30">
    225→                <SheetTitle className="sr-only">{t(language, 'nav.matches')}</SheetTitle>
    226→                <div className="flex items-center gap-2.5 mb-8 mt-4">
    227→                  <img
@@ -233,7 +233,7 @@
    233→                    <span className="font-extrabold tracking-tight text-lg">
    234→                      <span className="gradient-text">Goal</span>Stream
    235→                    </span>
-   236→                    <p className="text-[10px] text-muted-foreground/50 font-medium uppercase tracking-wider">{t(language, 'common.liveSport')}</p>
+   236→                    <p className="text-[10px] text-muted-foreground/40 font-medium uppercase tracking-wider">{t(language, 'common.liveSport')}</p>
    237→                  </div>
    238→                </div>
    239→                {/* Quick actions in mobile menu */}
@@ -241,7 +241,7 @@
    241→                  <Button
    242→                    variant="ghost"
    243→                    size="icon"
-   244→                    className="h-9 w-9 rounded-xl text-muted-foreground/70 hover:bg-white/5"
+   244→                    className="h-9 w-9 rounded-xl text-muted-foreground/60 hover:bg-white/5 dark:hover:bg-white/5"
    245→                    onClick={handleThemeToggle}
    246→                    title={theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')}
    247→                  >
@@ -281,7 +281,7 @@
    281→                            ? accentColor === 'orange'
    282→                              ? 'bg-orange-500/10 text-orange-400'
    283→                              : 'bg-emerald-500/10 text-emerald-400'
-   284→                            : 'text-muted-foreground/70 hover:text-foreground hover:bg-white/5'
+   284→                            : 'text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.03]'
    285→                        }`}
    286→                      >
    287→                        {item.icon}
@@ -303,16 +303,16 @@
    303→                            {totalFavorites}
    304→                          </span>
    305→                        )}
-   306→                        {isActive && <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground/30" />}
+   306→                        {isActive && <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground/20" />}
    307→                      </button>
    308→                    );
    309→                  })}
    310→                </nav>
    311→                {/* Privacy Policy link in mobile menu */}
-   312→                <div className="mt-6 pt-4 border-t border-border/30">
+   312→                <div className="mt-6 pt-4 border-t border-border/20">
    313→                  <button
    314→                    onClick={() => { setPrivacyOpen(true); setMobileMenuOpen(false); }}
-   315→                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground/50 hover:text-foreground hover:bg-white/5 transition-all"
+   315→                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground/40 hover:text-foreground hover:bg-white/[0.03] transition-all"
    316→                  >
    317→                    <Shield className="h-4 w-4" />
    318→                    <span>{t(language, 'footer.privacyPolicy')}</span>
@@ -346,37 +346,37 @@
    346→  const bballLiveCount = basketballMatches.filter((m) => m.status === 'live').length;
    347→
    348→  const navItems = [
-   349→    { view: 'live' as ViewType, icon: <Zap className="h-5 w-5" />, label: t(language, 'nav.matches') },
-   350→    { view: 'basketball' as ViewType, icon: <Dribbble className="h-5 w-5" />, label: t(language, 'nav.basket') },
-   351→    { view: 'favorites' as ViewType, icon: <Heart className="h-5 w-5" />, label: t(language, 'nav.favorites') },
-   352→    { view: 'channels' as ViewType, icon: <Tv className="h-5 w-5" />, label: t(language, 'nav.channels') },
-   353→    { view: 'standings' as ViewType, icon: <BarChart3 className="h-5 w-5" />, label: t(language, 'nav.standings') },
+   349→    { view: 'live' as ViewType, icon: <Zap className="h-5 w-5" />, activeIcon: <Zap className="h-5 w-5" />, label: t(language, 'nav.matches') },
+   350→    { view: 'basketball' as ViewType, icon: <Dribbble className="h-5 w-5" />, activeIcon: <Dribbble className="h-5 w-5" />, label: t(language, 'nav.basket') },
+   351→    { view: 'favorites' as ViewType, icon: <Heart className="h-5 w-5" />, activeIcon: <Heart className="h-5 w-5" />, label: t(language, 'nav.favorites') },
+   352→    { view: 'channels' as ViewType, icon: <Tv className="h-5 w-5" />, activeIcon: <Tv className="h-5 w-5" />, label: t(language, 'nav.channels') },
+   353→    { view: 'standings' as ViewType, icon: <BarChart3 className="h-5 w-5" />, activeIcon: <BarChart3 className="h-5 w-5" />, label: t(language, 'nav.standings') },
    354→  ];
    355→
    356→  return (
    357→    <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 safe-area-bottom">
-   358→      <div className="bg-background/80 backdrop-blur-2xl border-t border-border/30">
+   358→      <div className="bottom-nav-glass border-t border-border/20">
    359→        <div className="flex items-center justify-around h-16 px-1 max-w-lg mx-auto">
    360→          {navItems.map((item) => {
    361→            const isActive = currentView === item.view;
    362→            const accentColor = item.view === 'basketball' ? 'orange' : 'emerald';
-   363→            return (
-   364→              <button
-   365→                key={item.view}
-   366→                onClick={() => setCurrentView(item.view)}
-   367→                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all duration-200 relative ${
-   368→                  isActive
-   369→                    ? accentColor === 'orange' ? 'text-orange-400' : 'text-emerald-400'
-   370→                    : 'text-muted-foreground/40'
-   371→                }`}
-   372→              >
+   363→            const activeTextColor = accentColor === 'orange' ? 'text-orange-400' : 'text-emerald-400';
+   364→            return (
+   365→              <button
+   366→                key={item.view}
+   367→                onClick={() => setCurrentView(item.view)}
+   368→                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all duration-200 relative ${
+   369→                  isActive ? activeTextColor : 'text-muted-foreground/35'
+   370→                }`}
+   371→              >
+   372→                {/* Active indicator pill */}
    373→                {isActive && (
-   374→                  <span className={`absolute -top-1 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full ${
-   375→                    accentColor === 'orange' ? 'bg-orange-400 nav-active-glow' : 'bg-emerald-400 nav-active-glow'
-   376→                  }`} style={{ boxShadow: accentColor === 'orange' ? '0 0 10px rgba(249,115,22,0.4)' : '0 0 10px rgba(16,185,129,0.4)' }} />
+   374→                  <span className={`absolute -top-1.5 left-1/2 -translate-x-1/2 w-6 h-[3px] rounded-full ${
+   375→                    accentColor === 'orange' ? 'bg-orange-400' : 'bg-emerald-400'
+   376→                  }`} style={{ boxShadow: accentColor === 'orange' ? '0 0 8px rgba(249,115,22,0.5)' : '0 0 8px rgba(16,185,129,0.5)' }} />
    377→                )}
    378→                <div className="relative">
-   379→                  {item.icon}
+   379→                  {isActive ? item.activeIcon : item.icon}
    380→                  {item.view === 'live' && footballLiveCount > 0 && (
    381→                    <span className="absolute -top-1 -right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-background animate-pulse" />
    382→                  )}
@@ -389,7 +389,7 @@
    389→                    </span>
    390→                  )}
    391→                </div>
-   392→                <span className={`text-[10px] font-semibold ${isActive ? '' : 'opacity-60'}`}>{item.label}</span>
+   392→                <span className={`text-[10px] font-semibold ${isActive ? '' : 'opacity-50'}`}>{item.label}</span>
    393→              </button>
    394→            );
    395→          })}
@@ -497,7 +497,7 @@
    497→
    498→      {/* Offline banner */}
    499→      {!isOnline && (
-   500→        <div className="bg-amber-500/10 border-b border-amber-500/15 py-1.5 text-center backdrop-blur-sm">
+   500→        <div className="bg-amber-500/8 border-b border-amber-500/10 py-1.5 text-center">
    501→          <span className="text-xs font-semibold text-amber-500">
    502→            <WifiOff className="h-3 w-3 inline mr-1" />
    503→            {t(language, 'offline.message')}
@@ -516,43 +516,31 @@
    516→      </main>
    517→
    518→      {/* Footer */}
-   519→      <footer className="hidden sm:block border-t border-border/30 bg-background/50 backdrop-blur-sm">
+   519→      <footer className="hidden sm:block border-t border-border/20 bg-background/50">
    520→        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-   521→          <p className="text-[11px] text-muted-foreground/40 font-medium">
+   521→          <p className="text-[11px] text-muted-foreground/30 font-medium">
    522→            GoalStream — {t(language, 'footer.description')}
    523→          </p>
    524→          <div className="flex items-center gap-3">
    525→            <button
    526→              onClick={() => setFooterPrivacyOpen(true)}
-   527→              className="text-[11px] text-muted-foreground/40 hover:text-emerald-400 hover:underline transition-colors"
+   527→              className="text-[11px] text-muted-foreground/30 hover:text-emerald-400 transition-colors"
    528→            >
    529→              {t(language, 'footer.privacyPolicy')}
    530→            </button>
-   531→            <span className="text-[11px] text-muted-foreground/20">·</span>
-   532→            <p className="text-[11px] text-muted-foreground/40">
-   533→              {t(language, 'footer.streamsFrom')}{' '}
-   534→              <a
-   535→                href="https://github.com/iptv-org/iptv"
-   536→                target="_blank"
-   537→                rel="noopener noreferrer"
-   538→                className="text-emerald-500/50 hover:text-emerald-400 hover:underline transition-colors"
-   539→              >
-   540→                iptv-org
-   541→              </a>
-   542→            </p>
-   543→          </div>
-   544→        </div>
-   545→      </footer>
+   531→          </div>
+   532→        </div>
+   533→      </footer>
+   534→
+   535→      {/* Mobile Bottom Nav */}
+   536→      <MobileBottomNav />
+   537→
+   538→      {/* Privacy Policy Dialog (from footer) */}
+   539→      <PrivacyPolicyDialog open={footerPrivacyOpen} onOpenChange={setFooterPrivacyOpen} />
+   540→
+   541→      {/* Video Player Overlay */}
+   542→      <VideoPlayer />
+   543→    </div>
+   544→  );
+   545→}
    546→
-   547→      {/* Mobile Bottom Nav */}
-   548→      <MobileBottomNav />
-   549→
-   550→      {/* Privacy Policy Dialog (from footer) */}
-   551→      <PrivacyPolicyDialog open={footerPrivacyOpen} onOpenChange={setFooterPrivacyOpen} />
-   552→
-   553→      {/* Video Player Overlay */}
-   554→      <VideoPlayer />
-   555→    </div>
-   556→  );
-   557→}
-   558→

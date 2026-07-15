@@ -90,16 +90,55 @@ export async function GET(request: NextRequest) {
     const baseOrigin = baseUrl.origin;
     const basePath = baseUrl.pathname.substring(0, baseUrl.pathname.lastIndexOf('/') + 1);
 
-    // ── Step 1: Remove referrer-blocking scripts ──────────────────────────────
+    // ── Step 1: Remove referrer-blocking and anti-iframe-breakout scripts ──────
+    // Remove scripts that check document.referrer and redirect away
     html = html.replace(
       /<script\s+language="JavaScript">\s*var\s+b\s*=\s*['"][^'"]*['"];\s*if\s*\(\s*document\.referrer[^<]*<\/script>/gi,
       ''
     );
 
-    // Remove anti-iframe-breakout scripts
+    // Remove anti-iframe-breakout scripts (various patterns)
     html = html.replace(
       /if\s*\(\s*window\s*==\s*window\.top\s*\)\s*document\.location\s*=\s*['"][^'"]*['"]/gi,
       '/* removed top-frame redirect */'
+    );
+    html = html.replace(
+      /if\s*\(\s*window\s*!==\s*window\.top\s*\)[^;]*;/gi,
+      '/* removed frame-busting script */'
+    );
+    html = html.replace(
+      /if\s*\(\s*window\.top\s*!==\s*window\.self\s*\)[^;]*;/gi,
+      '/* removed frame-busting script */'
+    );
+    html = html.replace(
+      /if\s*\(\s*window\.self\s*!==\s*window\.top\s*\)[^;]*;/gi,
+      '/* removed frame-busting script */'
+    );
+    html = html.replace(
+      /window\.top\.location\s*=\s*['"][^'"]*['"]/gi,
+      '/* removed top-location redirect */'
+    );
+    html = html.replace(
+      /window\.top\.location\.href\s*=\s*['"][^'"]*['"]/gi,
+      '/* removed top-location redirect */'
+    );
+    html = html.replace(
+      /window\.top\.location\.replace\s*\([^)]*\)/gi,
+      '/* removed top-location replace */'
+    );
+    html = html.replace(
+      /parent\.location\s*=\s*['"][^'"]*['"]/gi,
+      '/* removed parent-location redirect */'
+    );
+    html = html.replace(
+      /parent\.location\.href\s*=\s*['"][^'"]*['"]/gi,
+      '/* removed parent-location redirect */'
+    );
+
+    // Remove entire <script> blocks that bust out of frames
+    html = html.replace(
+      /<script[^>]*>\s*if\s*\(\s*(?:window\.(?:top|self)|top\s*[!=]==?\s*self)[^<]*<\/script>/gi,
+      ''
     );
 
     // ── Step 2: Rewrite protocol-relative URLs (//domain/path) ───────────────
@@ -130,38 +169,37 @@ export async function GET(request: NextRequest) {
       `$1${baseOrigin}$2$3`
     );
 
-    // ── Step 4: Route iframe URLs through our proxy ─────────────────────────
+    // ── Step 4: Route ALL external iframe URLs through our proxy ────────────────
+    // This ensures that any iframe (from any domain) is served through our proxy,
+    // bypassing X-Frame-Options and frame-ancestors restrictions from upstream.
     html = html.replace(
-      /(<iframe[^>]+src=["'])(https?:\/\/[^"']*streams\.center[^"']*)(["'])/gi,
+      /(<iframe[^>]+src=["'])(https?:\/\/[^"']+)(["'])/gi,
       (_match, prefix: string, url: string, suffix: string) => {
+        // Don't proxy URLs that are already going through our proxy
+        if (url.includes('/api/proxy-stream')) return `${prefix}${url}${suffix}`;
+        // Don't proxy same-origin URLs
+        if (url.startsWith('/') || url.startsWith('./')) return `${prefix}${url}${suffix}`;
         const proxyUrl = `/api/proxy-stream?url=${btoa(url)}`;
         return `${prefix}${proxyUrl}${suffix}`;
       }
     );
 
-    // Also proxy other known embed domains
-    const PROXY_DOMAINS = ['streamcenter.pro', '000007.mov', 'go4score.app', 'smartagro.mov', 'goalz.zip'];
-    for (const domain of PROXY_DOMAINS) {
-      const escapedDomain = domain.replace('.', '\\.');
-      const regex = new RegExp(
-        `(<iframe[^>]+src=["'])(https?:\/\/[^"']*${escapedDomain}[^"']*)(["'])`,
-        'gi'
-      );
-      html = html.replace(
-        regex,
-        (_match: string, prefix: string, url: string, suffix: string) => {
-          const proxyUrl = `/api/proxy-stream?url=${btoa(url)}`;
-          return `${prefix}${proxyUrl}${suffix}`;
-        }
-      );
-    }
-
     // ── Step 5: Rewrite fetch() calls to use proxy ──────────────────────────
-    // The player makes fetch('decrypt.php', {...}) which needs to be proxied
-    // to avoid CORS issues. We rewrite fetch('relative_url') to use our proxy.
+    // The player makes fetch('decrypt.php', {...}) and similar API calls which
+    // need to be proxied to avoid CORS issues. We rewrite fetch() URLs that
+    // point to the upstream domain to go through our proxy.
     html = html.replace(
-      /fetch\s*\(\s*['"]([^'"]+\.php[^'"]*)['"]/gi,
+      /fetch\s*\(\s*['"]([^'"]+)['"]/gi,
       (_match: string, fetchUrl: string) => {
+        // Skip data: URLs, blob: URLs, and already-proxied URLs
+        if (fetchUrl.startsWith('data:') || fetchUrl.startsWith('blob:') || fetchUrl.includes('/api/proxy-stream')) {
+          return _match;
+        }
+        // Skip absolute URLs to other domains (only proxy same-origin fetches)
+        if (fetchUrl.startsWith('http://') || fetchUrl.startsWith('https://')) {
+          // Only proxy if it's to the same origin as the upstream page
+          if (!fetchUrl.startsWith(baseOrigin)) return _match;
+        }
         // Resolve relative URL to absolute
         let absoluteUrl: string;
         if (fetchUrl.startsWith('http://') || fetchUrl.startsWith('https://')) {
@@ -174,6 +212,31 @@ export async function GET(request: NextRequest) {
           absoluteUrl = `${baseOrigin}${basePath}${fetchUrl}`;
         }
         return `fetch('/api/proxy-stream?url=${btoa(absoluteUrl)}'`;
+      }
+    );
+
+    // ── Step 5b: Rewrite XMLHttpRequest.open() calls to use proxy ─────────────
+    // Some players use XHR instead of fetch()
+    html = html.replace(
+      /\.open\s*\(\s*['"](?:GET|POST)['"]\s*,\s*['"]([^'"]+)['"]/gi,
+      (_match: string, xhrUrl: string) => {
+        if (xhrUrl.startsWith('data:') || xhrUrl.startsWith('blob:') || xhrUrl.includes('/api/proxy-stream')) {
+          return _match;
+        }
+        if (xhrUrl.startsWith('http://') || xhrUrl.startsWith('https://')) {
+          if (!xhrUrl.startsWith(baseOrigin)) return _match;
+        }
+        let absoluteUrl: string;
+        if (xhrUrl.startsWith('http://') || xhrUrl.startsWith('https://')) {
+          absoluteUrl = xhrUrl;
+        } else if (xhrUrl.startsWith('//')) {
+          absoluteUrl = `https:${xhrUrl}`;
+        } else if (xhrUrl.startsWith('/')) {
+          absoluteUrl = `${baseOrigin}${xhrUrl}`;
+        } else {
+          absoluteUrl = `${baseOrigin}${basePath}${xhrUrl}`;
+        }
+        return `.open('GET', '/api/proxy-stream?url=${btoa(absoluteUrl)}'`;
       }
     );
 
@@ -191,7 +254,7 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'X-Frame-Options': 'ALLOWALL',
-        'Content-Security-Policy': "frame-ancestors 'self' *",
+        'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-src *; frame-ancestors 'self' *",
       },
     });
   } catch (err) {

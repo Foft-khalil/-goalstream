@@ -191,8 +191,12 @@ export default function StreamOptions({
       // Direct HLS stream — play in our video player
       openPlayer(url, name);
       onClose();
+    } else if (url.startsWith('/api/proxy-stream')) {
+      // Already proxied URL — play in our video player as iframe
+      openPlayer(url, name);
+      onClose();
     } else {
-      // For non-HLS URLs, proxy them through our server and play in iframe
+      // Any other URL — route through our proxy to bypass iframe restrictions
       try {
         const encoded = btoa(url);
         const proxyUrl = `/api/proxy-stream?url=${encodeURIComponent(encoded)}`;
