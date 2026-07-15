@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Loader2, Search, RefreshCw, Tv, Globe, Wifi, WifiOff, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Search, RefreshCw, Tv, Globe, Wifi, WifiOff, CheckCircle2, XCircle, Zap } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -59,7 +59,7 @@ export default function ChannelsList() {
 
   useEffect(() => {
     fetchChannels(channelSearch, channelCountry);
-  }, [channelCountry]); // Re-fetch when country changes
+  }, [channelCountry]);
 
   // Client-side search filtering
   const filteredChannels = useMemo(() => {
@@ -72,7 +72,6 @@ export default function ChannelsList() {
           ch.group.toLowerCase().includes(search)
       );
     }
-    // Online-only filter
     if (onlineOnly) {
       result = result.filter((ch) => ch.status === 'online');
     }
@@ -112,14 +111,13 @@ export default function ChannelsList() {
     setPage(0);
   };
 
-  // Batch health check - check visible channels
+  // Batch health check
   const handleCheckAll = () => {
     const urlsToCheck = displayChannels
       .filter((ch) => ch.status === 'unknown' || !ch.status)
       .map((ch) => ch.url);
 
     if (urlsToCheck.length === 0) {
-      // Re-check all visible
       checkChannelsHealth(displayChannels.map((ch) => ch.url));
     } else {
       checkChannelsHealth(urlsToCheck);
@@ -132,7 +130,7 @@ export default function ChannelsList() {
       <div className="space-y-3">
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
           <Input
             placeholder={t(language, 'channels.searchPlaceholder')}
             value={channelSearch}
@@ -140,15 +138,15 @@ export default function ChannelsList() {
               setChannelSearch(e.target.value);
               setPage(0);
             }}
-            className="pl-9 bg-card/80 border-border/50"
+            className="pl-9 bg-card dark:bg-white/[0.03] border-border dark:border-white/[0.06] rounded-xl focus:border-emerald-500/30 focus:ring-emerald-500/20 placeholder:text-muted-foreground/30"
           />
         </div>
 
         {/* Country & Refresh */}
         <div className="flex gap-2">
           <Select value={channelCountry || 'all'} onValueChange={handleCountryChange}>
-            <SelectTrigger className="flex-1 bg-card/80 border-border/50 h-9 text-sm">
-              <Globe className="h-4 w-4 mr-1.5 shrink-0" />
+            <SelectTrigger className="flex-1 bg-card dark:bg-white/[0.03] border-border dark:border-white/[0.06] h-9 text-sm rounded-xl">
+              <Globe className="h-4 w-4 mr-1.5 shrink-0 text-muted-foreground/50" />
               <SelectValue placeholder="Pays" />
             </SelectTrigger>
             <SelectContent>
@@ -165,23 +163,23 @@ export default function ChannelsList() {
             size="icon"
             onClick={handleRefresh}
             disabled={channelsLoading}
-            className="shrink-0 bg-card/80 border-border/50 h-9 w-9"
+            className="shrink-0 bg-card dark:bg-white/[0.03] border-border dark:border-white/[0.06] h-9 w-9 rounded-xl hover:bg-accent dark:bg-white/[0.06]"
           >
             <RefreshCw className={`h-4 w-4 ${channelsLoading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
 
         {/* Online Only Toggle + Health Check Button */}
-        <div className="flex items-center justify-between gap-3 bg-card/50 rounded-lg p-2.5 border border-border/30">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-3 bg-secondary dark:bg-white/[0.02] rounded-2xl p-3 border border-border dark:border-white/[0.05]">
+          <div className="flex items-center gap-2.5">
             <Switch
               id="online-only"
               checked={onlineOnly}
               onCheckedChange={setOnlineOnly}
-              className="data-[state=checked]:bg-green-600"
+              className="data-[state=checked]:bg-emerald-600"
             />
             <Label htmlFor="online-only" className="text-xs font-medium cursor-pointer flex items-center gap-1.5">
-              <Wifi className="h-3.5 w-3.5 text-green-500" />
+              <Wifi className="h-3.5 w-3.5 text-emerald-400" />
               {t(language, 'channels.onlineOnly')}
             </Label>
           </div>
@@ -191,7 +189,7 @@ export default function ChannelsList() {
             size="sm"
             onClick={handleCheckAll}
             disabled={checkingChannels}
-            className="h-7 text-[11px] gap-1.5 bg-background/50 border-border/50"
+            className="h-7 text-[11px] gap-1.5 bg-card dark:bg-white/[0.03] border-border dark:border-white/[0.06] rounded-xl hover:bg-accent dark:bg-white/[0.06]"
           >
             {checkingChannels ? (
               <>
@@ -209,22 +207,22 @@ export default function ChannelsList() {
 
         {/* Stats */}
         {(onlineCount > 0 || offlineCount > 0) && (
-          <div className="flex items-center gap-3 text-[11px] text-muted-foreground px-1">
+          <div className="flex items-center gap-3 text-[11px] text-muted-foreground/40 px-1 font-medium">
             {onlineCount > 0 && (
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 {onlineCount} {t(language, 'channels.online')}
               </span>
             )}
             {offlineCount > 0 && (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-red-500" />
                 {offlineCount} {t(language, 'channels.offline')}
               </span>
             )}
             {uncheckedCount > 0 && (
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-gray-500" />
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-muted-foreground/30" />
                 {uncheckedCount} {t(language, 'channels.untested')}{uncheckedCount > 1 ? 's' : ''}
               </span>
             )}
@@ -234,31 +232,34 @@ export default function ChannelsList() {
         {/* Group Tags */}
         {groups.length > 0 && (
           <div className="flex gap-1.5 flex-wrap">
-            <Badge
-              variant={selectedGroup === '' ? 'default' : 'secondary'}
-              className="cursor-pointer text-[10px]"
-              onClick={() => {
-                setSelectedGroup('');
-                setPage(0);
-              }}
+            <button
+              onClick={() => { setSelectedGroup(''); setPage(0); }}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all duration-200 ${
+                selectedGroup === ''
+                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                  : 'bg-card dark:bg-white/[0.03] text-muted-foreground/50 border border-border dark:border-white/[0.05] hover:bg-accent dark:bg-white/[0.06]'
+              }`}
             >
               {t(language, 'common.all')}
-            </Badge>
+            </button>
             {groups.slice(0, 10).map((group) => (
-              <Badge
+              <button
                 key={group}
-                variant={selectedGroup === group ? 'default' : 'secondary'}
-                className="cursor-pointer text-[10px] truncate max-w-[120px]"
                 onClick={() => {
                   setSelectedGroup(selectedGroup === group ? '' : group);
                   setPage(0);
                 }}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all duration-200 truncate max-w-[120px] ${
+                  selectedGroup === group
+                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                    : 'bg-card dark:bg-white/[0.03] text-muted-foreground/50 border border-border dark:border-white/[0.05] hover:bg-accent dark:bg-white/[0.06]'
+                }`}
               >
                 {group}
-              </Badge>
+              </button>
             ))}
             {groups.length > 10 && (
-              <span className="text-[10px] text-muted-foreground self-center">
+              <span className="text-[10px] text-muted-foreground/25 self-center">
                 +{groups.length - 10} {t(language, 'common.more')}
               </span>
             )}
@@ -269,14 +270,18 @@ export default function ChannelsList() {
       {/* Channels List */}
       {channelsLoading && channels.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">{t(language, 'common.loading')}...</p>
+          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-3">
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+          </div>
+          <p className="text-sm text-muted-foreground/50">{t(language, 'common.loading')}...</p>
         </div>
       ) : displayChannels.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Tv className="h-12 w-12 text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">{t(language, 'channels.noChannels')}</p>
-          <p className="text-xs text-muted-foreground/70 mt-1">
+          <div className="w-16 h-16 rounded-2xl bg-card dark:bg-white/[0.03] flex items-center justify-center mb-3 border border-border dark:border-white/[0.05]">
+            <Tv className="h-8 w-8 text-muted-foreground/25" />
+          </div>
+          <p className="text-sm text-muted-foreground/50 font-medium">{t(language, 'channels.noChannels')}</p>
+          <p className="text-xs text-muted-foreground/30 mt-1">
             {onlineOnly ? t(language, 'channels.tryDisableFilter') : t(language, 'channels.adjustFilters')}
           </p>
           {onlineOnly && (
@@ -284,7 +289,7 @@ export default function ChannelsList() {
               variant="outline"
               size="sm"
               onClick={() => setOnlineOnly(false)}
-              className="mt-3"
+              className="mt-3 rounded-xl border-border dark:border-white/[0.06] bg-secondary dark:bg-white/[0.02]"
             >
               <WifiOff className="h-3.5 w-3.5 mr-1.5" />
               {t(language, 'channels.showAllChannels')}
@@ -294,7 +299,7 @@ export default function ChannelsList() {
       ) : (
         <>
           <div className="flex items-center justify-between px-1">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground/40 font-medium">
               {filteredChannels.length} {t(language, 'channels.channelsFound')}{filteredChannels.length !== 1 ? 's' : ''}
             </p>
           </div>
@@ -310,7 +315,7 @@ export default function ChannelsList() {
               <Button
                 variant="outline"
                 onClick={() => setPage(page + 1)}
-                className="bg-card/80 border-border/50"
+                className="bg-card dark:bg-white/[0.03] border-border dark:border-white/[0.06] rounded-xl hover:bg-accent dark:bg-white/[0.06]"
               >
                 {t(language, 'channels.loadMore')}
               </Button>

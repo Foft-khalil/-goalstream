@@ -7,7 +7,7 @@ import { formatShort, formatLong } from '@/lib/date-utils';
 import { Language } from '@/lib/i18n';
 import MatchCard from '@/components/match-card';
 import { usePullRefresh } from '@/hooks/use-pull-refresh';
-import { Loader2, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight, Filter } from 'lucide-react';
+import { Loader2, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight, Filter, Trophy, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /** Get YYYYMMDD string for a Date */
@@ -40,14 +40,13 @@ function getDateLabel(ymd: string, language: Language): string {
   const tomorrow = formatDateYMD(new Date(Date.now() + 86400000));
   const yesterday = formatDateYMD(new Date(Date.now() - 86400000));
 
-  if (ymd === today) return t(language, 'common.today');
+  if (ymd === today) return t(language, 'common.Today');
   if (ymd === tomorrow) return t(language, 'common.tomorrow');
   if (ymd === yesterday) {
     const d = new Date(Date.now() - 86400000);
     return formatLong(d, language);
   }
 
-  // Parse the YYYYMMDD string
   const year = parseInt(ymd.substring(0, 4), 10);
   const month = parseInt(ymd.substring(4, 6), 10) - 1;
   const day = parseInt(ymd.substring(6, 8), 10);
@@ -172,17 +171,15 @@ export default function LiveMatches() {
     const todayYMD = getTodayYMD();
     const dateMap = new Map<string, typeof footballMatches>();
 
-    // Separate live matches (they'll be shown at the top, outside date groups)
+    // Separate live matches
     const nonLiveMatches = footballMatches.filter(m => m.status !== 'live');
 
-    // Group non-live matches by date
     nonLiveMatches.forEach(match => {
       const ymd = match.matchDate ? formatDateYMD(new Date(match.matchDate)) : 'unknown';
       if (!dateMap.has(ymd)) dateMap.set(ymd, []);
       dateMap.get(ymd)!.push(match);
     });
 
-    // Sort date keys chronologically
     const sortedDates = Array.from(dateMap.keys()).sort();
 
     for (const ymd of sortedDates) {
@@ -191,7 +188,6 @@ export default function LiveMatches() {
       const isPast = ymd < todayYMD;
       const isFuture = ymd > todayYMD;
       const label = getDateLabel(ymd, language);
-
       groups.push({ ymd, label, matches, isToday, isPast, isFuture });
     }
 
@@ -223,14 +219,12 @@ export default function LiveMatches() {
   // Apply competition filter + infinite scroll to non-live matches
   const filteredMatchesByDate = useMemo(() => {
     if (!selectedCompetition) return matchesByDate;
-
     return matchesByDate.map(group => ({
       ...group,
       matches: group.matches.filter(m => m.competition === selectedCompetition),
     })).filter(group => group.matches.length > 0);
   }, [matchesByDate, selectedCompetition]);
 
-  // Apply infinite scroll: count total visible non-live matches
   const totalNonLiveMatches = useMemo(() => {
     let total = 0;
     for (const group of filteredMatchesByDate) {
@@ -265,17 +259,17 @@ export default function LiveMatches() {
     return (
       <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
         <div className="relative mb-6">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-600/20 flex items-center justify-center">
-            <Loader2 className="h-10 w-10 animate-spin text-green-500" />
+          <div className="w-20 h-20 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin text-emerald-400" />
           </div>
-          <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-green-500 animate-ping opacity-60" />
+          <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 animate-ping opacity-40" />
         </div>
-        <p className="text-base font-semibold mb-1">{t(language, 'common.loadingMatches')}</p>
-        <p className="text-sm text-muted-foreground/60">...</p>
+        <p className="text-base font-bold mb-1">{t(language, 'common.loadingMatches')}</p>
+        <p className="text-sm text-muted-foreground/40">...</p>
         <div className="flex items-center gap-1.5 mt-4">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '300ms' }} />
         </div>
       </div>
     );
@@ -288,9 +282,9 @@ export default function LiveMatches() {
         <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
           <WifiOff className="h-8 w-8 text-red-400" />
         </div>
-        <h3 className="text-lg font-semibold mb-2">{t(language, 'errors.cannotLoad')}</h3>
-        <p className="text-sm text-muted-foreground mb-5 max-w-xs">{footballError}</p>
-        <Button onClick={handleRetry} size="sm" className="gap-2 bg-green-600 hover:bg-green-700 text-white">
+        <h3 className="text-lg font-bold mb-2">{t(language, 'errors.cannotLoad')}</h3>
+        <p className="text-sm text-muted-foreground/50 mb-5 max-w-xs">{footballError}</p>
+        <Button onClick={handleRetry} size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/25">
           <RefreshCw className="h-4 w-4" />
           {t(language, 'common.retry')}
         </Button>
@@ -308,7 +302,7 @@ export default function LiveMatches() {
           className="flex items-center justify-center transition-all duration-150 ease-out overflow-hidden"
           style={{ height: `${isRefreshing ? 40 : pullDistance}px`, opacity: Math.min(pullDistance / 40, 1) }}
         >
-          <div className="flex items-center gap-2 text-green-500">
+          <div className="flex items-center gap-2 text-emerald-400">
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span className="text-xs font-medium">
               {isRefreshing
@@ -324,13 +318,13 @@ export default function LiveMatches() {
 
       {/* Competition Filter Bar */}
       {uniqueCompetitions.length > 1 && (
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', touchAction: 'pan-x', overscrollBehaviorX: 'contain' }}>
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide" style={{ touchAction: 'pan-x', overscrollBehaviorX: 'contain' }}>
           <button
             onClick={() => handleCompetitionSelect('')}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 whitespace-nowrap ${
               selectedCompetition === ''
-                ? 'bg-green-500/15 text-green-600 border border-green-500/30'
-                : 'bg-muted/50 text-muted-foreground border border-transparent hover:bg-muted/80 hover:text-foreground'
+                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 shadow-sm shadow-emerald-500/10'
+                : 'bg-card dark:bg-white/[0.03] text-muted-foreground/60 border border-border dark:border-white/[0.05] hover:bg-accent dark:bg-white/[0.06] hover:text-foreground'
             }`}
           >
             <Filter className="h-3 w-3" />
@@ -340,10 +334,10 @@ export default function LiveMatches() {
             <button
               key={comp}
               onClick={() => handleCompetitionSelect(comp === selectedCompetition ? '' : comp)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap ${
+              className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 whitespace-nowrap ${
                 selectedCompetition === comp
-                  ? 'bg-green-500/15 text-green-600 border border-green-500/30'
-                  : 'bg-muted/50 text-muted-foreground border border-transparent hover:bg-muted/80 hover:text-foreground'
+                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 shadow-sm shadow-emerald-500/10'
+                  : 'bg-card dark:bg-white/[0.03] text-muted-foreground/60 border border-border dark:border-white/[0.05] hover:bg-accent dark:bg-white/[0.06] hover:text-foreground'
               }`}
             >
               {comp}
@@ -355,37 +349,39 @@ export default function LiveMatches() {
       {/* Header with live count + refresh */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
+          <h2 className="text-xl font-bold flex items-center gap-2.5 tracking-tight">
             {liveMatches.length > 0 ? (
               <>
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-red-500">{liveMatches.length} {t(language, 'common.live').toLowerCase()}</span>
+                <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-red-500/15">
+                  <Zap className="h-3.5 w-3.5 text-red-400" />
+                </div>
+                <span className="text-red-400">{liveMatches.length} {t(language, 'common.live').toLowerCase()}</span>
               </>
             ) : (
               <>
-                <Wifi className="h-5 w-5 text-green-500" />
+                <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500/10">
+                  <Wifi className="h-3.5 w-3.5 text-emerald-400" />
+                </div>
                 <span>{totalMatches} {t(language, 'nav.matches').toLowerCase()}</span>
               </>
             )}
           </h2>
-          <div className="flex items-center gap-2 mt-0.5">
-            {liveMatches.length > 0 && (
-              <span className="text-sm text-muted-foreground">
-                {totalMatches - liveMatches.length} {t(language, 'common.otherMatches') || t(language, 'nav.matches').toLowerCase()}
-              </span>
-            )}
-          </div>
+          {liveMatches.length > 0 && (
+            <p className="text-sm text-muted-foreground/50 mt-0.5 ml-8.5">
+              {totalMatches - liveMatches.length} {t(language, 'common.otherMatches') || t(language, 'nav.matches').toLowerCase()}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground/40 tabular-nums">
-            {t(language, 'common.update')} {countdownStr}
+          <span className="text-[10px] text-muted-foreground/30 tabular-nums font-medium">
+            {countdownStr}
           </span>
           <Button
             variant="outline"
             size="icon"
             onClick={handleRetry}
             disabled={footballLoading}
-            className="h-8 w-8 rounded-lg border-border/50"
+            className="h-8 w-8 rounded-xl border-border dark:border-white/[0.06] bg-secondary dark:bg-white/[0.02] hover:bg-accent dark:bg-white/[0.05]"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${footballLoading ? 'animate-spin' : ''}`} />
           </Button>
@@ -394,10 +390,10 @@ export default function LiveMatches() {
 
       {/* Error banner */}
       {footballError && footballMatches.length > 0 && (
-        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/15 text-xs text-red-400">
+        <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-red-500/8 border border-red-500/10 text-xs text-red-400 glass-card">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
           <span>{footballError}</span>
-          <Button variant="ghost" size="sm" onClick={handleRetry} className="ml-auto h-5 px-2 text-[10px] text-red-400">
+          <Button variant="ghost" size="sm" onClick={handleRetry} className="ml-auto h-5 px-2 text-[10px] text-red-400 hover:bg-red-500/10">
             {t(language, 'common.retry')}
           </Button>
         </div>
@@ -405,12 +401,12 @@ export default function LiveMatches() {
 
       {/* ─── Empty state ─── */}
       {footballMatches.length === 0 && (loadingTimeout || footballError) && (
-        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
-            <Calendar className="h-8 w-8 text-muted-foreground/40" />
+        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-card dark:bg-white/[0.03] flex items-center justify-center mb-4 border border-border dark:border-white/[0.05]">
+            <Calendar className="h-8 w-8 text-muted-foreground/30" />
           </div>
-          <h3 className="text-base font-semibold mb-1">{t(language, 'common.noMatchesNow')}</h3>
-          <p className="text-sm text-muted-foreground/60">
+          <h3 className="text-base font-bold mb-1">{t(language, 'common.noMatchesNow')}</h3>
+          <p className="text-sm text-muted-foreground/40">
             {t(language, 'common.checkBackLater')}
           </p>
         </div>
@@ -419,11 +415,12 @@ export default function LiveMatches() {
       {/* ===== LIVE MATCHES (always at top) ===== */}
       {liveMatches.length > 0 && (
         <section>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/15">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/15">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-xs font-bold text-red-500 uppercase tracking-wide">{t(language, 'common.live')}</span>
+              <span className="text-[11px] font-bold text-red-400 uppercase tracking-wider">{t(language, 'common.live')}</span>
             </div>
+            <div className="h-px flex-1 bg-gradient-to-r from-red-500/20 to-transparent" />
           </div>
           <div className="space-y-3">
             {liveMatches.map((match) => (
@@ -456,38 +453,38 @@ export default function LiveMatches() {
         return (
           <section key={group.ymd}>
             {/* Date header */}
-            <div className="flex items-center gap-3 mb-3 sticky top-14 z-10 bg-background/90 backdrop-blur-sm py-1 -mx-1 px-1">
+            <div className="flex items-center gap-3 mb-3 sticky top-14 z-10 bg-background/90 backdrop-blur-xl py-1.5 -mx-1 px-1">
               <div className="flex items-center gap-2">
                 {group.isToday ? (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-green-500/10 border border-green-500/20">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                    <span className="text-sm font-bold text-green-500">{group.label}</span>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/15">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="text-sm font-bold text-emerald-400">{group.label}</span>
                   </div>
                 ) : group.isPast ? (
-                  <span className="text-sm font-semibold text-muted-foreground/60">{group.label}</span>
+                  <span className="text-sm font-semibold text-muted-foreground/40">{group.label}</span>
                 ) : (
-                  <span className="text-sm font-semibold text-foreground/80">{group.label}</span>
+                  <span className="text-sm font-semibold text-foreground/70">{group.label}</span>
                 )}
-                <span className="text-[10px] text-muted-foreground/40 font-medium">
+                <span className="text-[10px] text-muted-foreground/30 font-medium">
                   {group.matches.length} {t(language, 'nav.matches').toLowerCase()}
                 </span>
               </div>
-              <div className="h-px flex-1 bg-border/30" />
+              <div className="h-px flex-1 bg-card dark:bg-white/[0.04]" />
             </div>
 
             {/* Upcoming matches by competition */}
             {Object.entries(upcomingByComp).map(([competition, matches]) => (
-              <div key={competition} className="mb-3">
-                <div className="flex items-center gap-2.5 mb-2">
-                  <div className="h-px flex-1 bg-border/30" />
-                  <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-muted/50 border border-border/20">
-                    <Sparkles className="h-3 w-3 text-amber-500" />
-                    <span className="text-[11px] font-semibold text-muted-foreground">{competition}</span>
-                    <span className="text-[9px] text-muted-foreground/40">{matches.length}</span>
+              <div key={competition} className="mb-4">
+                <div className="flex items-center gap-2.5 mb-2.5">
+                  <div className="h-px flex-1 bg-card dark:bg-white/[0.03]" />
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-card dark:bg-white/[0.03] border border-border dark:border-white/[0.04]">
+                    <Trophy className="h-3 w-3 text-emerald-400/60" />
+                    <span className="text-[11px] font-semibold text-muted-foreground/60">{competition}</span>
+                    <span className="text-[9px] text-muted-foreground/30 font-medium">{matches.length}</span>
                   </div>
-                  <div className="h-px flex-1 bg-border/30" />
+                  <div className="h-px flex-1 bg-card dark:bg-white/[0.03]" />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {matches.map((match) => (
                     <MatchCard key={match.id} match={match} />
                   ))}
@@ -498,19 +495,19 @@ export default function LiveMatches() {
             {/* Finished matches by competition */}
             {Object.keys(finishedByComp).length > 0 && (
               <div className="mb-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/40 border border-border/20">
-                    <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
-                    <span className="text-[11px] font-semibold text-muted-foreground/50 uppercase tracking-wide">{t(language, 'common.finished')}</span>
-                    <span className="text-[9px] text-muted-foreground/30">{finished.length}</span>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-secondary dark:bg-white/[0.02] border border-white/[0.03]">
+                    <ChevronRight className="h-3 w-3 text-muted-foreground/30" />
+                    <span className="text-[11px] font-semibold text-muted-foreground/30 uppercase tracking-wider">{t(language, 'common.finished')}</span>
+                    <span className="text-[9px] text-muted-foreground/20">{finished.length}</span>
                   </div>
                 </div>
                 <div className="space-y-2">
                   {Object.entries(finishedByComp).map(([competition, matches]) => (
                     <div key={competition}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-medium text-muted-foreground/30">{competition}</span>
-                        <div className="h-px flex-1 bg-border/15" />
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] font-medium text-muted-foreground/25">{competition}</span>
+                        <div className="h-px flex-1 bg-secondary dark:bg-white/[0.02]" />
                       </div>
                       {matches.map((match) => (
                         <MatchCard key={match.id} match={match} />
@@ -530,14 +527,14 @@ export default function LiveMatches() {
           <div ref={loadMoreRef} className="h-1" />
           {hasMoreMatches && (
             <div className="flex items-center gap-2">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-green-500/60" />
-              <span className="text-xs text-muted-foreground/60">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400/50" />
+              <span className="text-xs text-muted-foreground/40">
                 {Math.min(visibleCount, totalNonLiveMatches)} / {totalNonLiveMatches} {t(language, 'nav.matches').toLowerCase()}
               </span>
             </div>
           )}
           {!hasMoreMatches && totalNonLiveMatches > 20 && (
-            <span className="text-xs text-muted-foreground/40">
+            <span className="text-xs text-muted-foreground/25">
               {totalNonLiveMatches} {t(language, 'nav.matches').toLowerCase()}
             </span>
           )}
@@ -545,7 +542,7 @@ export default function LiveMatches() {
       )}
 
       {/* Footer info */}
-      <div className="text-center text-[10px] text-muted-foreground/30 pt-1">
+      <div className="text-center text-[10px] text-muted-foreground/20 pt-1 font-medium">
         {t(language, 'common.update')} {hasLive ? '15s' : '2 min'}{hasLive ? ` (${t(language, 'common.live').toLowerCase()})` : ''}
       </div>
     </div>

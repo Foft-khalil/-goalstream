@@ -696,3 +696,35 @@ Stage Summary:
 - Store integration allows centralized HesGoal data fetching and stream URL merging
 - match-card.tsx simplified: uses store data instead of per-card API calls
 - All lint checks pass, app working correctly in browser
+---
+Task ID: 1-7
+Agent: main
+Task: Complete UI redesign of GoalStream to premium sports streaming design
+
+Work Log:
+- Redesigned globals.css with new premium dark sports streaming color palette (deep navy blacks, emerald green accents)
+- Added glassmorphism CSS classes (glass-card, glass-card-live, glass-card-basketball) with theme-aware light/dark mode support
+- Added premium CSS animations: shimmer, score-pulse (red), score-pulse-orange (orange), nav-active-glow
+- Added theme-aware glass surface utility classes for light/dark mode compatibility
+- Redesigned page.tsx with premium header (gradient background, glassmorphism blur), modern desktop nav, premium mobile bottom nav with active indicator glow
+- Redesigned match-card.tsx with glassmorphism cards, larger team logos (w-10), score pulse animations, premium hover lifts, gradient accent bars
+- Redesigned basketball-match-card.tsx with orange accent glassmorphism, orange score pulse animation
+- Redesigned channel-card.tsx with glassmorphism cards, emerald gradient play button, status dot glow effects, premium hover animations
+- Redesigned live-matches.tsx with premium section headers, glassmorphism competition pills, gradient dividers
+- Redesigned channels-list.tsx with premium search/filter UI, glassmorphism toggle, emerald competition tags
+- Redesigned favorites-view.tsx with premium team pills, glassmorphism match cards, gradient section headers
+- Redesigned language-selector.tsx with premium dropdown styling
+- Updated layout.tsx theme-color to #10b981 (emerald)
+- Fixed theme toggle functionality - now properly switches between dark and light modes
+- Added light/dark mode compatibility using Tailwind dark: variants for all glass surfaces
+- Bulk replaced bg-white/[0.0X] → bg-card dark:bg-white/[0.0X] and border-white/[0.0X] → border-border dark:border-white/[0.0X]
+- Verified with Agent Browser: dark mode, light mode, mobile responsive, navigation, channels view, basketball view all working
+- No hydration errors, no console errors
+
+Stage Summary:
+- Complete premium UI redesign inspired by ESPN, DAZN, Sofascore
+- Dark mode: Deep navy blacks (#0a0a0f) with glassmorphism cards, emerald green accents, red live indicators
+- Light mode: Clean white/gray with subtle borders, same accent colors
+- Theme toggle now works correctly
+- All components updated: match cards, channel cards, basketball cards, favorites, navigation
+- App compiles and runs without errors

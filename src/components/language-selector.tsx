@@ -21,23 +21,23 @@ export default function LanguageSelector() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 relative rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-muted/50"
+          className="h-8 w-8 relative rounded-xl text-muted-foreground/50 hover:text-foreground hover:bg-white/5"
           title={currentLang.label}
         >
           <Globe className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuContent align="end" className="w-44 rounded-xl border-border dark:border-white/[0.06] bg-popover/95 backdrop-blur-xl">
         {availableLanguages.map((lang) => (
           <DropdownMenuItem
             key={lang.code}
             onClick={() => setLanguage(lang.code)}
-            className="flex items-center gap-2 cursor-pointer"
+            className="flex items-center gap-2 cursor-pointer rounded-lg focus:bg-white/5 focus:text-foreground"
           >
             <span className="text-base">{lang.flag}</span>
             <span className="flex-1 text-sm">{lang.label}</span>
             {language === lang.code && (
-              <Check className="h-3.5 w-3.5 text-green-500" />
+              <Check className="h-3.5 w-3.5 text-emerald-400" />
             )}
           </DropdownMenuItem>
         ))}

@@ -5,7 +5,7 @@ import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Play, Tv, Heart, Star, Clock, Radio, Trash2, WifiOff, X, Zap, Users, Globe } from 'lucide-react';
+import { Play, Tv, Heart, Star, Clock, Radio, Trash2, WifiOff, X, Zap, Users, Globe, Trophy } from 'lucide-react';
 import { useState } from 'react';
 import StreamOptions from '@/components/stream-options';
 
@@ -20,7 +20,6 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
   const matchDate = match.matchDate ? new Date(match.matchDate) : null;
   const timeStr = matchDate ? matchDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
-  // Determine date label
   const dateLabel = (() => {
     if (!matchDate) return '';
     const now = new Date();
@@ -30,7 +29,7 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
     const tomorrowYMD = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
     const dayAfter = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
     const dayAfterYMD = `${dayAfter.getFullYear()}-${String(dayAfter.getMonth() + 1).padStart(2, '0')}-${String(dayAfter.getDate()).padStart(2, '0')}`;
-    if (matchYMD === todayYMD) return t(language, 'common.today');
+    if (matchYMD === todayYMD) return t(language, 'common.Today');
     if (matchYMD === tomorrowYMD) return t(language, 'common.tomorrow');
     if (matchYMD === dayAfterYMD) return t(language, 'dates.dayAfter');
     return matchDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
@@ -45,29 +44,34 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
   return (
     <>
       <div
-        className={`group relative rounded-xl overflow-hidden transition-all duration-200 ${
+        className={`group relative rounded-2xl overflow-hidden transition-all duration-300 hover:translate-y-[-1px] ${
           isLive
-            ? 'bg-gradient-to-r from-red-950/30 via-card to-red-950/20 border border-red-500/20 shadow-lg shadow-red-500/5'
-            : 'bg-card/80 border border-border/40 hover:border-border/70 hover:bg-card'
+            ? 'glass-card-live shadow-lg shadow-red-500/5'
+            : 'glass-card'
         }`}
       >
-        <div className="px-4 py-3.5">
+        {isLive && <div className="absolute inset-0 shimmer pointer-events-none" />}
+        
+        <div className="relative px-4 py-3.5">
           {/* Competition + status */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] text-muted-foreground/60 font-medium">
-              {match.competition || t(language, 'match.friendly')}
-            </span>
+            <div className="flex items-center gap-2">
+              <div className={`w-1 h-4 rounded-full ${isLive ? 'bg-red-500' : 'bg-emerald-500/60'}`} />
+              <span className="text-[11px] text-muted-foreground/50 font-semibold uppercase tracking-wide">
+                {match.competition || t(language, 'match.friendly')}
+              </span>
+            </div>
             {isLive ? (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/15">
                 <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[11px] font-bold text-red-500 tracking-wide">
+                <span className="text-[10px] font-bold text-red-400 tracking-wide">
                   {match.minute != null ? `${match.minute}'` : 'LIVE'}
                 </span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
-                <Clock className="h-3 w-3 text-muted-foreground/40" />
-                <span className="text-[11px] font-semibold text-muted-foreground">
+                <Clock className="h-3 w-3 text-emerald-500/40" />
+                <span className="text-[11px] font-semibold text-muted-foreground/50">
                   {dateLabel ? `${dateLabel} ` : ''}{timeStr}
                 </span>
               </div>
@@ -75,42 +79,42 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
           </div>
 
           {/* Teams */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
               {match.homeLogo ? (
                 <img
                   src={match.homeLogo}
                   alt={match.homeTeam}
-                  className="w-9 h-9 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
+                  className="w-10 h-10 rounded-xl object-contain bg-card dark:bg-white/[0.03] p-1 shrink-0"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : (
-                <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center text-[11px] font-bold shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-card dark:bg-white/[0.04] flex items-center justify-center text-[11px] font-bold shrink-0 text-muted-foreground/50">
                   {match.homeTeam.slice(0, 2).toUpperCase()}
                 </div>
               )}
-              <span className={`font-semibold text-sm truncate ${homeFav ? 'text-green-500' : ''}`}>
+              <span className={`font-semibold text-[13px] truncate ${homeFav ? 'text-emerald-400' : ''}`}>
                 {match.homeTeam}
               </span>
               <button
                 onClick={() => toggleTeamFavorite(match.homeTeam, match.homeLogo)}
-                className="shrink-0 ml-auto"
+                className="shrink-0 ml-auto opacity-40 hover:opacity-100 transition-opacity"
                 title={homeFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
               >
-                <Heart className={`h-3.5 w-3.5 transition-colors ${homeFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
+                <Heart className={`h-3.5 w-3.5 transition-colors ${homeFav ? 'fill-emerald-400 text-emerald-400' : 'text-muted-foreground hover:text-emerald-400'}`} />
               </button>
             </div>
 
-            <div className="flex flex-col items-center shrink-0 px-1">
+            <div className="flex flex-col items-center shrink-0 px-2 min-w-[60px]">
               {isLive ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-lg font-black tabular-nums text-red-400">{homeScore}</span>
-                  <span className="text-xs text-muted-foreground/40 font-medium">-</span>
-                  <span className="text-lg font-black tabular-nums text-red-400">{awayScore}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-black tabular-nums text-red-400 score-pulse">{homeScore}</span>
+                  <span className="text-xs text-muted-foreground/30 font-bold">:</span>
+                  <span className="text-xl font-black tabular-nums text-red-400 score-pulse">{awayScore}</span>
                 </div>
               ) : (
-                <div className="px-3 py-1 rounded-md bg-muted/40 border border-border/20">
-                  <span className="text-xs font-bold text-muted-foreground/60 tracking-wider">VS</span>
+                <div className="px-4 py-1.5 rounded-xl bg-card dark:bg-white/[0.03] border border-border dark:border-white/[0.05]">
+                  <span className="text-xs font-bold text-muted-foreground/40 tracking-[0.2em]">VS</span>
                 </div>
               )}
             </div>
@@ -118,23 +122,23 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
             <div className="flex items-center gap-2.5 flex-1 min-w-0 justify-end">
               <button
                 onClick={() => toggleTeamFavorite(match.awayTeam, match.awayLogo)}
-                className="shrink-0"
+                className="shrink-0 opacity-40 hover:opacity-100 transition-opacity"
                 title={awayFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
               >
-                <Heart className={`h-3.5 w-3.5 transition-colors ${awayFav ? 'fill-green-500 text-green-500' : 'text-muted-foreground/30 hover:text-green-500'}`} />
+                <Heart className={`h-3.5 w-3.5 transition-colors ${awayFav ? 'fill-emerald-400 text-emerald-400' : 'text-muted-foreground hover:text-emerald-400'}`} />
               </button>
-              <span className={`font-semibold text-sm truncate text-right ${awayFav ? 'text-green-500' : ''}`}>
+              <span className={`font-semibold text-[13px] truncate text-right ${awayFav ? 'text-emerald-400' : ''}`}>
                 {match.awayTeam}
               </span>
               {match.awayLogo ? (
                 <img
                   src={match.awayLogo}
                   alt={match.awayTeam}
-                  className="w-9 h-9 rounded-lg object-contain bg-muted/40 p-0.5 shrink-0"
+                  className="w-10 h-10 rounded-xl object-contain bg-card dark:bg-white/[0.03] p-1 shrink-0"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : (
-                <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center text-[11px] font-bold shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-card dark:bg-white/[0.04] flex items-center justify-center text-[11px] font-bold shrink-0 text-muted-foreground/50">
                   {match.awayTeam.slice(0, 2).toUpperCase()}
                 </div>
               )}
@@ -142,14 +146,14 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
           </div>
 
           {/* Watch button */}
-          <div className="mt-3 pt-2.5 border-t border-border/20">
+          <div className="mt-3 pt-3 border-t border-border dark:border-white/[0.04]">
             <Button
               size="sm"
               onClick={() => setShowStreamOptions(true)}
-              className={`w-full h-8 gap-2 text-xs font-semibold rounded-lg transition-all ${
+              className={`w-full h-9 gap-2 text-xs font-bold rounded-xl transition-all duration-200 ${
                 isLive
-                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-600/20'
-                  : 'bg-green-600 hover:bg-green-700 text-white shadow-sm shadow-green-600/20'
+                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/25'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/25'
               }`}
             >
               {isLive ? (
@@ -186,19 +190,19 @@ function FavoriteChannelCard({ channel }: { channel: { name: string; logo: strin
   const { removeChannelFavorite } = useFavorites();
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-card/80 border border-border/40 hover:border-border/70 hover:bg-card transition-all group">
+    <div className="flex items-center gap-3 p-3 rounded-2xl glass-card hover:border-border dark:border-white/[0.10] transition-all duration-300 group">
       {/* Logo */}
       <div className="shrink-0">
         {channel.logo ? (
           <img
             src={channel.logo}
             alt={channel.name}
-            className="w-11 h-11 rounded-lg object-contain bg-muted/50 p-1 group-hover:scale-105 transition-transform"
+            className="w-11 h-11 rounded-xl object-contain bg-card dark:bg-white/[0.03] p-1 group-hover:scale-105 transition-transform duration-300"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         ) : (
-          <div className="w-11 h-11 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
-            <Tv className="h-5 w-5 text-muted-foreground" />
+          <div className="w-11 h-11 rounded-xl bg-card dark:bg-white/[0.04] flex items-center justify-center shrink-0">
+            <Tv className="h-5 w-5 text-muted-foreground/40" />
           </div>
         )}
       </div>
@@ -207,9 +211,7 @@ function FavoriteChannelCard({ channel }: { channel: { name: string; logo: strin
       <div className="flex-1 min-w-0">
         <h3 className="font-semibold text-sm truncate">{channel.name}</h3>
         {channel.group && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 mt-1">
-            {channel.group}
-          </Badge>
+          <span className="text-[10px] text-muted-foreground/40 font-medium mt-0.5 block">{channel.group}</span>
         )}
       </div>
 
@@ -218,7 +220,7 @@ function FavoriteChannelCard({ channel }: { channel: { name: string; logo: strin
         <Button
           size="sm"
           onClick={() => openPlayer(channel.url, channel.name, channel.logo || undefined)}
-          className="h-8 gap-1.5 text-xs bg-green-600 hover:bg-green-700 text-white"
+          className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20"
         >
           <Play className="h-3 w-3 fill-current" />
           <span className="hidden sm:inline">{t(language, 'match.watch')}</span>
@@ -227,7 +229,7 @@ function FavoriteChannelCard({ channel }: { channel: { name: string; logo: strin
           variant="ghost"
           size="icon"
           onClick={() => removeChannelFavorite(channel.url)}
-          className="h-8 w-8 text-muted-foreground/50 hover:text-red-400"
+          className="h-8 w-8 text-muted-foreground/30 hover:text-red-400 rounded-xl hover:bg-red-500/10"
         >
           <X className="h-3.5 w-3.5" />
         </Button>
@@ -258,11 +260,13 @@ export default function FavoritesView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Heart className="h-5 w-5 text-green-500 fill-green-500" />
+          <h2 className="text-xl font-bold flex items-center gap-2.5 tracking-tight">
+            <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-emerald-500/10">
+              <Heart className="h-3.5 w-3.5 text-emerald-400 fill-emerald-400" />
+            </div>
             {t(language, 'favorites.myFavorites')}
           </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-sm text-muted-foreground/40 mt-0.5 ml-9.5">
             {favoriteTeams.length} {t(language, 'favorites.teams')}{favoriteTeams.length !== 1 ? 's' : ''} · {favoriteChannels.length} {t(language, 'favorites.channels')}{favoriteChannels.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -274,7 +278,7 @@ export default function FavoritesView() {
                   variant="destructive"
                   size="sm"
                   onClick={() => { clearAll(); setConfirmClear(false); }}
-                  className="h-7 text-[11px] gap-1"
+                  className="h-7 text-[11px] gap-1 rounded-xl"
                 >
                   <Trash2 className="h-3 w-3" />
                   {t(language, 'common.confirm')}
@@ -283,7 +287,7 @@ export default function FavoritesView() {
                   variant="outline"
                   size="sm"
                   onClick={() => setConfirmClear(false)}
-                  className="h-7 text-[11px]"
+                  className="h-7 text-[11px] rounded-xl border-border dark:border-white/[0.06]"
                 >
                   {t(language, 'common.cancel')}
                 </Button>
@@ -293,7 +297,7 @@ export default function FavoritesView() {
                 variant="outline"
                 size="sm"
                 onClick={() => setConfirmClear(true)}
-                className="h-7 text-[11px] gap-1 border-border/40 text-muted-foreground"
+                className="h-7 text-[11px] gap-1 border-border dark:border-white/[0.06] bg-secondary dark:bg-white/[0.02] text-muted-foreground/50 rounded-xl hover:bg-accent dark:bg-white/[0.05]"
               >
                 <Trash2 className="h-3 w-3" />
                 {t(language, 'common.clearAll')}
@@ -306,14 +310,14 @@ export default function FavoritesView() {
       {/* Empty state */}
       {!hasContent && (
         <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-600/10 flex items-center justify-center mb-4">
-            <Star className="h-10 w-10 text-green-500/40" />
+          <div className="w-20 h-20 rounded-2xl bg-emerald-500/5 flex items-center justify-center mb-4 border border-emerald-500/10">
+            <Star className="h-10 w-10 text-emerald-400/30" />
           </div>
-          <h3 className="text-lg font-semibold mb-2">{t(language, 'favorites.noFavorites')}</h3>
-          <p className="text-sm text-muted-foreground/60 max-w-xs mb-4">
+          <h3 className="text-lg font-bold mb-2">{t(language, 'favorites.noFavorites')}</h3>
+          <p className="text-sm text-muted-foreground/40 max-w-xs mb-4">
             {t(language, 'favorites.addFavoritesHint')}
           </p>
-          <div className="flex items-center gap-4 text-xs text-muted-foreground/40">
+          <div className="flex items-center gap-4 text-xs text-muted-foreground/30">
             <div className="flex items-center gap-1.5">
               <Heart className="h-3.5 w-3.5" />
               <span>{t(language, 'favorites.tapHeart')}</span>
@@ -329,13 +333,14 @@ export default function FavoritesView() {
       {/* Favorite teams section */}
       {favoriteTeams.length > 0 && (
         <section>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-green-500/10 border border-green-500/15">
-              <Users className="h-3.5 w-3.5 text-green-500" />
-              <span className="text-xs font-bold text-green-500 uppercase tracking-wide">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/15">
+              <Users className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
                 {t(language, 'favorites.favoriteTeams')} ({favoriteTeams.length})
               </span>
             </div>
+            <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/15 to-transparent" />
           </div>
           
           {/* Team pills */}
@@ -343,7 +348,7 @@ export default function FavoritesView() {
             {favoriteTeams.map((team) => (
               <div
                 key={team.name}
-                className="flex items-center gap-2 pl-1.5 pr-2.5 py-1.5 rounded-xl bg-card/80 border border-border/40 hover:border-green-500/30 transition-all group/team"
+                className="flex items-center gap-2 pl-2 pr-3 py-2 rounded-xl bg-card dark:bg-white/[0.03] border border-border dark:border-white/[0.05] hover:border-emerald-500/20 transition-all duration-200 group/team"
               >
                 {team.logo ? (
                   <img
@@ -353,14 +358,14 @@ export default function FavoritesView() {
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                 ) : (
-                  <div className="w-6 h-6 rounded bg-muted/60 flex items-center justify-center text-[8px] font-bold">
+                  <div className="w-6 h-6 rounded bg-card dark:bg-white/[0.04] flex items-center justify-center text-[8px] font-bold text-muted-foreground/40">
                     {team.name.slice(0, 2).toUpperCase()}
                   </div>
                 )}
                 <span className="text-xs font-semibold">{team.name}</span>
                 <button
                   onClick={() => removeTeamFavorite(team.name)}
-                  className="ml-0.5 opacity-40 group-hover/team:opacity-100 hover:text-red-400 transition-all"
+                  className="ml-0.5 opacity-30 group-hover/team:opacity-100 hover:text-red-400 transition-all"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -373,8 +378,8 @@ export default function FavoritesView() {
             <div className="space-y-3">
               {/* Live matches first */}
               {liveMatches.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-red-500">
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2 text-[11px] font-bold text-red-400">
                     <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                     {t(language, 'common.live').toUpperCase()} ({liveMatches.length})
                   </div>
@@ -386,8 +391,8 @@ export default function FavoritesView() {
 
               {/* Upcoming */}
               {upcomingMatches.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground mt-1">
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground/40 mt-1">
                     <Clock className="h-3 w-3" />
                     {t(language, 'common.upcoming').toUpperCase()} ({upcomingMatches.length})
                   </div>
@@ -399,8 +404,8 @@ export default function FavoritesView() {
 
               {/* Finished */}
               {finishedMatches.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground/50 mt-1">
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground/25 mt-1">
                     {t(language, 'common.finished').toUpperCase()} ({finishedMatches.length})
                   </div>
                   {finishedMatches.map((match) => (
@@ -410,10 +415,10 @@ export default function FavoritesView() {
               )}
             </div>
           ) : (
-            <div className="flex flex-col items-center py-8 px-4 text-center rounded-xl bg-muted/20 border border-border/20">
-              <WifiOff className="h-8 w-8 text-muted-foreground/20 mb-2" />
-              <p className="text-sm text-muted-foreground/60">{t(language, 'favorites.noMatches')}</p>
-              <p className="text-xs text-muted-foreground/40 mt-1">{t(language, 'favorites.comeBackLater')}</p>
+            <div className="flex flex-col items-center py-8 px-4 text-center rounded-2xl bg-secondary dark:bg-white/[0.02] border border-border dark:border-white/[0.04]">
+              <WifiOff className="h-8 w-8 text-muted-foreground/15 mb-2" />
+              <p className="text-sm text-muted-foreground/40">{t(language, 'favorites.noMatches')}</p>
+              <p className="text-xs text-muted-foreground/25 mt-1">{t(language, 'favorites.comeBackLater')}</p>
             </div>
           )}
         </section>
@@ -422,13 +427,14 @@ export default function FavoritesView() {
       {/* Favorite channels section */}
       {favoriteChannels.length > 0 && (
         <section>
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/15">
-              <Tv className="h-3.5 w-3.5 text-amber-500" />
-              <span className="text-xs font-bold text-amber-500 uppercase tracking-wide">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/15">
+              <Tv className="h-3.5 w-3.5 text-amber-400" />
+              <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
                 {t(language, 'favorites.favoriteChannels')} ({favoriteChannels.length})
               </span>
             </div>
+            <div className="h-px flex-1 bg-gradient-to-r from-amber-500/15 to-transparent" />
           </div>
           <div className="space-y-2">
             {favoriteChannels.map((channel) => (
@@ -439,7 +445,7 @@ export default function FavoritesView() {
       )}
 
       {/* Footer */}
-      <div className="text-center text-[10px] text-muted-foreground/30 pt-1">
+      <div className="text-center text-[10px] text-muted-foreground/20 pt-1 font-medium">
         {t(language, 'favorites.savedLocally')}
       </div>
     </div>
