@@ -21,23 +21,23 @@
 :root {
   --radius: 0.75rem;
   --background: 0 0% 97%;
-  --foreground: 220 20% 10%;
+  --foreground: 240 10% 8%;
   --card: 0 0% 100%;
-  --card-foreground: 220 20% 10%;
+  --card-foreground: 240 10% 8%;
   --popover: 0 0% 100%;
-  --popover-foreground: 220 20% 10%;
+  --popover-foreground: 240 10% 8%;
   --primary: 160 84% 39%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 220 14% 96%;
-  --secondary-foreground: 220 20% 10%;
-  --muted: 220 14% 96%;
-  --muted-foreground: 220 10% 46%;
-  --accent: 220 14% 96%;
-  --accent-foreground: 220 20% 10%;
+  --secondary: 240 5% 95%;
+  --secondary-foreground: 240 10% 8%;
+  --muted: 240 5% 95%;
+  --muted-foreground: 240 5% 46%;
+  --accent: 240 5% 95%;
+  --accent-foreground: 240 10% 8%;
   --destructive: 0 84% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
+  --border: 240 5% 90%;
+  --input: 240 5% 90%;
   --ring: 160 84% 39%;
   --chart-1: 160 84% 39%;
   --chart-2: 22 91% 48%;
@@ -45,48 +45,48 @@
   --chart-4: 84 81% 44%;
   --chart-5: 48 85% 57%;
   --sidebar: 0 0% 98%;
-  --sidebar-foreground: 220 20% 10%;
+  --sidebar-foreground: 240 10% 8%;
   --sidebar-primary: 160 84% 39%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 220 14% 96%;
-  --sidebar-accent-foreground: 220 20% 10%;
-  --sidebar-border: 220 13% 91%;
+  --sidebar-accent: 240 5% 95%;
+  --sidebar-accent-foreground: 240 10% 8%;
+  --sidebar-border: 240 5% 90%;
   --sidebar-ring: 160 84% 39%;
 }
 
-/* ─── Dark theme — Premium Sports Streaming ─── */
+/* ─── Dark theme — Premium Sports Streaming (DAZN/beIN style) ─── */
 .dark {
-  --background: 224 30% 5%;
-  --foreground: 210 20% 98%;
-  --card: 224 25% 8%;
-  --card-foreground: 210 20% 98%;
-  --popover: 224 25% 9%;
-  --popover-foreground: 210 20% 98%;
+  --background: 240 20% 3.5%;
+  --foreground: 0 0% 98%;
+  --card: 240 16% 6%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 16% 7%;
+  --popover-foreground: 0 0% 98%;
   --primary: 160 84% 39%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 224 20% 13%;
-  --secondary-foreground: 210 20% 98%;
-  --muted: 224 20% 13%;
-  --muted-foreground: 215 14% 53%;
-  --accent: 224 20% 13%;
-  --accent-foreground: 210 20% 98%;
+  --secondary: 240 12% 10%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 12% 10%;
+  --muted-foreground: 240 8% 47%;
+  --accent: 240 12% 10%;
+  --accent-foreground: 0 0% 98%;
   --destructive: 0 84% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 224 16% 16%;
-  --input: 224 16% 16%;
+  --border: 240 10% 14%;
+  --input: 240 10% 14%;
   --ring: 160 84% 39%;
   --chart-1: 160 84% 39%;
   --chart-2: 22 91% 48%;
   --chart-3: 215 16% 47%;
   --chart-4: 84 81% 44%;
   --chart-5: 48 85% 57%;
-  --sidebar: 224 25% 7%;
-  --sidebar-foreground: 210 20% 98%;
+  --sidebar: 240 18% 5%;
+  --sidebar-foreground: 0 0% 98%;
   --sidebar-primary: 160 84% 39%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 224 20% 13%;
-  --sidebar-accent-foreground: 210 20% 98%;
-  --sidebar-border: 224 16% 16%;
+  --sidebar-accent: 240 12% 10%;
+  --sidebar-accent-foreground: 0 0% 98%;
+  --sidebar-border: 240 10% 14%;
   --sidebar-ring: 160 84% 39%;
 }
 
@@ -107,17 +107,17 @@
 
 /* ─── Custom scrollbar ─── */
 ::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.25);
+  background: rgba(100, 116, 139, 0.2);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.4);
+  background: rgba(100, 116, 139, 0.35);
 }
 
 /* ─── Safe area for mobile bottom nav ─── */
@@ -137,14 +137,19 @@
 /* ─── Live pulse animation ─── */
 @keyframes live-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.3); }
+  50% { opacity: 0.5; transform: scale(1.4); }
 }
 .animate-live-pulse {
   animation: live-pulse 2s ease-in-out infinite;
 }
 
-/* ─── Green glow for live indicator ─── */
+/* ─── Red glow for live indicator ─── */
 .live-glow {
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+}
+
+/* ─── Green glow for online indicator ─── */
+.online-glow {
   box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
 }
 
@@ -160,7 +165,7 @@
   100% { background-position: 200% 0; }
 }
 .shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
@@ -172,34 +177,34 @@
   border-radius: 1rem;
 }
 .dark .glass-card {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.025);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .glass-card-live {
   background: hsl(var(--card));
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.15);
   border-radius: 1rem;
 }
 .dark .glass-card-live {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(239, 68, 68, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(239, 68, 68, 0.04) 100%);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.12);
 }
 
 .glass-card-basketball {
   background: hsl(var(--card));
-  border: 1px solid rgba(249, 115, 22, 0.2);
+  border: 1px solid rgba(249, 115, 22, 0.15);
   border-radius: 1rem;
 }
 .dark .glass-card-basketball {
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(249, 115, 22, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.06) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(249, 115, 22, 0.04) 100%);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.12);
 }
 
 /* ─── Premium gradient text ─── */
@@ -210,9 +215,21 @@
   background-clip: text;
 }
 
-/* ─── Premium header gradient ─── */
+/* ─── Premium header glass effect ─── */
+.header-glass {
+  background: rgba(10, 10, 15, 0.7);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+}
+:root .header-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+}
+
+/* ─── Header subtle gradient ─── */
 .header-gradient {
-  background: linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
 }
 
 /* ─── Active nav glow ─── */
@@ -222,8 +239,8 @@
 
 /* ─── Score pulse for live (football - red) ─── */
 @keyframes score-pulse {
-  0%, 100% { text-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
-  50% { text-shadow: 0 0 16px rgba(239, 68, 68, 0.7); }
+  0%, 100% { text-shadow: 0 0 8px rgba(239, 68, 68, 0.3); }
+  50% { text-shadow: 0 0 16px rgba(239, 68, 68, 0.6); }
 }
 .score-pulse {
   animation: score-pulse 2s ease-in-out infinite;
@@ -231,8 +248,8 @@
 
 /* ─── Score pulse for live (basketball - orange) ─── */
 @keyframes score-pulse-orange {
-  0%, 100% { text-shadow: 0 0 8px rgba(249, 115, 22, 0.4); }
-  50% { text-shadow: 0 0 16px rgba(249, 115, 22, 0.7); }
+  0%, 100% { text-shadow: 0 0 8px rgba(249, 115, 22, 0.3); }
+  50% { text-shadow: 0 0 16px rgba(249, 115, 22, 0.6); }
 }
 .score-pulse-orange {
   animation: score-pulse-orange 2s ease-in-out infinite;
@@ -242,6 +259,30 @@
 @keyframes ripple {
   0% { transform: scale(0); opacity: 0.5; }
   100% { transform: scale(4); opacity: 0; }
+}
+
+/* ─── Slide up animation for modals ─── */
+@keyframes slide-up {
+  0% { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Fade in animation ─── */
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* ─── Premium button shine effect ─── */
+@keyframes btn-shine {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
 }
 
 /* ─── iPad / Safari 12 fixes ─── */
@@ -318,18 +359,17 @@
 
 /* ─── Premium transition utilities ─── */
 .transition-premium {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ─── Theme-aware glass surface utilities ─── */
-/* These replace bg-white/[0.03] and border-white/[0.06] with theme-aware alternatives */
 .glass-surface {
   background: hsl(var(--card));
   border-color: hsl(var(--border));
 }
 .dark .glass-surface {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.025);
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 .glass-surface-subtle {
@@ -337,27 +377,39 @@
   border-color: hsl(var(--border));
 }
 .dark .glass-surface-subtle {
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.015);
+  border-color: rgba(255, 255, 255, 0.03);
 }
 
 .glass-surface-hover {
   background: hsl(var(--accent));
 }
 .dark .glass-surface-hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .glass-border {
   border-color: hsl(var(--border));
 }
 .dark .glass-border {
-  border-color: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 .glass-divider {
   border-color: hsl(var(--border));
 }
 .dark .glass-divider {
-  border-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.03);
+}
+
+/* ─── Premium bottom nav bar ─── */
+.bottom-nav-glass {
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+}
+:root .bottom-nav-glass {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
 }

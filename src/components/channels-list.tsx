@@ -130,7 +130,7 @@ export default function ChannelsList() {
       <div className="space-y-3">
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/30" />
           <Input
             placeholder={t(language, 'channels.searchPlaceholder')}
             value={channelSearch}
@@ -138,15 +138,15 @@ export default function ChannelsList() {
               setChannelSearch(e.target.value);
               setPage(0);
             }}
-            className="pl-9 bg-card dark:bg-white/[0.03] border-border dark:border-white/[0.06] rounded-xl focus:border-emerald-500/30 focus:ring-emerald-500/20 placeholder:text-muted-foreground/30"
+            className="pl-9 bg-secondary/30 dark:bg-white/[0.02] border-border/30 dark:border-white/[0.04] rounded-xl focus:border-emerald-500/25 focus:ring-emerald-500/15 placeholder:text-muted-foreground/25"
           />
         </div>
 
         {/* Country & Refresh */}
         <div className="flex gap-2">
           <Select value={channelCountry || 'all'} onValueChange={handleCountryChange}>
-            <SelectTrigger className="flex-1 bg-card dark:bg-white/[0.03] border-border dark:border-white/[0.06] h-9 text-sm rounded-xl">
-              <Globe className="h-4 w-4 mr-1.5 shrink-0 text-muted-foreground/50" />
+            <SelectTrigger className="flex-1 bg-secondary/30 dark:bg-white/[0.02] border-border/30 dark:border-white/[0.04] h-9 text-sm rounded-xl">
+              <Globe className="h-4 w-4 mr-1.5 shrink-0 text-muted-foreground/40" />
               <SelectValue placeholder="Pays" />
             </SelectTrigger>
             <SelectContent>
@@ -163,14 +163,14 @@ export default function ChannelsList() {
             size="icon"
             onClick={handleRefresh}
             disabled={channelsLoading}
-            className="shrink-0 bg-card dark:bg-white/[0.03] border-border dark:border-white/[0.06] h-9 w-9 rounded-xl hover:bg-accent dark:bg-white/[0.06]"
+            className="shrink-0 bg-secondary/30 dark:bg-white/[0.02] border-border/30 dark:border-white/[0.04] h-9 w-9 rounded-xl hover:bg-secondary/50 dark:hover:bg-white/[0.04]"
           >
             <RefreshCw className={`h-4 w-4 ${channelsLoading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
 
         {/* Online Only Toggle + Health Check Button */}
-        <div className="flex items-center justify-between gap-3 bg-secondary dark:bg-white/[0.02] rounded-2xl p-3 border border-border dark:border-white/[0.05]">
+        <div className="flex items-center justify-between gap-3 bg-secondary/20 dark:bg-white/[0.01] rounded-2xl p-3 border border-border/20 dark:border-white/[0.03]">
           <div className="flex items-center gap-2.5">
             <Switch
               id="online-only"
@@ -178,7 +178,7 @@ export default function ChannelsList() {
               onCheckedChange={setOnlineOnly}
               className="data-[state=checked]:bg-emerald-600"
             />
-            <Label htmlFor="online-only" className="text-xs font-medium cursor-pointer flex items-center gap-1.5">
+            <Label htmlFor="online-only" className="text-[11px] font-medium cursor-pointer flex items-center gap-1.5">
               <Wifi className="h-3.5 w-3.5 text-emerald-400" />
               {t(language, 'channels.onlineOnly')}
             </Label>
@@ -189,7 +189,7 @@ export default function ChannelsList() {
             size="sm"
             onClick={handleCheckAll}
             disabled={checkingChannels}
-            className="h-7 text-[11px] gap-1.5 bg-card dark:bg-white/[0.03] border-border dark:border-white/[0.06] rounded-xl hover:bg-accent dark:bg-white/[0.06]"
+            className="h-7 text-[10px] gap-1.5 bg-secondary/30 dark:bg-white/[0.02] border-border/20 dark:border-white/[0.04] rounded-xl hover:bg-secondary/50 dark:hover:bg-white/[0.04]"
           >
             {checkingChannels ? (
               <>
@@ -207,7 +207,7 @@ export default function ChannelsList() {
 
         {/* Stats */}
         {(onlineCount > 0 || offlineCount > 0) && (
-          <div className="flex items-center gap-3 text-[11px] text-muted-foreground/40 px-1 font-medium">
+          <div className="flex items-center gap-3 text-[10px] text-muted-foreground/30 px-1 font-medium">
             {onlineCount > 0 && (
               <span className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -222,7 +222,7 @@ export default function ChannelsList() {
             )}
             {uncheckedCount > 0 && (
               <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+                <span className="w-2 h-2 rounded-full bg-muted-foreground/20" />
                 {uncheckedCount} {t(language, 'channels.untested')}{uncheckedCount > 1 ? 's' : ''}
               </span>
             )}
@@ -236,8 +236,8 @@ export default function ChannelsList() {
               onClick={() => { setSelectedGroup(''); setPage(0); }}
               className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all duration-200 ${
                 selectedGroup === ''
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                  : 'bg-card dark:bg-white/[0.03] text-muted-foreground/50 border border-border dark:border-white/[0.05] hover:bg-accent dark:bg-white/[0.06]'
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15'
+                  : 'bg-secondary/30 dark:bg-white/[0.02] text-muted-foreground/40 border border-border/20 dark:border-white/[0.03] hover:bg-secondary/50 dark:hover:bg-white/[0.04]'
               }`}
             >
               {t(language, 'common.all')}
@@ -251,15 +251,15 @@ export default function ChannelsList() {
                 }}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all duration-200 truncate max-w-[120px] ${
                   selectedGroup === group
-                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                    : 'bg-card dark:bg-white/[0.03] text-muted-foreground/50 border border-border dark:border-white/[0.05] hover:bg-accent dark:bg-white/[0.06]'
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15'
+                    : 'bg-secondary/30 dark:bg-white/[0.02] text-muted-foreground/40 border border-border/20 dark:border-white/[0.03] hover:bg-secondary/50 dark:hover:bg-white/[0.04]'
                 }`}
               >
                 {group}
               </button>
             ))}
             {groups.length > 10 && (
-              <span className="text-[10px] text-muted-foreground/25 self-center">
+              <span className="text-[10px] text-muted-foreground/20 self-center">
                 +{groups.length - 10} {t(language, 'common.more')}
               </span>
             )}
@@ -270,18 +270,18 @@ export default function ChannelsList() {
       {/* Channels List */}
       {channelsLoading && channels.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-3">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/8 flex items-center justify-center mb-3">
+            <Loader2 className="h-7 w-7 animate-spin text-emerald-400" />
           </div>
-          <p className="text-sm text-muted-foreground/50">{t(language, 'common.loading')}...</p>
+          <p className="text-xs text-muted-foreground/40">{t(language, 'common.loading')}...</p>
         </div>
       ) : displayChannels.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-card dark:bg-white/[0.03] flex items-center justify-center mb-3 border border-border dark:border-white/[0.05]">
-            <Tv className="h-8 w-8 text-muted-foreground/25" />
+          <div className="w-14 h-14 rounded-2xl bg-secondary/30 dark:bg-white/[0.02] flex items-center justify-center mb-3 border border-border/20 dark:border-white/[0.03]">
+            <Tv className="h-7 w-7 text-muted-foreground/20" />
           </div>
-          <p className="text-sm text-muted-foreground/50 font-medium">{t(language, 'channels.noChannels')}</p>
-          <p className="text-xs text-muted-foreground/30 mt-1">
+          <p className="text-xs text-muted-foreground/40 font-medium">{t(language, 'channels.noChannels')}</p>
+          <p className="text-[10px] text-muted-foreground/25 mt-1">
             {onlineOnly ? t(language, 'channels.tryDisableFilter') : t(language, 'channels.adjustFilters')}
           </p>
           {onlineOnly && (
@@ -289,7 +289,7 @@ export default function ChannelsList() {
               variant="outline"
               size="sm"
               onClick={() => setOnlineOnly(false)}
-              className="mt-3 rounded-xl border-border dark:border-white/[0.06] bg-secondary dark:bg-white/[0.02]"
+              className="mt-3 rounded-xl border-border/20 dark:border-white/[0.04] bg-secondary/30 dark:bg-white/[0.02]"
             >
               <WifiOff className="h-3.5 w-3.5 mr-1.5" />
               {t(language, 'channels.showAllChannels')}
@@ -299,7 +299,7 @@ export default function ChannelsList() {
       ) : (
         <>
           <div className="flex items-center justify-between px-1">
-            <p className="text-xs text-muted-foreground/40 font-medium">
+            <p className="text-[10px] text-muted-foreground/30 font-medium">
               {filteredChannels.length} {t(language, 'channels.channelsFound')}{filteredChannels.length !== 1 ? 's' : ''}
             </p>
           </div>
@@ -315,7 +315,7 @@ export default function ChannelsList() {
               <Button
                 variant="outline"
                 onClick={() => setPage(page + 1)}
-                className="bg-card dark:bg-white/[0.03] border-border dark:border-white/[0.06] rounded-xl hover:bg-accent dark:bg-white/[0.06]"
+                className="bg-secondary/30 dark:bg-white/[0.02] border-border/20 dark:border-white/[0.04] rounded-xl hover:bg-secondary/50 dark:hover:bg-white/[0.04]"
               >
                 {t(language, 'channels.loadMore')}
               </Button>

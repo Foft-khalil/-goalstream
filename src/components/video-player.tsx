@@ -2,7 +2,7 @@
 
 import Hls from 'hls.js';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { X, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Loader2, RefreshCw, Tv, SkipForward, ExternalLink, Globe } from 'lucide-react';
+import { X, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Loader2, RefreshCw, Tv, SkipForward, Globe, Wifi } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
@@ -52,13 +52,7 @@ function getProxiedUrl(url: string): string {
   }
 }
 
-/** External site URLs for fallback viewing */
-const SPORTSTREAM_URL = 'https://us-sport.eu';
-const ROJADIRECTA_URL = 'https://tarjetarojaenvivo.cx';
-const HESGOAL_URL = 'https://hes-goal.eu';
-
 export default function VideoPlayer() {
-  // language is used for i18n throughout this component
   const { playerVisible, playerStreamUrl, playerChannelName, playerChannelLogo, playerAlternatives, closePlayer, openPlayer, language } =
     useAppStore();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -115,7 +109,6 @@ export default function VideoPlayer() {
   }, [playerStreamUrl]);
 
   // Resolve-stream: try to resolve iframe URLs to direct m3u8 in the background
-  // Don't block initial render — show iframe immediately while resolving
   useEffect(() => {
     if (!playerVisible || !playerStreamUrl) return;
     // Only try resolving if it's an iframe URL (not already HLS)
@@ -366,56 +359,21 @@ export default function VideoPlayer() {
         setResolvedUrl(data.resolvedUrl);
       }
     } catch(_e) {
-      // Silently fail — user can still use iframe or external sites
+      // Silently fail
     } finally {
       setIsResolving(false);
     }
   };
 
-  /** Render external site fallback buttons (HesGoal, SportStream & RojaDirecta) */
-  const renderExternalSiteButtons = () => (
-    <div className="flex flex-col gap-1.5 w-full max-w-xs mt-2">
-      <p className="text-white/50 text-xs mb-1">{t(language, 'player.watchElsewhere')}</p>
-      <a
-        href={HESGOAL_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-full flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
-      >
-        <Tv className="h-4 w-4 text-green-400 shrink-0" />
-        <span className="text-white text-sm truncate flex-1">HesGoal</span>
-        <ExternalLink className="h-3.5 w-3.5 text-white/40 shrink-0" />
-      </a>
-      <a
-        href={SPORTSTREAM_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-full flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
-      >
-        <Globe className="h-4 w-4 text-blue-400 shrink-0" />
-        <span className="text-white text-sm truncate flex-1">SportStream</span>
-        <ExternalLink className="h-3.5 w-3.5 text-white/40 shrink-0" />
-      </a>
-      <a
-        href={ROJADIRECTA_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-full flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
-      >
-        <Globe className="h-4 w-4 text-red-400 shrink-0" />
-        <span className="text-white text-sm truncate flex-1">RojaDirecta</span>
-        <ExternalLink className="h-3.5 w-3.5 text-white/40 shrink-0" />
-      </a>
-    </div>
-  );
-
   if (!playerVisible) return null;
 
+  const hasAlternatives = playerAlternatives && playerAlternatives.length > 0;
+
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black flex flex-col animate-fade-in">
       {/* Header */}
       <div
-        className={`absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4 transition-opacity duration-300 ${showControls || isIframe ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/90 via-black/50 to-transparent p-4 pb-8 transition-opacity duration-300 ${showControls || isIframe ? 'opacity-100' : 'opacity-0'}`}
         onMouseMove={hideControlsAfterDelay}
       >
         <div className="flex items-center gap-3">
@@ -423,7 +381,7 @@ export default function VideoPlayer() {
             variant="ghost"
             size="icon"
             onClick={closePlayer}
-            className="text-white hover:bg-white/20"
+            className="text-white/90 hover:bg-white/15 h-9 w-9 rounded-xl"
           >
             <X className="h-5 w-5" />
           </Button>
@@ -431,28 +389,30 @@ export default function VideoPlayer() {
             <img
               src={playerChannelLogo}
               alt=""
-              className="w-8 h-8 rounded object-contain"
+              className="w-8 h-8 rounded-lg object-contain bg-white/10 p-0.5"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
           )}
-          <h2 className="text-white font-semibold text-lg truncate">{playerChannelName}</h2>
-          {isIframe && !isResolving && (
-            <span className="text-green-400/80 text-xs ml-2 flex items-center gap-1">
-              <ExternalLink className="h-3 w-3" />
-              {t(language, 'player.live')}
-            </span>
-          )}
-          {isResolving && (
-            <span className="text-amber-400/80 text-xs ml-2 flex items-center gap-1">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              {t(language, 'player.resolvingStream')}
-            </span>
-          )}
-          {playerAlternatives && playerAlternatives.length > 0 && (
-            <span className="text-white/40 text-xs ml-auto">
-              {t(language, 'player.otherChannels', playerAlternatives.length)}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-white font-bold text-sm truncate">{playerChannelName}</h2>
+            {isResolving && (
+              <span className="text-amber-400/70 text-[10px] flex items-center gap-1">
+                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                {t(language, 'player.resolvingStream')}
+              </span>
+            )}
+            {!isResolving && isIframe && (
+              <span className="text-emerald-400/60 text-[10px] flex items-center gap-1">
+                <Wifi className="h-2.5 w-2.5" />
+                {t(language, 'player.live')}
+              </span>
+            )}
+          </div>
+          {hasAlternatives && (
+            <span className="text-white/30 text-[10px] font-medium">
+              +{playerAlternatives.length} {t(language, 'player.otherChannels', playerAlternatives.length)}
             </span>
           )}
         </div>
@@ -491,73 +451,77 @@ export default function VideoPlayer() {
 
         {/* Loading Overlay - only for HLS */}
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-12 w-12 text-white animate-spin" />
-              <p className="text-white/80 text-sm">{t(language, 'player.loadingStream')}</p>
-              <p className="text-white/40 text-xs">{t(language, 'player.autoNextChannel')}</p>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 text-white/80 animate-spin" />
+                </div>
+                <div className="absolute inset-0 rounded-2xl bg-emerald-500/10 animate-ping opacity-20" />
+              </div>
+              <div className="text-center">
+                <p className="text-white/80 text-sm font-medium">{t(language, 'player.loadingStream')}</p>
+                <p className="text-white/30 text-xs mt-1">{t(language, 'player.autoNextChannel')}</p>
+              </div>
             </div>
           </div>
         )}
 
         {/* Error Overlay (HLS & general errors) */}
         {streamError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-4">
-            <div className="flex flex-col items-center gap-4 text-center max-w-md">
-              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
-                <Tv className="h-8 w-8 text-red-400" />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/85 p-4">
+            <div className="flex flex-col items-center gap-5 text-center max-w-md">
+              <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center">
+                <Tv className="h-8 w-8 text-red-400/80" />
               </div>
               <div>
-                <p className="text-white font-semibold text-lg mb-1">{t(language, 'player.channelUnavailable')}</p>
-                <p className="text-white/60 text-sm">{streamError}</p>
-                <p className="text-white/40 text-xs mt-2">
+                <p className="text-white font-bold text-base mb-1">{t(language, 'player.channelUnavailable')}</p>
+                <p className="text-white/50 text-sm">{streamError}</p>
+                <p className="text-white/25 text-xs mt-2">
                   {t(language, 'player.iptvUnstable')}
                 </p>
               </div>
 
               {/* Action buttons */}
               <div className="flex flex-col gap-2 w-full max-w-xs">
-                <Button onClick={handleRetry} className="bg-white/10 hover:bg-white/20 text-white gap-2">
+                <Button onClick={handleRetry} className="bg-white/8 hover:bg-white/15 text-white gap-2 rounded-xl h-10">
                   <RefreshCw className="h-4 w-4" />
                   {t(language, 'player.retry')}
                 </Button>
 
-                {playerAlternatives && playerAlternatives.length > 0 && (
+                {hasAlternatives && (
                   <div className="mt-2">
-                    <p className="text-white/50 text-xs mb-2">{t(language, 'player.otherChannelsLabel')}</p>
+                    <p className="text-white/40 text-xs mb-2 font-medium">{t(language, 'player.otherChannelsLabel')}</p>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto">
                       {playerAlternatives.map((ch, idx) => (
                         <button
                           key={`${ch.url}-${idx}`}
                           onClick={() => handleSwitchChannel(ch)}
-                          className="w-full flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-left"
                         >
                           {ch.logo ? (
                             <img
                               src={ch.logo}
                               alt=""
-                              className="w-6 h-6 rounded object-contain shrink-0"
+                              className="w-7 h-7 rounded-lg object-contain shrink-0 bg-white/5"
                               onError={(e) => {
                                 (e.target as HTMLImageElement).style.display = 'none';
                               }}
                             />
                           ) : (
-                            <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center shrink-0">
-                              <Tv className="h-3 w-3 text-white/50" />
+                            <div className="w-7 h-7 rounded-lg bg-white/8 flex items-center justify-center shrink-0">
+                              <Tv className="h-3.5 w-3.5 text-white/40" />
                             </div>
                           )}
                           <span className="text-white text-sm truncate flex-1">{ch.name}</span>
-                          <SkipForward className="h-3.5 w-3.5 text-white/40 shrink-0" />
+                          <SkipForward className="h-3.5 w-3.5 text-white/30 shrink-0" />
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* External site buttons */}
-                {renderExternalSiteButtons()}
-
-                <Button variant="outline" onClick={closePlayer} className="mt-1 border-white/20 text-white hover:bg-white/10">
+                <Button variant="outline" onClick={closePlayer} className="mt-1 border-white/10 text-white/60 hover:bg-white/5 rounded-xl h-10">
                   {t(language, 'player.back')}
                 </Button>
               </div>
@@ -567,18 +531,18 @@ export default function VideoPlayer() {
 
         {/* Iframe Error Overlay */}
         {iframeError && !streamError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-4">
-            <div className="flex flex-col items-center gap-4 text-center max-w-md">
-              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center">
-                <Tv className="h-8 w-8 text-red-400" />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/85 p-4">
+            <div className="flex flex-col items-center gap-5 text-center max-w-md">
+              <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center">
+                <Tv className="h-8 w-8 text-red-400/80" />
               </div>
               <div>
-                <p className="text-white font-semibold text-lg mb-1">{t(language, 'player.channelUnavailable')}</p>
-                <p className="text-white/60 text-sm">{t(language, 'player.iframeError')}</p>
+                <p className="text-white font-bold text-base mb-1">{t(language, 'player.channelUnavailable')}</p>
+                <p className="text-white/50 text-sm">{t(language, 'player.iframeError')}</p>
               </div>
 
               <div className="flex flex-col gap-2 w-full max-w-xs">
-                <Button onClick={handleRetry} className="bg-white/10 hover:bg-white/20 text-white gap-2">
+                <Button onClick={handleRetry} className="bg-white/8 hover:bg-white/15 text-white gap-2 rounded-xl h-10">
                   <RefreshCw className="h-4 w-4" />
                   {t(language, 'player.retry')}
                 </Button>
@@ -586,48 +550,45 @@ export default function VideoPlayer() {
                 <Button
                   onClick={handleTryResolve}
                   disabled={isResolving}
-                  className="bg-white/10 hover:bg-white/20 text-white gap-2"
+                  className="bg-white/8 hover:bg-white/15 text-white gap-2 rounded-xl h-10"
                 >
                   {isResolving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
                   {t(language, 'player.tryDirectStream')}
                 </Button>
 
-                {playerAlternatives && playerAlternatives.length > 0 && (
+                {hasAlternatives && (
                   <div className="mt-2">
-                    <p className="text-white/50 text-xs mb-2">{t(language, 'player.otherChannelsLabel')}</p>
+                    <p className="text-white/40 text-xs mb-2 font-medium">{t(language, 'player.otherChannelsLabel')}</p>
                     <div className="space-y-1.5 max-h-32 overflow-y-auto">
                       {playerAlternatives.map((ch, idx) => (
                         <button
                           key={`err-${ch.url}-${idx}`}
                           onClick={() => handleSwitchChannel(ch)}
-                          className="w-full flex items-center gap-2 px-3 py-2.5 bg-white/5 hover:bg-white/15 rounded-lg transition-colors text-left"
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-left"
                         >
                           {ch.logo ? (
                             <img
                               src={ch.logo}
                               alt=""
-                              className="w-6 h-6 rounded object-contain shrink-0"
+                              className="w-7 h-7 rounded-lg object-contain shrink-0 bg-white/5"
                               onError={(e) => {
                                 (e.target as HTMLImageElement).style.display = 'none';
                               }}
                             />
                           ) : (
-                            <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center shrink-0">
-                              <Tv className="h-3 w-3 text-white/50" />
+                            <div className="w-7 h-7 rounded-lg bg-white/8 flex items-center justify-center shrink-0">
+                              <Tv className="h-3.5 w-3.5 text-white/40" />
                             </div>
                           )}
                           <span className="text-white text-sm truncate flex-1">{ch.name}</span>
-                          <SkipForward className="h-3.5 w-3.5 text-white/40 shrink-0" />
+                          <SkipForward className="h-3.5 w-3.5 text-white/30 shrink-0" />
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* External site buttons */}
-                {renderExternalSiteButtons()}
-
-                <Button variant="outline" onClick={closePlayer} className="mt-1 border-white/20 text-white hover:bg-white/10">
+                <Button variant="outline" onClick={closePlayer} className="mt-1 border-white/10 text-white/60 hover:bg-white/5 rounded-xl h-10">
                   {t(language, 'player.back')}
                 </Button>
               </div>
@@ -637,9 +598,9 @@ export default function VideoPlayer() {
 
         {/* Iframe Timeout Warning (non-blocking, appears at bottom) */}
         {iframeTimedOut && !iframeError && !streamError && isIframe && (
-          <div className="absolute bottom-16 left-4 right-4 z-20 max-w-md mx-auto">
-            <div className="bg-amber-900/80 backdrop-blur-sm border border-amber-500/30 rounded-lg p-3">
-              <p className="text-amber-200 text-sm font-medium mb-2">
+          <div className="absolute bottom-16 left-4 right-4 z-20 max-w-md mx-auto animate-fade-in">
+            <div className="bg-amber-900/60 backdrop-blur-xl border border-amber-500/20 rounded-xl p-3">
+              <p className="text-amber-200 text-xs font-medium mb-2.5">
                 {t(language, 'player.iframeLoadTimeout')}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -647,41 +608,19 @@ export default function VideoPlayer() {
                   size="sm"
                   onClick={handleTryResolve}
                   disabled={isResolving}
-                  className="bg-amber-700/60 hover:bg-amber-600/60 text-amber-100 gap-1.5 text-xs h-8"
+                  className="bg-amber-700/40 hover:bg-amber-600/40 text-amber-100 gap-1.5 text-xs h-8 rounded-lg"
                 >
                   {isResolving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
                   {t(language, 'player.tryDirectStream')}
                 </Button>
-                <a
-                  href={HESGOAL_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Button
+                  size="sm"
+                  onClick={handleRetry}
+                  className="bg-white/5 hover:bg-white/10 text-white/60 gap-1.5 text-xs h-8 rounded-lg"
                 >
-                  <Button size="sm" className="bg-green-700/60 hover:bg-green-600/60 text-green-100 gap-1.5 text-xs h-8">
-                    <ExternalLink className="h-3 w-3" />
-                    HesGoal
-                  </Button>
-                </a>
-                <a
-                  href={SPORTSTREAM_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button size="sm" className="bg-amber-700/60 hover:bg-amber-600/60 text-amber-100 gap-1.5 text-xs h-8">
-                    <ExternalLink className="h-3 w-3" />
-                    SportStream
-                  </Button>
-                </a>
-                <a
-                  href={ROJADIRECTA_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button size="sm" className="bg-amber-700/60 hover:bg-amber-600/60 text-amber-100 gap-1.5 text-xs h-8">
-                    <ExternalLink className="h-3 w-3" />
-                    RojaDirecta
-                  </Button>
-                </a>
+                  <RefreshCw className="h-3 w-3" />
+                  {t(language, 'player.retry')}
+                </Button>
               </div>
             </div>
           </div>
@@ -697,7 +636,7 @@ export default function VideoPlayer() {
               variant="ghost"
               size="icon"
               onClick={togglePlay}
-              className="text-white hover:bg-white/20 h-16 w-16"
+              className="text-white hover:bg-white/15 h-16 w-16 rounded-2xl"
             >
               {isPlaying ? <Pause className="h-10 w-10" /> : <Play className="h-10 w-10" />}
             </Button>
@@ -708,17 +647,17 @@ export default function VideoPlayer() {
       {/* Bottom Controls - only for HLS streams */}
       {isHls && (
         <div
-          className={`absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+          className={`absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 pt-8 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
           onMouseMove={hideControlsAfterDelay}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={togglePlay}
-                className="text-white hover:bg-white/20"
+                className="text-white/90 hover:bg-white/15 h-9 w-9 rounded-xl"
               >
                 {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
               </Button>
@@ -726,16 +665,17 @@ export default function VideoPlayer() {
                 variant="ghost"
                 size="icon"
                 onClick={toggleMute}
-                className="text-white hover:bg-white/20"
+                className="text-white/90 hover:bg-white/15 h-9 w-9 rounded-xl"
               >
                 {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
               </Button>
+              <span className="text-white/40 text-xs ml-2 font-medium truncate max-w-[200px]">{playerChannelName}</span>
             </div>
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleFullscreen}
-              className="text-white hover:bg-white/20"
+              className="text-white/90 hover:bg-white/15 h-9 w-9 rounded-xl"
             >
               {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
             </Button>

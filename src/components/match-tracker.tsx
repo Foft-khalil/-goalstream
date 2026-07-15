@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { X, RefreshCw, Loader2, Circle, Square, ArrowRightLeft, AlertTriangle, Eye, Tv, MapPin, Users, Clock, Trophy, BarChart3, Star, ExternalLink, Shirt } from 'lucide-react';
+import { X, RefreshCw, Loader2, Circle, Square, ArrowRightLeft, AlertTriangle, Eye, Tv, MapPin, Users, Clock, Trophy, BarChart3, Star, Shirt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
@@ -1131,32 +1131,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                 {isLive ? 'Regarder en direct' : 'Regarder le match'}
               </Button>
 
-              {/* External streaming links */}
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-1.5 text-xs h-8 border-border/40"
-                  onClick={() => {
-                    const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || ''} live stream`);
-                    window.open(`https://us-sport.eu/?s=${query}`, '_blank', 'noopener,noreferrer');
-                  }}
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  SportStream
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-1.5 text-xs h-8 border-border/40"
-                  onClick={() => {
-                    window.open('https://tarjetarojaenvivo.cx', '_blank', 'noopener,noreferrer');
-                  }}
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  RojaDirecta
-                </Button>
-              </div>
+
             </div>
           )}
         </div>

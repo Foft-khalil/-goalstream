@@ -1,0 +1,558 @@
+     1→'use client';
+     2→
+     3→import { useEffect } from 'react';
+     4→import { useAppStore, ViewType } from '@/lib/store';
+     5→import { t } from '@/lib/i18n';
+     6→import LiveMatches from '@/components/live-matches';
+     7→import BasketballMatches from '@/components/basketball-matches';
+     8→import ChannelsList from '@/components/channels-list';
+     9→import StandingsView from '@/components/standings-view';
+    10→import FavoritesView from '@/components/favorites-view';
+    11→import VideoPlayer from '@/components/video-player';
+    12→import LanguageSelector from '@/components/language-selector';
+    13→import ErrorBoundary from '@/components/error-boundary';
+    14→import { Zap, Tv, BarChart3, Menu, Download, WifiOff, Heart, Dribbble, Bell, Sun, Moon, Search, Shield, Trophy, ChevronRight } from 'lucide-react';
+    15→import { Button } from '@/components/ui/button';
+    16→import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+    17→import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+    18→import { useState } from 'react';
+    19→import { usePWA } from '@/hooks/use-pwa';
+    20→import { NotificationSettingsDialog } from '@/components/notification-settings';
+    21→import NotificationCenter from '@/components/notification-center';
+    22→import GlobalSearch from '@/components/global-search';
+    23→import { PrivacyPolicyDialog } from '@/components/privacy-policy-dialog';
+    24→import { useNotificationStore } from '@/lib/notification-store';
+    25→import { useFavorites } from '@/hooks/use-favorites';
+    26→import { useNotifications } from '@/hooks/use-notifications';
+    27→
+    28→function AppHeader() {
+    29→  const { currentView, setCurrentView, footballMatches, basketballMatches, language, theme, setTheme } = useAppStore();
+    30→  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    31→  const { installPrompt, installApp, isOnline } = usePWA();
+    32→  const { totalFavorites } = useFavorites();
+    33→  const { settings, updateSettings } = useNotifications();
+    34→  const { unreadCount } = useNotificationStore();
+    35→  const [notifSettingsOpen, setNotifSettingsOpen] = useState(false);
+    36→  const [searchOpen, setSearchOpen] = useState(false);
+    37→  const [privacyOpen, setPrivacyOpen] = useState(false);
+    38→
+    39→  const footballLiveCount = footballMatches.filter((m) => m.status === 'live').length;
+    40→  const bballLiveCount = basketballMatches.filter((m) => m.status === 'live').length;
+    41→
+    42→  const navItems = [
+    43→    { view: 'live' as ViewType, icon: <Zap className="h-4 w-4" />, label: t(language, 'nav.matches') },
+    44→    { view: 'basketball' as ViewType, icon: <Dribbble className="h-4 w-4" />, label: t(language, 'nav.basketball') },
+    45→    { view: 'favorites' as ViewType, icon: <Heart className="h-4 w-4" />, label: t(language, 'nav.favorites') },
+    46→    { view: 'channels' as ViewType, icon: <Tv className="h-4 w-4" />, label: t(language, 'nav.channels') },
+    47→    { view: 'standings' as ViewType, icon: <BarChart3 className="h-4 w-4" />, label: t(language, 'nav.standings') },
+    48→  ];
+    49→
+    50→  const handleThemeToggle = () => {
+    51→    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    52→    setTheme(newTheme);
+    53→  };
+    54→
+    55→  return (
+    56→    <header className="sticky top-0 z-40 border-b border-border/50 header-gradient">
+    57→      <div className="bg-background/80 backdrop-blur-2xl">
+    58→        <div className="max-w-6xl mx-auto px-4">
+    59→          <div className="flex items-center justify-between h-14">
+    60→            {/* Logo */}
+    61→            <button
+    62→              onClick={() => setCurrentView('live')}
+    63→              className="flex items-center gap-2.5 hover:opacity-80 active:scale-[0.97] transition-all duration-200"
+    64→              title="Retour aux matchs"
+    65→            >
+    66→              <div className="relative">
+    67→                <img
+    68→                  src="/icon-192.png?v=2"
+    69→                  alt="GoalStream"
+    70→                  className="w-9 h-9 rounded-xl"
+    71→                />
+    72→                {footballLiveCount > 0 && (
+    73→                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-background animate-pulse" />
+    74→                )}
+    75→              </div>
+    76→              <div className="text-left">
+    77→                <h1 className="text-[15px] font-extrabold leading-tight tracking-tight">
+    78→                  <span className="gradient-text">Goal</span>Stream
+    79→                </h1>
+    80→                <p className="text-[9px] text-muted-foreground/50 leading-tight font-semibold uppercase tracking-[0.15em]">{t(language, 'common.liveSport')}</p>
+    81→              </div>
+    82→            </button>
+    83→
+    84→            {/* Desktop: Search + Actions + Nav */}
+    85→            <div className="hidden sm:flex items-center gap-1.5">
+    86→              <Button
+    87→                variant="ghost"
+    88→                size="icon"
+    89→                className="h-8 w-8 rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-white/5"
+    90→                onClick={() => setSearchOpen(true)}
+    91→                title={t(language, 'search.title')}
+    92→              >
+    93→                <Search className="h-4 w-4" />
+    94→              </Button>
+    95→              <LanguageSelector />
+    96→              <Button
+    97→                variant="ghost"
+    98→                size="icon"
+    99→                className="h-8 w-8 rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-white/5"
+   100→                onClick={handleThemeToggle}
+   101→                title={theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')}
+   102→              >
+   103→                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+   104→              </Button>
+   105→              <Popover>
+   106→                <PopoverTrigger asChild>
+   107→                  <Button
+   108→                    variant="ghost"
+   109→                    size="icon"
+   110→                    className="h-8 w-8 relative rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-white/5"
+   111→                    title={t(language, 'notifications.title')}
+   112→                  >
+   113→                    <Bell className="h-4 w-4" />
+   114→                    {unreadCount > 0 && (
+   115→                      <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-[8px] font-bold text-white">
+   116→                        {unreadCount > 9 ? '9+' : unreadCount}
+   117→                      </span>
+   118→                    )}
+   119→                  </Button>
+   120→                </PopoverTrigger>
+   121→                <PopoverContent align="end" className="w-80 p-0">
+   122→                  <NotificationCenter
+   123→                    onOpenSettings={() => setNotifSettingsOpen(true)}
+   124→                  />
+   125→                </PopoverContent>
+   126→              </Popover>
+   127→              {installPrompt && (
+   128→                <Button
+   129→                  size="sm"
+   130→                  onClick={installApp}
+   131→                  className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-lg shadow-emerald-600/20"
+   132→                >
+   133→                  <Download className="h-3.5 w-3.5" />
+   134→                  {t(language, 'common.install')}
+   135→                </Button>
+   136→              )}
+   137→              {!isOnline && (
+   138→                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
+   139→                  <WifiOff className="h-3 w-3 text-amber-500" />
+   140→                  <span className="text-[10px] font-semibold text-amber-500">{t(language, 'common.offline')}</span>
+   141→                </div>
+   142→              )}
+   143→            </div>
+   144→            {/* Desktop Nav */}
+   145→            <nav className="hidden sm:flex items-center gap-0.5 bg-card dark:bg-white/[0.03] rounded-xl p-1 border border-border dark:border-white/[0.04]">
+   146→              {navItems.map((item) => {
+   147→                const isActive = currentView === item.view;
+   148→                const accentColor = item.view === 'basketball' ? 'orange' : 'emerald';
+   149→                return (
+   150→                  <button
+   151→                    key={item.view}
+   152→                    onClick={() => setCurrentView(item.view)}
+   153→                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+   154→                      isActive
+   155→                        ? accentColor === 'orange'
+   156→                          ? 'bg-orange-500/10 text-orange-400 shadow-sm'
+   157→                          : 'bg-emerald-500/10 text-emerald-400 shadow-sm'
+   158→                        : 'text-muted-foreground/60 hover:text-foreground hover:bg-white/5'
+   159→                    }`}
+   160→                  >
+   161→                    {item.icon}
+   162→                    <span>{item.label}</span>
+   163→                    {item.view === 'live' && footballLiveCount > 0 && (
+   164→                      <span className="ml-0.5 flex items-center gap-0.5">
+   165→                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+   166→                        <span className="text-[10px] font-bold text-red-400">{footballLiveCount}</span>
+   167→                      </span>
+   168→                    )}
+   169→                    {item.view === 'basketball' && bballLiveCount > 0 && (
+   170→                      <span className="ml-0.5 flex items-center gap-0.5">
+   171→                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+   172→                        <span className="text-[10px] font-bold text-orange-400">{bballLiveCount}</span>
+   173→                      </span>
+   174→                    )}
+   175→                    {item.view === 'favorites' && totalFavorites > 0 && (
+   176→                      <span className="ml-0.5 flex items-center justify-center min-w-[16px] h-4 px-0.5 rounded-full bg-emerald-500/15 text-[10px] font-bold text-emerald-400">
+   177→                        {totalFavorites}
+   178→                      </span>
+   179→                    )}
+   180→                  </button>
+   181→                );
+   182→              })}
+   183→            </nav>
+   184→
+   185→            {/* Mobile actions */}
+   186→            <div className="flex sm:hidden items-center gap-0.5">
+   187→              <Button
+   188→                variant="ghost"
+   189→                size="icon"
+   190→                className="h-9 w-9 rounded-xl text-muted-foreground/70"
+   191→                onClick={() => setSearchOpen(true)}
+   192→                title={t(language, 'search.title')}
+   193→              >
+   194→                <Search className="h-[18px] w-[18px]" />
+   195→              </Button>
+   196→              <Popover>
+   197→                <PopoverTrigger asChild>
+   198→                  <Button
+   199→                    variant="ghost"
+   200→                    size="icon"
+   201→                    className="h-9 w-9 relative rounded-xl text-muted-foreground/70"
+   202→                    title={t(language, 'notifications.title')}
+   203→                  >
+   204→                    <Bell className="h-[18px] w-[18px]" />
+   205→                    {unreadCount > 0 && (
+   206→                      <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-[8px] font-bold text-white">
+   207→                        {unreadCount > 9 ? '9+' : unreadCount}
+   208→                      </span>
+   209→                    )}
+   210→                  </Button>
+   211→                </PopoverTrigger>
+   212→                <PopoverContent align="end" className="w-80 p-0">
+   213→                  <NotificationCenter
+   214→                    onOpenSettings={() => setNotifSettingsOpen(true)}
+   215→                  />
+   216→                </PopoverContent>
+   217→              </Popover>
+   218→              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+   219→                <SheetTrigger asChild>
+   220→                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground/70">
+   221→                    <Menu className="h-[18px] w-[18px]" />
+   222→                  </Button>
+   223→                </SheetTrigger>
+   224→              <SheetContent side="right" className="w-72 bg-background border-border/50">
+   225→                <SheetTitle className="sr-only">{t(language, 'nav.matches')}</SheetTitle>
+   226→                <div className="flex items-center gap-2.5 mb-8 mt-4">
+   227→                  <img
+   228→                    src="/icon-192.png?v=2"
+   229→                    alt="GoalStream"
+   230→                    className="w-10 h-10 rounded-xl"
+   231→                  />
+   232→                  <div>
+   233→                    <span className="font-extrabold tracking-tight text-lg">
+   234→                      <span className="gradient-text">Goal</span>Stream
+   235→                    </span>
+   236→                    <p className="text-[10px] text-muted-foreground/50 font-medium uppercase tracking-wider">{t(language, 'common.liveSport')}</p>
+   237→                  </div>
+   238→                </div>
+   239→                {/* Quick actions in mobile menu */}
+   240→                <div className="flex items-center gap-2 mb-6">
+   241→                  <Button
+   242→                    variant="ghost"
+   243→                    size="icon"
+   244→                    className="h-9 w-9 rounded-xl text-muted-foreground/70 hover:bg-white/5"
+   245→                    onClick={handleThemeToggle}
+   246→                    title={theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')}
+   247→                  >
+   248→                    {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+   249→                  </Button>
+   250→                  <LanguageSelector />
+   251→                </div>
+   252→                {/* Install button in mobile menu */}
+   253→                {installPrompt && (
+   254→                  <Button
+   255→                    onClick={installApp}
+   256→                    className="w-full mb-5 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-600/20"
+   257→                  >
+   258→                    <Download className="h-4 w-4" />
+   259→                    {t(language, 'common.installApp')}
+   260→                  </Button>
+   261→                )}
+   262→                {!isOnline && (
+   263→                  <div className="flex items-center gap-1.5 px-3 py-2 mb-5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+   264→                    <WifiOff className="h-3.5 w-3.5 text-amber-500" />
+   265→                    <span className="text-xs font-semibold text-amber-500">{t(language, 'common.offlineMode')}</span>
+   266→                  </div>
+   267→                )}
+   268→                <nav className="space-y-1">
+   269→                  {navItems.map((item) => {
+   270→                    const isActive = currentView === item.view;
+   271→                    const accentColor = item.view === 'basketball' ? 'orange' : 'emerald';
+   272→                    return (
+   273→                      <button
+   274→                        key={item.view}
+   275→                        onClick={() => {
+   276→                          setCurrentView(item.view);
+   277→                          setMobileMenuOpen(false);
+   278→                        }}
+   279→                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+   280→                          isActive
+   281→                            ? accentColor === 'orange'
+   282→                              ? 'bg-orange-500/10 text-orange-400'
+   283→                              : 'bg-emerald-500/10 text-emerald-400'
+   284→                            : 'text-muted-foreground/70 hover:text-foreground hover:bg-white/5'
+   285→                        }`}
+   286→                      >
+   287→                        {item.icon}
+   288→                        <span>{item.label}</span>
+   289→                        {item.view === 'live' && footballLiveCount > 0 && (
+   290→                          <span className="ml-auto flex items-center gap-1">
+   291→                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+   292→                            <span className="text-[10px] font-bold text-red-400">{footballLiveCount}</span>
+   293→                          </span>
+   294→                        )}
+   295→                        {item.view === 'basketball' && bballLiveCount > 0 && (
+   296→                          <span className="ml-auto flex items-center gap-1">
+   297→                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+   298→                            <span className="text-[10px] font-bold text-orange-400">{bballLiveCount}</span>
+   299→                          </span>
+   300→                        )}
+   301→                        {item.view === 'favorites' && totalFavorites > 0 && (
+   302→                          <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 rounded-full bg-emerald-500/15 text-[10px] font-bold text-emerald-400">
+   303→                            {totalFavorites}
+   304→                          </span>
+   305→                        )}
+   306→                        {isActive && <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground/30" />}
+   307→                      </button>
+   308→                    );
+   309→                  })}
+   310→                </nav>
+   311→                {/* Privacy Policy link in mobile menu */}
+   312→                <div className="mt-6 pt-4 border-t border-border/30">
+   313→                  <button
+   314→                    onClick={() => { setPrivacyOpen(true); setMobileMenuOpen(false); }}
+   315→                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground/50 hover:text-foreground hover:bg-white/5 transition-all"
+   316→                  >
+   317→                    <Shield className="h-4 w-4" />
+   318→                    <span>{t(language, 'footer.privacyPolicy')}</span>
+   319→                  </button>
+   320→                </div>
+   321→              </SheetContent>
+   322→            </Sheet>
+   323→            </div>
+   324→          </div>
+   325→        </div>
+   326→      </div>
+   327→      {/* Notification Settings Dialog */}
+   328→      <NotificationSettingsDialog
+   329→        open={notifSettingsOpen}
+   330→        onOpenChange={setNotifSettingsOpen}
+   331→        settings={settings}
+   332→        onSettingsChange={updateSettings}
+   333→      />
+   334→      {/* Global Search Dialog */}
+   335→      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+   336→      {/* Privacy Policy Dialog */}
+   337→      <PrivacyPolicyDialog open={privacyOpen} onOpenChange={setPrivacyOpen} />
+   338→    </header>
+   339→  );
+   340→}
+   341→
+   342→function MobileBottomNav() {
+   343→  const { currentView, setCurrentView, footballMatches, basketballMatches, language } = useAppStore();
+   344→  const { totalFavorites } = useFavorites();
+   345→  const footballLiveCount = footballMatches.filter((m) => m.status === 'live').length;
+   346→  const bballLiveCount = basketballMatches.filter((m) => m.status === 'live').length;
+   347→
+   348→  const navItems = [
+   349→    { view: 'live' as ViewType, icon: <Zap className="h-5 w-5" />, label: t(language, 'nav.matches') },
+   350→    { view: 'basketball' as ViewType, icon: <Dribbble className="h-5 w-5" />, label: t(language, 'nav.basket') },
+   351→    { view: 'favorites' as ViewType, icon: <Heart className="h-5 w-5" />, label: t(language, 'nav.favorites') },
+   352→    { view: 'channels' as ViewType, icon: <Tv className="h-5 w-5" />, label: t(language, 'nav.channels') },
+   353→    { view: 'standings' as ViewType, icon: <BarChart3 className="h-5 w-5" />, label: t(language, 'nav.standings') },
+   354→  ];
+   355→
+   356→  return (
+   357→    <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 safe-area-bottom">
+   358→      <div className="bg-background/80 backdrop-blur-2xl border-t border-border/30">
+   359→        <div className="flex items-center justify-around h-16 px-1 max-w-lg mx-auto">
+   360→          {navItems.map((item) => {
+   361→            const isActive = currentView === item.view;
+   362→            const accentColor = item.view === 'basketball' ? 'orange' : 'emerald';
+   363→            return (
+   364→              <button
+   365→                key={item.view}
+   366→                onClick={() => setCurrentView(item.view)}
+   367→                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all duration-200 relative ${
+   368→                  isActive
+   369→                    ? accentColor === 'orange' ? 'text-orange-400' : 'text-emerald-400'
+   370→                    : 'text-muted-foreground/40'
+   371→                }`}
+   372→              >
+   373→                {isActive && (
+   374→                  <span className={`absolute -top-1 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full ${
+   375→                    accentColor === 'orange' ? 'bg-orange-400 nav-active-glow' : 'bg-emerald-400 nav-active-glow'
+   376→                  }`} style={{ boxShadow: accentColor === 'orange' ? '0 0 10px rgba(249,115,22,0.4)' : '0 0 10px rgba(16,185,129,0.4)' }} />
+   377→                )}
+   378→                <div className="relative">
+   379→                  {item.icon}
+   380→                  {item.view === 'live' && footballLiveCount > 0 && (
+   381→                    <span className="absolute -top-1 -right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-background animate-pulse" />
+   382→                  )}
+   383→                  {item.view === 'basketball' && bballLiveCount > 0 && (
+   384→                    <span className="absolute -top-1 -right-1.5 w-2.5 h-2.5 rounded-full bg-orange-500 border-2 border-background animate-pulse" />
+   385→                  )}
+   386→                  {item.view === 'favorites' && totalFavorites > 0 && (
+   387→                    <span className="absolute -top-1 -right-1.5 flex items-center justify-center min-w-[14px] h-3.5 px-0.5 rounded-full bg-emerald-500 text-[7px] font-bold text-white">
+   388→                      {totalFavorites > 9 ? '9+' : totalFavorites}
+   389→                    </span>
+   390→                  )}
+   391→                </div>
+   392→                <span className={`text-[10px] font-semibold ${isActive ? '' : 'opacity-60'}`}>{item.label}</span>
+   393→              </button>
+   394→            );
+   395→          })}
+   396→        </div>
+   397→      </div>
+   398→    </nav>
+   399→  );
+   400→}
+   401→
+   402→export default function Home() {
+   403→  const { currentView, fetchChannels, fetchFootballMatches, fetchBasketballMatches, fetchHesgoalMatches, mergeHesgoalStreams, language, theme, setTheme, setLanguage, footballMatches } = useAppStore();
+   404→  const { isOnline } = usePWA();
+   405→  const [footerPrivacyOpen, setFooterPrivacyOpen] = useState(false);
+   406→
+   407→  // Initialize theme and language from localStorage on mount (after hydration)
+   408→  useEffect(() => {
+   409→    if (typeof window !== 'undefined') {
+   410→      // Theme
+   411→      const savedTheme = localStorage.getItem('goalstream_theme');
+   412→      if (savedTheme === 'light' || savedTheme === 'dark') {
+   413→        setTheme(savedTheme);
+   414→      } else {
+   415→        document.documentElement.classList.add('dark');
+   416→      }
+   417→      // Language
+   418→      const savedLang = localStorage.getItem('goalstream_language');
+   419→      if (savedLang && ['en', 'fr', 'ar', 'es', 'pt'].includes(savedLang)) {
+   420→        setLanguage(savedLang);
+   421→      }
+   422→    }
+   423→  }, [setTheme, setLanguage]);
+   424→
+   425→  useEffect(() => {
+   426→    // Initial fetch: today's matches first (fast), then near future in background
+   427→    const timer = setTimeout(() => {
+   428→      const now = new Date();
+   429→      const d = (offset: number) => {
+   430→        const dt = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
+   431→        return `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}`;
+   432→      };
+   433→      // Fetch today + past 3 days first
+   434→      fetchFootballMatches([d(-3), d(-2), d(-1), d(0)]);
+   435→      // Fetch next 7 days after a delay to avoid OOM
+   436→      setTimeout(() => {
+   437→        const dates: string[] = [];
+   438→        for (let i = 1; i <= 7; i++) dates.push(d(i));
+   439→        fetchFootballMatches(dates);
+   440→      }, 5000);
+   441→      // Pre-fetch next 8-14 days in smaller batches
+   442→      setTimeout(() => {
+   443→        const dates: string[] = [];
+   444→        for (let i = 8; i <= 14; i++) dates.push(d(i));
+   445→        fetchFootballMatches(dates);
+   446→      }, 12000);
+   447→    }, 2000);
+   448→    return () => clearTimeout(timer);
+   449→  }, [fetchFootballMatches]);
+   450→
+   451→  // Fetch HesGoal stream data and merge with football matches
+   452→  useEffect(() => {
+   453→    if (footballMatches.length === 0) return;
+   454→    const hasLive = footballMatches.some(m => m.status === 'live');
+   455→    if (!hasLive) return;
+   456→
+   457→    const timer = setTimeout(() => {
+   458→      fetchHesgoalMatches().then(() => {
+   459→        mergeHesgoalStreams();
+   460→      });
+   461→    }, 3000);
+   462→
+   463→    const interval = setInterval(() => {
+   464→      fetchHesgoalMatches().then(() => {
+   465→        mergeHesgoalStreams();
+   466→      });
+   467→    }, 60000);
+   468→
+   469→    return () => {
+   470→      clearTimeout(timer);
+   471→      clearInterval(interval);
+   472→    };
+   473→  }, [footballMatches.length, footballMatches.filter(m => m.status === 'live').length, fetchHesgoalMatches, mergeHesgoalStreams]);
+   474→
+   475→  // Fetch secondary data when user navigates to those views
+   476→  useEffect(() => {
+   477→    const timer = setTimeout(() => {
+   478→      if (currentView === 'channels') fetchChannels();
+   479→      if (currentView === 'basketball') fetchBasketballMatches();
+   480→    }, 1000);
+   481→    return () => clearTimeout(timer);
+   482→  }, [currentView, fetchChannels, fetchBasketballMatches]);
+   483→
+   484→  // Pre-fetch basketball data after initial load so live badge shows in nav
+   485→  useEffect(() => {
+   486→    const timer = setTimeout(() => {
+   487→      const now = new Date();
+   488→      const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+   489→      fetchBasketballMatches([today]);
+   490→    }, 8000);
+   491→    return () => clearTimeout(timer);
+   492→  }, [fetchBasketballMatches]);
+   493→
+   494→  return (
+   495→    <div className="min-h-screen flex flex-col bg-background">
+   496→      <AppHeader />
+   497→
+   498→      {/* Offline banner */}
+   499→      {!isOnline && (
+   500→        <div className="bg-amber-500/10 border-b border-amber-500/15 py-1.5 text-center backdrop-blur-sm">
+   501→          <span className="text-xs font-semibold text-amber-500">
+   502→            <WifiOff className="h-3 w-3 inline mr-1" />
+   503→            {t(language, 'offline.message')}
+   504→          </span>
+   505→        </div>
+   506→      )}
+   507→
+   508→      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-5 pb-20 sm:pb-5" style={{ touchAction: 'pan-y' }}>
+   509→        <ErrorBoundary>
+   510→          {currentView === 'live' && <LiveMatches />}
+   511→          {currentView === 'basketball' && <BasketballMatches />}
+   512→          {currentView === 'favorites' && <FavoritesView />}
+   513→          {currentView === 'channels' && <ChannelsList />}
+   514→          {currentView === 'standings' && <StandingsView />}
+   515→        </ErrorBoundary>
+   516→      </main>
+   517→
+   518→      {/* Footer */}
+   519→      <footer className="hidden sm:block border-t border-border/30 bg-background/50 backdrop-blur-sm">
+   520→        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+   521→          <p className="text-[11px] text-muted-foreground/40 font-medium">
+   522→            GoalStream — {t(language, 'footer.description')}
+   523→          </p>
+   524→          <div className="flex items-center gap-3">
+   525→            <button
+   526→              onClick={() => setFooterPrivacyOpen(true)}
+   527→              className="text-[11px] text-muted-foreground/40 hover:text-emerald-400 hover:underline transition-colors"
+   528→            >
+   529→              {t(language, 'footer.privacyPolicy')}
+   530→            </button>
+   531→            <span className="text-[11px] text-muted-foreground/20">·</span>
+   532→            <p className="text-[11px] text-muted-foreground/40">
+   533→              {t(language, 'footer.streamsFrom')}{' '}
+   534→              <a
+   535→                href="https://github.com/iptv-org/iptv"
+   536→                target="_blank"
+   537→                rel="noopener noreferrer"
+   538→                className="text-emerald-500/50 hover:text-emerald-400 hover:underline transition-colors"
+   539→              >
+   540→                iptv-org
+   541→              </a>
+   542→            </p>
+   543→          </div>
+   544→        </div>
+   545→      </footer>
+   546→
+   547→      {/* Mobile Bottom Nav */}
+   548→      <MobileBottomNav />
+   549→
+   550→      {/* Privacy Policy Dialog (from footer) */}
+   551→      <PrivacyPolicyDialog open={footerPrivacyOpen} onOpenChange={setFooterPrivacyOpen} />
+   552→
+   553→      {/* Video Player Overlay */}
+   554→      <VideoPlayer />
+   555→    </div>
+   556→  );
+   557→}
+   558→

@@ -11,7 +11,7 @@ import FavoritesView from '@/components/favorites-view';
 import VideoPlayer from '@/components/video-player';
 import LanguageSelector from '@/components/language-selector';
 import ErrorBoundary from '@/components/error-boundary';
-import { Zap, Tv, BarChart3, Menu, Download, WifiOff, Heart, Dribbble, Bell, Sun, Moon, Search, Shield, Trophy, ChevronRight } from 'lucide-react';
+import { Zap, Tv, BarChart3, Menu, Download, WifiOff, Heart, Dribbble, Bell, Sun, Moon, Search, Shield, Trophy, ChevronRight, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -53,15 +53,15 @@ function AppHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/50 header-gradient">
-      <div className="bg-background/80 backdrop-blur-2xl">
+    <header className="sticky top-0 z-40 border-b border-border/30">
+      <div className="header-glass">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             {/* Logo */}
             <button
               onClick={() => setCurrentView('live')}
               className="flex items-center gap-2.5 hover:opacity-80 active:scale-[0.97] transition-all duration-200"
-              title="Retour aux matchs"
+              title="GoalStream"
             >
               <div className="relative">
                 <img
@@ -77,7 +77,7 @@ function AppHeader() {
                 <h1 className="text-[15px] font-extrabold leading-tight tracking-tight">
                   <span className="gradient-text">Goal</span>Stream
                 </h1>
-                <p className="text-[9px] text-muted-foreground/50 leading-tight font-semibold uppercase tracking-[0.15em]">{t(language, 'common.liveSport')}</p>
+                <p className="text-[9px] text-muted-foreground/40 leading-tight font-semibold uppercase tracking-[0.15em]">{t(language, 'common.liveSport')}</p>
               </div>
             </button>
 
@@ -86,7 +86,7 @@ function AppHeader() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-white/5"
+                className="h-8 w-8 rounded-xl text-muted-foreground/60 hover:text-foreground hover:bg-white/5 dark:hover:bg-white/5"
                 onClick={() => setSearchOpen(true)}
                 title={t(language, 'search.title')}
               >
@@ -96,7 +96,7 @@ function AppHeader() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-white/5"
+                className="h-8 w-8 rounded-xl text-muted-foreground/60 hover:text-foreground hover:bg-white/5 dark:hover:bg-white/5"
                 onClick={handleThemeToggle}
                 title={theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')}
               >
@@ -107,7 +107,7 @@ function AppHeader() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 relative rounded-xl text-muted-foreground/70 hover:text-foreground hover:bg-white/5"
+                    className="h-8 w-8 relative rounded-xl text-muted-foreground/60 hover:text-foreground hover:bg-white/5 dark:hover:bg-white/5"
                     title={t(language, 'notifications.title')}
                   >
                     <Bell className="h-4 w-4" />
@@ -142,7 +142,7 @@ function AppHeader() {
               )}
             </div>
             {/* Desktop Nav */}
-            <nav className="hidden sm:flex items-center gap-0.5 bg-card dark:bg-white/[0.03] rounded-xl p-1 border border-border dark:border-white/[0.04]">
+            <nav className="hidden sm:flex items-center gap-0.5 bg-secondary/50 dark:bg-white/[0.02] rounded-xl p-0.5 border border-border/50 dark:border-white/[0.03]">
               {navItems.map((item) => {
                 const isActive = currentView === item.view;
                 const accentColor = item.view === 'basketball' ? 'orange' : 'emerald';
@@ -150,12 +150,12 @@ function AppHeader() {
                   <button
                     key={item.view}
                     onClick={() => setCurrentView(item.view)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                       isActive
                         ? accentColor === 'orange'
                           ? 'bg-orange-500/10 text-orange-400 shadow-sm'
                           : 'bg-emerald-500/10 text-emerald-400 shadow-sm'
-                        : 'text-muted-foreground/60 hover:text-foreground hover:bg-white/5'
+                        : 'text-muted-foreground/50 hover:text-foreground hover:bg-white/[0.03]'
                     }`}
                   >
                     {item.icon}
@@ -187,7 +187,7 @@ function AppHeader() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 rounded-xl text-muted-foreground/70"
+                className="h-9 w-9 rounded-xl text-muted-foreground/60"
                 onClick={() => setSearchOpen(true)}
                 title={t(language, 'search.title')}
               >
@@ -198,7 +198,7 @@ function AppHeader() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 relative rounded-xl text-muted-foreground/70"
+                    className="h-9 w-9 relative rounded-xl text-muted-foreground/60"
                     title={t(language, 'notifications.title')}
                   >
                     <Bell className="h-[18px] w-[18px]" />
@@ -217,11 +217,11 @@ function AppHeader() {
               </Popover>
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground/70">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground/60">
                     <Menu className="h-[18px] w-[18px]" />
                   </Button>
                 </SheetTrigger>
-              <SheetContent side="right" className="w-72 bg-background border-border/50">
+              <SheetContent side="right" className="w-72 bg-background border-border/30">
                 <SheetTitle className="sr-only">{t(language, 'nav.matches')}</SheetTitle>
                 <div className="flex items-center gap-2.5 mb-8 mt-4">
                   <img
@@ -233,7 +233,7 @@ function AppHeader() {
                     <span className="font-extrabold tracking-tight text-lg">
                       <span className="gradient-text">Goal</span>Stream
                     </span>
-                    <p className="text-[10px] text-muted-foreground/50 font-medium uppercase tracking-wider">{t(language, 'common.liveSport')}</p>
+                    <p className="text-[10px] text-muted-foreground/40 font-medium uppercase tracking-wider">{t(language, 'common.liveSport')}</p>
                   </div>
                 </div>
                 {/* Quick actions in mobile menu */}
@@ -241,7 +241,7 @@ function AppHeader() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 rounded-xl text-muted-foreground/70 hover:bg-white/5"
+                    className="h-9 w-9 rounded-xl text-muted-foreground/60 hover:bg-white/5 dark:hover:bg-white/5"
                     onClick={handleThemeToggle}
                     title={theme === 'dark' ? t(language, 'common.lightMode') : t(language, 'common.darkMode')}
                   >
@@ -281,7 +281,7 @@ function AppHeader() {
                             ? accentColor === 'orange'
                               ? 'bg-orange-500/10 text-orange-400'
                               : 'bg-emerald-500/10 text-emerald-400'
-                            : 'text-muted-foreground/70 hover:text-foreground hover:bg-white/5'
+                            : 'text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.03]'
                         }`}
                       >
                         {item.icon}
@@ -303,16 +303,16 @@ function AppHeader() {
                             {totalFavorites}
                           </span>
                         )}
-                        {isActive && <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground/30" />}
+                        {isActive && <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground/20" />}
                       </button>
                     );
                   })}
                 </nav>
                 {/* Privacy Policy link in mobile menu */}
-                <div className="mt-6 pt-4 border-t border-border/30">
+                <div className="mt-6 pt-4 border-t border-border/20">
                   <button
                     onClick={() => { setPrivacyOpen(true); setMobileMenuOpen(false); }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground/50 hover:text-foreground hover:bg-white/5 transition-all"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground/40 hover:text-foreground hover:bg-white/[0.03] transition-all"
                   >
                     <Shield className="h-4 w-4" />
                     <span>{t(language, 'footer.privacyPolicy')}</span>
@@ -346,37 +346,37 @@ function MobileBottomNav() {
   const bballLiveCount = basketballMatches.filter((m) => m.status === 'live').length;
 
   const navItems = [
-    { view: 'live' as ViewType, icon: <Zap className="h-5 w-5" />, label: t(language, 'nav.matches') },
-    { view: 'basketball' as ViewType, icon: <Dribbble className="h-5 w-5" />, label: t(language, 'nav.basket') },
-    { view: 'favorites' as ViewType, icon: <Heart className="h-5 w-5" />, label: t(language, 'nav.favorites') },
-    { view: 'channels' as ViewType, icon: <Tv className="h-5 w-5" />, label: t(language, 'nav.channels') },
-    { view: 'standings' as ViewType, icon: <BarChart3 className="h-5 w-5" />, label: t(language, 'nav.standings') },
+    { view: 'live' as ViewType, icon: <Zap className="h-5 w-5" />, activeIcon: <Zap className="h-5 w-5" />, label: t(language, 'nav.matches') },
+    { view: 'basketball' as ViewType, icon: <Dribbble className="h-5 w-5" />, activeIcon: <Dribbble className="h-5 w-5" />, label: t(language, 'nav.basket') },
+    { view: 'favorites' as ViewType, icon: <Heart className="h-5 w-5" />, activeIcon: <Heart className="h-5 w-5" />, label: t(language, 'nav.favorites') },
+    { view: 'channels' as ViewType, icon: <Tv className="h-5 w-5" />, activeIcon: <Tv className="h-5 w-5" />, label: t(language, 'nav.channels') },
+    { view: 'standings' as ViewType, icon: <BarChart3 className="h-5 w-5" />, activeIcon: <BarChart3 className="h-5 w-5" />, label: t(language, 'nav.standings') },
   ];
 
   return (
     <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 safe-area-bottom">
-      <div className="bg-background/80 backdrop-blur-2xl border-t border-border/30">
+      <div className="bottom-nav-glass border-t border-border/20">
         <div className="flex items-center justify-around h-16 px-1 max-w-lg mx-auto">
           {navItems.map((item) => {
             const isActive = currentView === item.view;
             const accentColor = item.view === 'basketball' ? 'orange' : 'emerald';
+            const activeTextColor = accentColor === 'orange' ? 'text-orange-400' : 'text-emerald-400';
             return (
               <button
                 key={item.view}
                 onClick={() => setCurrentView(item.view)}
                 className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl transition-all duration-200 relative ${
-                  isActive
-                    ? accentColor === 'orange' ? 'text-orange-400' : 'text-emerald-400'
-                    : 'text-muted-foreground/40'
+                  isActive ? activeTextColor : 'text-muted-foreground/35'
                 }`}
               >
+                {/* Active indicator pill */}
                 {isActive && (
-                  <span className={`absolute -top-1 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full ${
-                    accentColor === 'orange' ? 'bg-orange-400 nav-active-glow' : 'bg-emerald-400 nav-active-glow'
-                  }`} style={{ boxShadow: accentColor === 'orange' ? '0 0 10px rgba(249,115,22,0.4)' : '0 0 10px rgba(16,185,129,0.4)' }} />
+                  <span className={`absolute -top-1.5 left-1/2 -translate-x-1/2 w-6 h-[3px] rounded-full ${
+                    accentColor === 'orange' ? 'bg-orange-400' : 'bg-emerald-400'
+                  }`} style={{ boxShadow: accentColor === 'orange' ? '0 0 8px rgba(249,115,22,0.5)' : '0 0 8px rgba(16,185,129,0.5)' }} />
                 )}
                 <div className="relative">
-                  {item.icon}
+                  {isActive ? item.activeIcon : item.icon}
                   {item.view === 'live' && footballLiveCount > 0 && (
                     <span className="absolute -top-1 -right-1.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-background animate-pulse" />
                   )}
@@ -389,7 +389,7 @@ function MobileBottomNav() {
                     </span>
                   )}
                 </div>
-                <span className={`text-[10px] font-semibold ${isActive ? '' : 'opacity-60'}`}>{item.label}</span>
+                <span className={`text-[10px] font-semibold ${isActive ? '' : 'opacity-50'}`}>{item.label}</span>
               </button>
             );
           })}
@@ -497,7 +497,7 @@ export default function Home() {
 
       {/* Offline banner */}
       {!isOnline && (
-        <div className="bg-amber-500/10 border-b border-amber-500/15 py-1.5 text-center backdrop-blur-sm">
+        <div className="bg-amber-500/8 border-b border-amber-500/10 py-1.5 text-center">
           <span className="text-xs font-semibold text-amber-500">
             <WifiOff className="h-3 w-3 inline mr-1" />
             {t(language, 'offline.message')}
@@ -516,30 +516,18 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="hidden sm:block border-t border-border/30 bg-background/50 backdrop-blur-sm">
+      <footer className="hidden sm:block border-t border-border/20 bg-background/50">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <p className="text-[11px] text-muted-foreground/40 font-medium">
+          <p className="text-[11px] text-muted-foreground/30 font-medium">
             GoalStream — {t(language, 'footer.description')}
           </p>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setFooterPrivacyOpen(true)}
-              className="text-[11px] text-muted-foreground/40 hover:text-emerald-400 hover:underline transition-colors"
+              className="text-[11px] text-muted-foreground/30 hover:text-emerald-400 transition-colors"
             >
               {t(language, 'footer.privacyPolicy')}
             </button>
-            <span className="text-[11px] text-muted-foreground/20">·</span>
-            <p className="text-[11px] text-muted-foreground/40">
-              {t(language, 'footer.streamsFrom')}{' '}
-              <a
-                href="https://github.com/iptv-org/iptv"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-emerald-500/50 hover:text-emerald-400 hover:underline transition-colors"
-              >
-                iptv-org
-              </a>
-            </p>
           </div>
         </div>
       </footer>
