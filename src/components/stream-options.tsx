@@ -41,7 +41,6 @@ function isM3u8Url(url: string): boolean {
  */
 function getProxiedM3u8(url: string): string {
   if (!isM3u8Url(url)) return url;
-  // Route through our stream-proxy which adds proper headers
   return `/api/stream-proxy?url=${encodeURIComponent(url)}`;
 }
 
@@ -133,13 +132,15 @@ export default function StreamOptions({
     const url = stream.url;
 
     if (isM3u8Url(url)) {
-      // DaddyLive m3u8 streams are behind Cloudflare and need proper Origin/Referer
-      // Try stream-proxy first, but if it fails, open via dlhd embed page
-      // Route through our stream-proxy which adds the required headers
+      // Direct m3u8 stream — play through stream-proxy
       const proxiedUrl = getProxiedM3u8(url);
       openPlayer(proxiedUrl, stream.name, stream.channelLogo || undefined);
-    } else if (url.includes('dlhd.click') || url.includes('dlhd.st')) {
-      // DaddyLive embed page — open in new tab (their player handles the stream)
+    } else if (url.includes('dlhd.st') || url.includes('dlhd.click')) {
+      // DaddyLive embed page — open in new tab (dlhd.st works in browser, dlhd.click is dead)
+      // The dlhd.st page has a JavaScript player that works when opened directly
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else if (stream.source === 'daddylive' && !isM3u8Url(url)) {
+      // Other DaddyLive embed URLs — open in new tab
       window.open(url, '_blank', 'noopener,noreferrer');
     } else {
       // Other embed URLs — try in video player for known domains
@@ -224,7 +225,7 @@ export default function StreamOptions({
             </div>
           )}
 
-          {/* Embed streams (secondary — from kora-api / rojadirecta) */}
+          {/* Embed streams (secondary — DaddyLive + kora/rojadirecta) */}
           {!loading && allEmbedStreams.length > 0 && (
             <div>
               <h3 className="text-[10px] font-bold text-blue-500/70 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
@@ -244,6 +245,11 @@ export default function StreamOptions({
                     <div className="flex-1 text-left min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-blue-400">{stream.name}</span>
+                        {stream.source === 'daddylive' && (
+                          <span className="text-[8px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500/70 font-bold">
+                            LIVE
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         {stream.langFlag && <span className="text-[10px] text-muted-foreground/40">{stream.langFlag} {stream.lang}</span>}

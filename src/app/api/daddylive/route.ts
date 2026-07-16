@@ -295,11 +295,11 @@ export async function GET(request: NextRequest) {
                 sport: sportDetected,
               });
             } else {
-              // Channel not in channels data - provide the embed page URL
+              // Channel not in channels data - provide the embed page URL via dlhd.st (working domain)
               matchedStreams.push({
                 channelName: ch.channel_name,
                 channelId: ch.channel_id,
-                streamUrl: `https://dlhd.click/stream/stream-${ch.channel_id}.php`,
+                streamUrl: `https://dlhd.st/stream/stream-${ch.channel_id}.php`,
                 channelLogo: '',
                 groupTitle: '',
                 eventTime: event.time,
