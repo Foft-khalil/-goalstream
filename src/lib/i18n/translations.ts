@@ -40,6 +40,7 @@ export interface Translations {
     noMatchesNow: string;
     checkBackLater: string;
     loadingMatches: string;
+    otherMatches: string;
   };
   match: {
     min: string;
@@ -454,6 +455,7 @@ export const translations: Record<Language, Translations> = {
       noMatchesNow: 'Aucun match en cours',
       checkBackLater: 'Revenez plus tard pour les prochains matchs !',
       loadingMatches: 'Chargement des matchs...',
+      otherMatches: 'autres matchs',
     },
     match: {
       min: 'min',
@@ -866,6 +868,7 @@ export const translations: Record<Language, Translations> = {
       noMatchesNow: 'No matches currently',
       checkBackLater: 'Check back later for upcoming matches!',
       loadingMatches: 'Loading matches...',
+      otherMatches: 'other matches',
     },
     match: {
       min: 'min',
@@ -1278,6 +1281,7 @@ export const translations: Record<Language, Translations> = {
       noMatchesNow: 'لا توجد مباريات حالياً',
       checkBackLater: 'عد لاحقاً للمباريات القادمة!',
       loadingMatches: 'جاري تحميل المباريات...',
+      otherMatches: 'مباريات أخرى',
     },
     match: {
       min: 'د',
@@ -1690,6 +1694,7 @@ export const translations: Record<Language, Translations> = {
       noMatchesNow: 'No hay partidos actualmente',
       checkBackLater: '¡Vuelve más tarde para los próximos partidos!',
       loadingMatches: 'Cargando partidos...',
+      otherMatches: 'otros partidos',
     },
     match: {
       min: 'min',
@@ -2102,6 +2107,7 @@ export const translations: Record<Language, Translations> = {
       noMatchesNow: 'Nenhum jogo no momento',
       checkBackLater: 'Volte mais tarde para os próximos jogos!',
       loadingMatches: 'Carregando jogos...',
+      otherMatches: 'outros jogos',
     },
     match: {
       min: 'min',

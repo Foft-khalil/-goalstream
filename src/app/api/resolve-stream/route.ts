@@ -24,8 +24,6 @@ const M3U8_PATTERNS = [
 
 // Known stream provider domains that use the decrypt chain
 const DECRYPT_CHAIN_DOMAINS = [
-  'streams.center',
-  'streamcenter.pro',
   'kora-api.top',
   'go4score.app',
   'smartagro.mov',
@@ -33,6 +31,15 @@ const DECRYPT_CHAIN_DOMAINS = [
   '000007.mov',
   'fltvhd.com',   // rojadirecta - canales.php → canal.php → Clappr player with m3u8
   'futbolonlinehd.com',  // CDN for actual m3u8 streams
+  'dlhd.st',      // DaddyLive - stream pages with embedded players
+];
+
+// Domains that are dead/seized — reject immediately instead of wasting time
+const DEAD_DOMAINS = [
+  'streams.center',
+  'streamcenter.pro',
+  'tvhd2.com',
+  'sportsonlinne.click',
 ];
 
 // ─── Helper: decode URL (handles base64 + URL-encoding) ──────────────────────
@@ -749,6 +756,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Reject dead/seized domains immediately
+    if (DEAD_DOMAINS.some(d => url.includes(d))) {
+      return NextResponse.json(
+        { error: `Domain is no longer available (seized/dead): ${DEAD_DOMAINS.find(d => url.includes(d))}`, resolvedUrl: '', originalUrl: url, type: 'iframe' as const, resolved: false },
+        { status: 410 }
+      );
+    }
+
     console.log(`[Resolve Stream] POST request — resolving: ${url}`);
 
     const result = await resolveEmbedChain(url);
@@ -793,6 +808,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid URL format — must start with http:// or https://' },
         { status: 400 }
+      );
+    }
+
+    // Reject dead/seized domains immediately
+    if (DEAD_DOMAINS.some(d => url.includes(d))) {
+      return NextResponse.json(
+        { error: `Domain is no longer available (seized/dead): ${DEAD_DOMAINS.find(d => url.includes(d))}`, resolvedUrl: '', originalUrl: url, type: 'iframe' as const, resolved: false },
+        { status: 410 }
       );
     }
 

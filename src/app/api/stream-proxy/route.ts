@@ -15,6 +15,25 @@ const COMMON_HEADERS: Record<string, string> = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
 };
 
+// ─── Auto-detect the correct Origin header based on m3u8 URL domain ────────
+function detectOrigin(url: string): string {
+  try {
+    const hostname = new URL(url).hostname;
+    // fltvhd.com / fubo18.com / futbolonlinehd.com streams
+    if (hostname.includes('fubo') || hostname.includes('fltvhd') || hostname.includes('futbolonlinehd')) {
+      return 'https://fltvhd.com';
+    }
+    // DaddyLive / newkso.ru streams
+    if (hostname.includes('newkso.ru')) {
+      return 'https://jxoxkplay.xyz';
+    }
+    // Default: try without origin (some servers reject wrong origin)
+    return '';
+  } catch {
+    return '';
+  }
+}
+
 // ─── Cache for m3u8 playlists (short TTL) ───────────────────────────────────
 interface CacheEntry {
   body: string;
@@ -45,7 +64,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  let originUrl = 'https://jxoxkplay.xyz';
+  let originUrl = '';
   if (encodedOrigin) {
     try {
       originUrl = decodeURIComponent(encodedOrigin);
@@ -53,9 +72,14 @@ export async function GET(request: NextRequest) {
       try {
         originUrl = atob(encodedOrigin);
       } catch {
-        // Keep default
+        // Keep empty, will auto-detect below
       }
     }
+  }
+
+  // Auto-detect origin if not explicitly provided
+  if (!originUrl) {
+    originUrl = detectOrigin(targetUrl);
   }
 
   // Check cache for m3u8 playlists
@@ -78,8 +102,10 @@ export async function GET(request: NextRequest) {
     const headers: Record<string, string> = {
       ...COMMON_HEADERS,
       'Accept': '*/*',
-      'Origin': originUrl,
-      'Referer': `${originUrl}/`,
+      ...(originUrl ? {
+        'Origin': originUrl,
+        'Referer': `${originUrl}/`,
+      } : {}),
     };
 
     const response = await fetch(targetUrl, {
@@ -118,7 +144,9 @@ export async function GET(request: NextRequest) {
             : `${baseUrl}${trimmed}`;
           
           // Route through our proxy
-          return `/api/stream-proxy?url=${encodeURIComponent(absoluteUrl)}&origin=${encodeURIComponent(originUrl)}`;
+          return originUrl
+            ? `/api/stream-proxy?url=${encodeURIComponent(absoluteUrl)}&origin=${encodeURIComponent(originUrl)}`
+            : `/api/stream-proxy?url=${encodeURIComponent(absoluteUrl)}`;
         }
 
         // If it's an absolute URL to a different domain, route through proxy
@@ -126,7 +154,9 @@ export async function GET(request: NextRequest) {
           const segmentUrl = new URL(trimmed);
           const targetDomain = new URL(targetUrl).hostname;
           if (segmentUrl.hostname !== targetDomain || segmentUrl.hostname.includes('newkso.ru') || segmentUrl.hostname.includes('.m3u8')) {
-            return `/api/stream-proxy?url=${encodeURIComponent(trimmed)}&origin=${encodeURIComponent(originUrl)}`;
+            return originUrl
+              ? `/api/stream-proxy?url=${encodeURIComponent(trimmed)}&origin=${encodeURIComponent(originUrl)}`
+              : `/api/stream-proxy?url=${encodeURIComponent(trimmed)}`;
           }
         } catch {
           // Not a valid URL, leave as-is

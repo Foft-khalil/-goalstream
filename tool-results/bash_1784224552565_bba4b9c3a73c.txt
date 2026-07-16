@@ -1,0 +1,1583 @@
+- main
+  - heading "🏀 21 matchs" [level=2, ref=e8]
+    - StaticText "🏀"
+    - StaticText "21"
+    - StaticText " "
+    - StaticText "matchs"
+  - StaticText "Maj"
+  - StaticText " "
+  - StaticText "1:45"
+  - button [ref=e9]
+  - generic
+    - generic
+      - StaticText "mercredi 15 juillet"
+      - StaticText "2"
+      - StaticText " "
+      - StaticText "matchs"
+    - StaticText "TERMINÉ"
+    - StaticText "2"
+    - StaticText "WNBA"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "TERMINÉ"
+      - image "Chicago Sky"
+      - StaticText "Chicago Sky"
+      - StaticText "8-16"
+      - button "Ajouter aux favoris" [ref=e18]
+      - StaticText "95"
+      - StaticText ":"
+      - StaticText "90"
+      - button "Ajouter aux favoris" [ref=e19]
+      - StaticText "Seattle Storm"
+      - StaticText "6-20"
+      - image "Seattle Storm"
+      - button "Voir le résumé" [ref=e20]
+      - button "Suivre" [ref=e21]
+        - StaticText "Suivre"
+      - button "Résumé vidéo" [ref=e22]
+    - generic
+      - StaticText "WNBA"
+      - StaticText "TERMINÉ"
+      - image "Minnesota Lynx"
+      - StaticText "Minnesota Lynx"
+      - StaticText "19-6"
+      - button "Ajouter aux favoris" [ref=e23]
+      - StaticText "96"
+      - StaticText ":"
+      - StaticText "87"
+      - button "Ajouter aux favoris" [ref=e24]
+      - StaticText "Los Angeles Sparks"
+      - StaticText "10-13"
+      - image "Los Angeles Sparks"
+      - button "Voir le résumé" [ref=e25]
+      - button "Suivre" [ref=e26]
+        - StaticText "Suivre"
+      - button "Résumé vidéo" [ref=e27]
+  - generic
+    - generic
+      - StaticText "Aujourd'hui"
+      - StaticText "2"
+      - StaticText " "
+      - StaticText "matchs"
+    - StaticText "WNBA"
+    - StaticText "1"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "Aujourd'hui 11:00 PM"
+      - image "Washington Mystics"
+      - StaticText "Washington Mystics"
+      - StaticText "12-10"
+      - button "Ajouter aux favoris" [ref=e28]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e29]
+      - StaticText "Portland Fire"
+      - StaticText "10-14"
+      - image "Portland Fire"
+      - button "Regarder" [ref=e30]
+      - button [ref=e31]
+      - button "Suivre" [ref=e32]
+        - StaticText "Suivre"
+    - generic
+      - heading "Regarder en direct" [level=2, ref=e33]
+      - paragraph
+        - StaticText "Washington Mystics vs Portland Fire"
+      - button [ref=e34]
+    - paragraph
+      - StaticText "Aucun flux gratuit trouvé pour ce match"
+    - paragraph
+      - StaticText "Les liens redirigent vers des sites tiers. GoalStream ne héberge aucun contenu."
+    - paragraph
+      - StaticText "WNBA • Washington Mystics vs Portland Fire"
+    - StaticText "TERMINÉ"
+    - StaticText "1"
+    - StaticText "WNBA"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "TERMINÉ"
+      - image "Indiana Fever"
+      - StaticText "Indiana Fever"
+      - StaticText "14-10"
+      - button "Ajouter aux favoris" [ref=e35]
+      - StaticText "75"
+      - StaticText ":"
+      - StaticText "88"
+      - button "Ajouter aux favoris" [ref=e36]
+      - StaticText "Golden State Valkyries"
+      - StaticText "18-7"
+      - image "Golden State Valkyries"
+      - button "Voir le résumé" [ref=e37]
+      - button "Suivre" [ref=e38]
+        - StaticText "Suivre"
+      - button "Résumé vidéo" [ref=e39]
+  - generic
+    - generic
+      - StaticText "Demain"
+      - StaticText "4"
+      - StaticText " "
+      - StaticText "matchs"
+    - StaticText "WNBA"
+    - StaticText "3"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "Demain 11:30 PM"
+      - image "Indiana Fever"
+      - StaticText "Indiana Fever"
+      - StaticText "14-10"
+      - button "Ajouter aux favoris" [ref=e40]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e41]
+      - StaticText "Seattle Storm"
+      - StaticText "6-20"
+      - image "Seattle Storm"
+      - button "Regarder" [ref=e42]
+      - button [ref=e43]
+      - button "Suivre" [ref=e44]
+        - StaticText "Suivre"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "Demain 11:30 PM"
+      - image "Toronto Tempo"
+      - StaticText "Toronto Tempo"
+      - StaticText "10-14"
+      - button "Ajouter aux favoris" [ref=e45]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e46]
+      - StaticText "Atlanta Dream"
+      - StaticText "14-10"
+      - image "Atlanta Dream"
+      - button "Regarder" [ref=e47]
+      - button [ref=e48]
+      - button "Suivre" [ref=e49]
+        - StaticText "Suivre"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "Demain 11:30 PM"
+      - image "Chicago Sky"
+      - StaticText "Chicago Sky"
+      - StaticText "8-16"
+      - button "Ajouter aux favoris" [ref=e50]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e51]
+      - StaticText "Los Angeles Sparks"
+      - StaticText "10-13"
+      - image "Los Angeles Sparks"
+      - button "Regarder" [ref=e52]
+      - button [ref=e53]
+      - button "Suivre" [ref=e54]
+        - StaticText "Suivre"
+    - StaticText "TERMINÉ"
+    - StaticText "1"
+    - StaticText "WNBA"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "TERMINÉ"
+      - image "Dallas Wings"
+      - StaticText "Dallas Wings"
+      - StaticText "16-8"
+      - button "Ajouter aux favoris" [ref=e55]
+      - StaticText "0"
+      - StaticText ":"
+      - StaticText "0"
+      - button "Ajouter aux favoris" [ref=e56]
+      - StaticText "New York Liberty"
+      - StaticText "13-11"
+      - image "New York Liberty"
+      - button "Voir le résumé" [ref=e57]
+      - button "Suivre" [ref=e58]
+        - StaticText "Suivre"
+      - button "Résumé vidéo" [ref=e59]
+  - generic
+    - generic
+      - StaticText "samedi 18 juillet"
+      - StaticText "1"
+      - StaticText " "
+      - StaticText "matchs"
+    - StaticText "WNBA"
+    - StaticText "1"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "18 juil. 02:00 AM"
+      - image "Phoenix Mercury"
+      - StaticText "Phoenix Mercury"
+      - StaticText "8-17"
+      - button "Ajouter aux favoris" [ref=e60]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e61]
+      - StaticText "Connecticut Sun"
+      - StaticText "6-18"
+      - image "Connecticut Sun"
+      - button "Regarder" [ref=e62]
+      - button [ref=e63]
+      - button "Suivre" [ref=e64]
+        - StaticText "Suivre"
+  - generic
+    - generic
+      - StaticText "dimanche 19 juillet"
+      - StaticText "5"
+      - StaticText " "
+      - StaticText "matchs"
+    - StaticText "WNBA"
+    - StaticText "5"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "19 juil. 12:00 AM"
+      - image "Indiana Fever"
+      - StaticText "Indiana Fever"
+      - StaticText "14-10"
+      - button "Ajouter aux favoris" [ref=e65]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e66]
+      - StaticText "New York Liberty"
+      - StaticText "13-11"
+      - image "New York Liberty"
+      - button "Regarder" [ref=e67]
+      - button [ref=e68]
+      - button "Suivre" [ref=e69]
+        - StaticText "Suivre"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "19 juil. 12:00 AM"
+      - image "Minnesota Lynx"
+      - StaticText "Minnesota Lynx"
+      - StaticText "19-6"
+      - button "Ajouter aux favoris" [ref=e70]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e71]
+      - StaticText "Portland Fire"
+      - StaticText "10-14"
+      - image "Portland Fire"
+      - button "Regarder" [ref=e72]
+      - button [ref=e73]
+      - button "Suivre" [ref=e74]
+        - StaticText "Suivre"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "19 juil. 12:30 AM"
+      - image "Golden State Valkyries"
+      - StaticText "Golden State Valkyries"
+      - StaticText "18-7"
+      - button "Ajouter aux favoris" [ref=e75]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e76]
+      - StaticText "Washington Mystics"
+      - StaticText "12-10"
+      - image "Washington Mystics"
+      - button "Regarder" [ref=e77]
+      - button [ref=e78]
+      - button "Suivre" [ref=e79]
+        - StaticText "Suivre"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "19 juil. 05:00 PM"
+      - image "Dallas Wings"
+      - StaticText "Dallas Wings"
+      - StaticText "16-8"
+      - button "Ajouter aux favoris" [ref=e80]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e81]
+      - StaticText "Los Angeles Sparks"
+      - StaticText "10-13"
+      - image "Los Angeles Sparks"
+      - button "Regarder" [ref=e82]
+      - button [ref=e83]
+      - button "Suivre" [ref=e84]
+        - StaticText "Suivre"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "19 juil. 08:00 PM"
+      - image "Atlanta Dream"
+      - StaticText "Atlanta Dream"
+      - StaticText "14-10"
+      - button "Ajouter aux favoris" [ref=e85]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e86]
+      - StaticText "Chicago Sky"
+      - StaticText "8-16"
+      - image "Chicago Sky"
+      - button "Regarder" [ref=e87]
+      - button [ref=e88]
+      - button "Suivre" [ref=e89]
+        - StaticText "Suivre"
+  - generic
+    - generic
+      - StaticText "mardi 21 juillet"
+      - StaticText "2"
+      - StaticText " "
+      - StaticText "matchs"
+    - StaticText "WNBA"
+    - StaticText "2"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "21 juil. 12:00 AM"
+      - image "Toronto Tempo"
+      - StaticText "Toronto Tempo"
+      - StaticText "10-14"
+      - button "Ajouter aux favoris" [ref=e90]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e91]
+      - StaticText "Las Vegas Aces"
+      - StaticText "17-7"
+      - image "Las Vegas Aces"
+      - button "Regarder" [ref=e92]
+      - button [ref=e93]
+      - button "Suivre" [ref=e94]
+        - StaticText "Suivre"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "21 juil. 02:00 AM"
+      - image "Seattle Storm"
+      - StaticText "Seattle Storm"
+      - StaticText "6-20"
+      - button "Ajouter aux favoris" [ref=e95]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e96]
+      - StaticText "Minnesota Lynx"
+      - StaticText "19-6"
+      - image "Minnesota Lynx"
+      - button "Regarder" [ref=e97]
+      - button [ref=e98]
+      - button "Suivre" [ref=e99]
+        - StaticText "Suivre"
+  - generic
+    - generic
+      - StaticText "mercredi 22 juillet"
+      - StaticText "3"
+      - StaticText " "
+      - StaticText "matchs"
+    - StaticText "WNBA"
+    - StaticText "3"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "22 juil. 07:00 PM"
+      - image "Los Angeles Sparks"
+      - StaticText "Los Angeles Sparks"
+      - StaticText "10-13"
+      - button "Ajouter aux favoris" [ref=e100]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e101]
+      - StaticText "Phoenix Mercury"
+      - StaticText "8-17"
+      - image "Phoenix Mercury"
+      - button "Regarder" [ref=e102]
+      - button [ref=e103]
+      - button "Suivre" [ref=e104]
+        - StaticText "Suivre"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "22 juil. 11:00 PM"
+      - image "New York Liberty"
+      - StaticText "New York Liberty"
+      - StaticText "13-11"
+      - button "Ajouter aux favoris" [ref=e105]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e106]
+      - StaticText "Chicago Sky"
+      - StaticText "8-16"
+      - image "Chicago Sky"
+      - button "Regarder" [ref=e107]
+      - button [ref=e108]
+      - button "Suivre" [ref=e109]
+        - StaticText "Suivre"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "22 juil. 11:30 PM"
+      - image "Washington Mystics"
+      - StaticText "Washington Mystics"
+      - StaticText "12-10"
+      - button "Ajouter aux favoris" [ref=e110]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e111]
+      - StaticText "Las Vegas Aces"
+      - StaticText "17-7"
+      - image "Las Vegas Aces"
+      - button "Regarder" [ref=e112]
+      - button [ref=e113]
+      - button "Suivre" [ref=e114]
+        - StaticText "Suivre"
+  - generic
+    - generic
+      - StaticText "jeudi 23 juillet"
+      - StaticText "1"
+      - StaticText " "
+      - StaticText "matchs"
+    - StaticText "WNBA"
+    - StaticText "1"
+    - generic
+      - StaticText "WNBA"
+      - StaticText "23 juil. 12:00 AM"
+      - image "Indiana Fever"
+      - StaticText "Indiana Fever"
+      - StaticText "14-10"
+      - button "Ajouter aux favoris" [ref=e115]
+      - StaticText "VS"
+      - button "Ajouter aux favoris" [ref=e116]
+      - StaticText "Connecticut Sun"
+      - StaticText "6-18"
+      - image "Connecticut Sun"
+      - button "Regarder" [ref=e117]
+      - button [ref=e118]
+      - button "Suivre" [ref=e119]
+        - StaticText "Suivre"
+  - StaticText "20"
+  - StaticText " / "
+  - StaticText "21"
+  - StaticText " "
+  - StaticText "matchs"
+  - generic
+    - StaticText "NBA · NCAA · EuroLeague · WNBA — Maj 2 min"
+- heading "🏀 21 matchs" [level=2, ref=e8]
+  - StaticText "🏀"
+  - StaticText "21"
+  - StaticText " "
+  - StaticText "matchs"
+- StaticText "Maj"
+- StaticText "1:45"
+- button [ref=e9]
+- generic
+  - generic
+    - StaticText "mercredi 15 juillet"
+    - StaticText "2"
+    - StaticText " "
+    - StaticText "matchs"
+  - StaticText "TERMINÉ"
+  - StaticText "2"
+  - StaticText "WNBA"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "TERMINÉ"
+    - image "Chicago Sky"
+    - StaticText "Chicago Sky"
+    - StaticText "8-16"
+    - button "Ajouter aux favoris" [ref=e18]
+    - StaticText "95"
+    - StaticText ":"
+    - StaticText "90"
+    - button "Ajouter aux favoris" [ref=e19]
+    - StaticText "Seattle Storm"
+    - StaticText "6-20"
+    - image "Seattle Storm"
+    - button "Voir le résumé" [ref=e20]
+    - button "Suivre" [ref=e21]
+      - StaticText "Suivre"
+    - button "Résumé vidéo" [ref=e22]
+  - generic
+    - StaticText "WNBA"
+    - StaticText "TERMINÉ"
+    - image "Minnesota Lynx"
+    - StaticText "Minnesota Lynx"
+    - StaticText "19-6"
+    - button "Ajouter aux favoris" [ref=e23]
+    - StaticText "96"
+    - StaticText ":"
+    - StaticText "87"
+    - button "Ajouter aux favoris" [ref=e24]
+    - StaticText "Los Angeles Sparks"
+    - StaticText "10-13"
+    - image "Los Angeles Sparks"
+    - button "Voir le résumé" [ref=e25]
+    - button "Suivre" [ref=e26]
+      - StaticText "Suivre"
+    - button "Résumé vidéo" [ref=e27]
+- generic
+  - generic
+    - StaticText "Aujourd'hui"
+    - StaticText "2"
+    - StaticText " "
+    - StaticText "matchs"
+  - StaticText "WNBA"
+  - StaticText "1"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "Aujourd'hui 11:00 PM"
+    - image "Washington Mystics"
+    - StaticText "Washington Mystics"
+    - StaticText "12-10"
+    - button "Ajouter aux favoris" [ref=e28]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e29]
+    - StaticText "Portland Fire"
+    - StaticText "10-14"
+    - image "Portland Fire"
+    - button "Regarder" [ref=e30]
+    - button [ref=e31]
+    - button "Suivre" [ref=e32]
+      - StaticText "Suivre"
+  - generic
+    - heading "Regarder en direct" [level=2, ref=e33]
+    - paragraph
+      - StaticText "Washington Mystics vs Portland Fire"
+    - button [ref=e34]
+  - paragraph
+    - StaticText "Aucun flux gratuit trouvé pour ce match"
+  - paragraph
+    - StaticText "Les liens redirigent vers des sites tiers. GoalStream ne héberge aucun contenu."
+  - paragraph
+    - StaticText "WNBA • Washington Mystics vs Portland Fire"
+  - StaticText "TERMINÉ"
+  - StaticText "1"
+  - StaticText "WNBA"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "TERMINÉ"
+    - image "Indiana Fever"
+    - StaticText "Indiana Fever"
+    - StaticText "14-10"
+    - button "Ajouter aux favoris" [ref=e35]
+    - StaticText "75"
+    - StaticText ":"
+    - StaticText "88"
+    - button "Ajouter aux favoris" [ref=e36]
+    - StaticText "Golden State Valkyries"
+    - StaticText "18-7"
+    - image "Golden State Valkyries"
+    - button "Voir le résumé" [ref=e37]
+    - button "Suivre" [ref=e38]
+      - StaticText "Suivre"
+    - button "Résumé vidéo" [ref=e39]
+- generic
+  - generic
+    - StaticText "Demain"
+    - StaticText "4"
+    - StaticText " "
+    - StaticText "matchs"
+  - StaticText "WNBA"
+  - StaticText "3"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "Demain 11:30 PM"
+    - image "Indiana Fever"
+    - StaticText "Indiana Fever"
+    - StaticText "14-10"
+    - button "Ajouter aux favoris" [ref=e40]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e41]
+    - StaticText "Seattle Storm"
+    - StaticText "6-20"
+    - image "Seattle Storm"
+    - button "Regarder" [ref=e42]
+    - button [ref=e43]
+    - button "Suivre" [ref=e44]
+      - StaticText "Suivre"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "Demain 11:30 PM"
+    - image "Toronto Tempo"
+    - StaticText "Toronto Tempo"
+    - StaticText "10-14"
+    - button "Ajouter aux favoris" [ref=e45]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e46]
+    - StaticText "Atlanta Dream"
+    - StaticText "14-10"
+    - image "Atlanta Dream"
+    - button "Regarder" [ref=e47]
+    - button [ref=e48]
+    - button "Suivre" [ref=e49]
+      - StaticText "Suivre"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "Demain 11:30 PM"
+    - image "Chicago Sky"
+    - StaticText "Chicago Sky"
+    - StaticText "8-16"
+    - button "Ajouter aux favoris" [ref=e50]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e51]
+    - StaticText "Los Angeles Sparks"
+    - StaticText "10-13"
+    - image "Los Angeles Sparks"
+    - button "Regarder" [ref=e52]
+    - button [ref=e53]
+    - button "Suivre" [ref=e54]
+      - StaticText "Suivre"
+  - StaticText "TERMINÉ"
+  - StaticText "1"
+  - StaticText "WNBA"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "TERMINÉ"
+    - image "Dallas Wings"
+    - StaticText "Dallas Wings"
+    - StaticText "16-8"
+    - button "Ajouter aux favoris" [ref=e55]
+    - StaticText "0"
+    - StaticText ":"
+    - StaticText "0"
+    - button "Ajouter aux favoris" [ref=e56]
+    - StaticText "New York Liberty"
+    - StaticText "13-11"
+    - image "New York Liberty"
+    - button "Voir le résumé" [ref=e57]
+    - button "Suivre" [ref=e58]
+      - StaticText "Suivre"
+    - button "Résumé vidéo" [ref=e59]
+- generic
+  - generic
+    - StaticText "samedi 18 juillet"
+    - StaticText "1"
+    - StaticText " "
+    - StaticText "matchs"
+  - StaticText "WNBA"
+  - StaticText "1"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "18 juil. 02:00 AM"
+    - image "Phoenix Mercury"
+    - StaticText "Phoenix Mercury"
+    - StaticText "8-17"
+    - button "Ajouter aux favoris" [ref=e60]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e61]
+    - StaticText "Connecticut Sun"
+    - StaticText "6-18"
+    - image "Connecticut Sun"
+    - button "Regarder" [ref=e62]
+    - button [ref=e63]
+    - button "Suivre" [ref=e64]
+      - StaticText "Suivre"
+- generic
+  - generic
+    - StaticText "dimanche 19 juillet"
+    - StaticText "5"
+    - StaticText " "
+    - StaticText "matchs"
+  - StaticText "WNBA"
+  - StaticText "5"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "19 juil. 12:00 AM"
+    - image "Indiana Fever"
+    - StaticText "Indiana Fever"
+    - StaticText "14-10"
+    - button "Ajouter aux favoris" [ref=e65]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e66]
+    - StaticText "New York Liberty"
+    - StaticText "13-11"
+    - image "New York Liberty"
+    - button "Regarder" [ref=e67]
+    - button [ref=e68]
+    - button "Suivre" [ref=e69]
+      - StaticText "Suivre"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "19 juil. 12:00 AM"
+    - image "Minnesota Lynx"
+    - StaticText "Minnesota Lynx"
+    - StaticText "19-6"
+    - button "Ajouter aux favoris" [ref=e70]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e71]
+    - StaticText "Portland Fire"
+    - StaticText "10-14"
+    - image "Portland Fire"
+    - button "Regarder" [ref=e72]
+    - button [ref=e73]
+    - button "Suivre" [ref=e74]
+      - StaticText "Suivre"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "19 juil. 12:30 AM"
+    - image "Golden State Valkyries"
+    - StaticText "Golden State Valkyries"
+    - StaticText "18-7"
+    - button "Ajouter aux favoris" [ref=e75]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e76]
+    - StaticText "Washington Mystics"
+    - StaticText "12-10"
+    - image "Washington Mystics"
+    - button "Regarder" [ref=e77]
+    - button [ref=e78]
+    - button "Suivre" [ref=e79]
+      - StaticText "Suivre"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "19 juil. 05:00 PM"
+    - image "Dallas Wings"
+    - StaticText "Dallas Wings"
+    - StaticText "16-8"
+    - button "Ajouter aux favoris" [ref=e80]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e81]
+    - StaticText "Los Angeles Sparks"
+    - StaticText "10-13"
+    - image "Los Angeles Sparks"
+    - button "Regarder" [ref=e82]
+    - button [ref=e83]
+    - button "Suivre" [ref=e84]
+      - StaticText "Suivre"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "19 juil. 08:00 PM"
+    - image "Atlanta Dream"
+    - StaticText "Atlanta Dream"
+    - StaticText "14-10"
+    - button "Ajouter aux favoris" [ref=e85]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e86]
+    - StaticText "Chicago Sky"
+    - StaticText "8-16"
+    - image "Chicago Sky"
+    - button "Regarder" [ref=e87]
+    - button [ref=e88]
+    - button "Suivre" [ref=e89]
+      - StaticText "Suivre"
+- generic
+  - generic
+    - StaticText "mardi 21 juillet"
+    - StaticText "2"
+    - StaticText " "
+    - StaticText "matchs"
+  - StaticText "WNBA"
+  - StaticText "2"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "21 juil. 12:00 AM"
+    - image "Toronto Tempo"
+    - StaticText "Toronto Tempo"
+    - StaticText "10-14"
+    - button "Ajouter aux favoris" [ref=e90]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e91]
+    - StaticText "Las Vegas Aces"
+    - StaticText "17-7"
+    - image "Las Vegas Aces"
+    - button "Regarder" [ref=e92]
+    - button [ref=e93]
+    - button "Suivre" [ref=e94]
+      - StaticText "Suivre"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "21 juil. 02:00 AM"
+    - image "Seattle Storm"
+    - StaticText "Seattle Storm"
+    - StaticText "6-20"
+    - button "Ajouter aux favoris" [ref=e95]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e96]
+    - StaticText "Minnesota Lynx"
+    - StaticText "19-6"
+    - image "Minnesota Lynx"
+    - button "Regarder" [ref=e97]
+    - button [ref=e98]
+    - button "Suivre" [ref=e99]
+      - StaticText "Suivre"
+- generic
+  - generic
+    - StaticText "mercredi 22 juillet"
+    - StaticText "3"
+    - StaticText " "
+    - StaticText "matchs"
+  - StaticText "WNBA"
+  - StaticText "3"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "22 juil. 07:00 PM"
+    - image "Los Angeles Sparks"
+    - StaticText "Los Angeles Sparks"
+    - StaticText "10-13"
+    - button "Ajouter aux favoris" [ref=e100]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e101]
+    - StaticText "Phoenix Mercury"
+    - StaticText "8-17"
+    - image "Phoenix Mercury"
+    - button "Regarder" [ref=e102]
+    - button [ref=e103]
+    - button "Suivre" [ref=e104]
+      - StaticText "Suivre"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "22 juil. 11:00 PM"
+    - image "New York Liberty"
+    - StaticText "New York Liberty"
+    - StaticText "13-11"
+    - button "Ajouter aux favoris" [ref=e105]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e106]
+    - StaticText "Chicago Sky"
+    - StaticText "8-16"
+    - image "Chicago Sky"
+    - button "Regarder" [ref=e107]
+    - button [ref=e108]
+    - button "Suivre" [ref=e109]
+      - StaticText "Suivre"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "22 juil. 11:30 PM"
+    - image "Washington Mystics"
+    - StaticText "Washington Mystics"
+    - StaticText "12-10"
+    - button "Ajouter aux favoris" [ref=e110]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e111]
+    - StaticText "Las Vegas Aces"
+    - StaticText "17-7"
+    - image "Las Vegas Aces"
+    - button "Regarder" [ref=e112]
+    - button [ref=e113]
+    - button "Suivre" [ref=e114]
+      - StaticText "Suivre"
+- generic
+  - generic
+    - StaticText "jeudi 23 juillet"
+    - StaticText "1"
+    - StaticText " "
+    - StaticText "matchs"
+  - StaticText "WNBA"
+  - StaticText "1"
+  - generic
+    - StaticText "WNBA"
+    - StaticText "23 juil. 12:00 AM"
+    - image "Indiana Fever"
+    - StaticText "Indiana Fever"
+    - StaticText "14-10"
+    - button "Ajouter aux favoris" [ref=e115]
+    - StaticText "VS"
+    - button "Ajouter aux favoris" [ref=e116]
+    - StaticText "Connecticut Sun"
+    - StaticText "6-18"
+    - image "Connecticut Sun"
+    - button "Regarder" [ref=e117]
+    - button [ref=e118]
+    - button "Suivre" [ref=e119]
+      - StaticText "Suivre"
+- StaticText "20"
+- StaticText " / "
+- StaticText "21"
+- StaticText "matchs"
+- generic
+  - StaticText "NBA · NCAA · EuroLeague · WNBA — Maj 2 min"
+- StaticText "🏀"
+- StaticText "21"
+- StaticText "matchs"
+- StaticText "TERMINÉ"
+- StaticText "2"
+- StaticText "WNBA"
+- generic
+  - StaticText "WNBA"
+  - StaticText "TERMINÉ"
+  - image "Chicago Sky"
+  - StaticText "Chicago Sky"
+  - StaticText "8-16"
+  - button "Ajouter aux favoris" [ref=e18]
+  - StaticText "95"
+  - StaticText ":"
+  - StaticText "90"
+  - button "Ajouter aux favoris" [ref=e19]
+  - StaticText "Seattle Storm"
+  - StaticText "6-20"
+  - image "Seattle Storm"
+  - button "Voir le résumé" [ref=e20]
+  - button "Suivre" [ref=e21]
+    - StaticText "Suivre"
+  - button "Résumé vidéo" [ref=e22]
+- generic
+  - StaticText "WNBA"
+  - StaticText "TERMINÉ"
+  - image "Minnesota Lynx"
+  - StaticText "Minnesota Lynx"
+  - StaticText "19-6"
+  - button "Ajouter aux favoris" [ref=e23]
+  - StaticText "96"
+  - StaticText ":"
+  - StaticText "87"
+  - button "Ajouter aux favoris" [ref=e24]
+  - StaticText "Los Angeles Sparks"
+  - StaticText "10-13"
+  - image "Los Angeles Sparks"
+  - button "Voir le résumé" [ref=e25]
+  - button "Suivre" [ref=e26]
+    - StaticText "Suivre"
+  - button "Résumé vidéo" [ref=e27]
+- StaticText "WNBA"
+- StaticText "1"
+- generic
+  - StaticText "WNBA"
+  - StaticText "Aujourd'hui 11:00 PM"
+  - image "Washington Mystics"
+  - StaticText "Washington Mystics"
+  - StaticText "12-10"
+  - button "Ajouter aux favoris" [ref=e28]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e29]
+  - StaticText "Portland Fire"
+  - StaticText "10-14"
+  - image "Portland Fire"
+  - button "Regarder" [ref=e30]
+  - button [ref=e31]
+  - button "Suivre" [ref=e32]
+    - StaticText "Suivre"
+- generic
+  - heading "Regarder en direct" [level=2, ref=e33]
+  - paragraph
+    - StaticText "Washington Mystics vs Portland Fire"
+  - button [ref=e34]
+- paragraph
+  - StaticText "Aucun flux gratuit trouvé pour ce match"
+- paragraph
+  - StaticText "Les liens redirigent vers des sites tiers. GoalStream ne héberge aucun contenu."
+- paragraph
+  - StaticText "WNBA • Washington Mystics vs Portland Fire"
+- StaticText "TERMINÉ"
+- StaticText "1"
+- StaticText "WNBA"
+- generic
+  - StaticText "WNBA"
+  - StaticText "TERMINÉ"
+  - image "Indiana Fever"
+  - StaticText "Indiana Fever"
+  - StaticText "14-10"
+  - button "Ajouter aux favoris" [ref=e35]
+  - StaticText "75"
+  - StaticText ":"
+  - StaticText "88"
+  - button "Ajouter aux favoris" [ref=e36]
+  - StaticText "Golden State Valkyries"
+  - StaticText "18-7"
+  - image "Golden State Valkyries"
+  - button "Voir le résumé" [ref=e37]
+  - button "Suivre" [ref=e38]
+    - StaticText "Suivre"
+  - button "Résumé vidéo" [ref=e39]
+- StaticText "WNBA"
+- StaticText "3"
+- generic
+  - StaticText "WNBA"
+  - StaticText "Demain 11:30 PM"
+  - image "Indiana Fever"
+  - StaticText "Indiana Fever"
+  - StaticText "14-10"
+  - button "Ajouter aux favoris" [ref=e40]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e41]
+  - StaticText "Seattle Storm"
+  - StaticText "6-20"
+  - image "Seattle Storm"
+  - button "Regarder" [ref=e42]
+  - button [ref=e43]
+  - button "Suivre" [ref=e44]
+    - StaticText "Suivre"
+- generic
+  - StaticText "WNBA"
+  - StaticText "Demain 11:30 PM"
+  - image "Toronto Tempo"
+  - StaticText "Toronto Tempo"
+  - StaticText "10-14"
+  - button "Ajouter aux favoris" [ref=e45]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e46]
+  - StaticText "Atlanta Dream"
+  - StaticText "14-10"
+  - image "Atlanta Dream"
+  - button "Regarder" [ref=e47]
+  - button [ref=e48]
+  - button "Suivre" [ref=e49]
+    - StaticText "Suivre"
+- generic
+  - StaticText "WNBA"
+  - StaticText "Demain 11:30 PM"
+  - image "Chicago Sky"
+  - StaticText "Chicago Sky"
+  - StaticText "8-16"
+  - button "Ajouter aux favoris" [ref=e50]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e51]
+  - StaticText "Los Angeles Sparks"
+  - StaticText "10-13"
+  - image "Los Angeles Sparks"
+  - button "Regarder" [ref=e52]
+  - button [ref=e53]
+  - button "Suivre" [ref=e54]
+    - StaticText "Suivre"
+- StaticText "TERMINÉ"
+- StaticText "1"
+- StaticText "WNBA"
+- generic
+  - StaticText "WNBA"
+  - StaticText "TERMINÉ"
+  - image "Dallas Wings"
+  - StaticText "Dallas Wings"
+  - StaticText "16-8"
+  - button "Ajouter aux favoris" [ref=e55]
+  - StaticText "0"
+  - StaticText ":"
+  - StaticText "0"
+  - button "Ajouter aux favoris" [ref=e56]
+  - StaticText "New York Liberty"
+  - StaticText "13-11"
+  - image "New York Liberty"
+  - button "Voir le résumé" [ref=e57]
+  - button "Suivre" [ref=e58]
+    - StaticText "Suivre"
+  - button "Résumé vidéo" [ref=e59]
+- StaticText "WNBA"
+- StaticText "1"
+- generic
+  - StaticText "WNBA"
+  - StaticText "18 juil. 02:00 AM"
+  - image "Phoenix Mercury"
+  - StaticText "Phoenix Mercury"
+  - StaticText "8-17"
+  - button "Ajouter aux favoris" [ref=e60]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e61]
+  - StaticText "Connecticut Sun"
+  - StaticText "6-18"
+  - image "Connecticut Sun"
+  - button "Regarder" [ref=e62]
+  - button [ref=e63]
+  - button "Suivre" [ref=e64]
+    - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "5"
+- generic
+  - StaticText "WNBA"
+  - StaticText "19 juil. 12:00 AM"
+  - image "Indiana Fever"
+  - StaticText "Indiana Fever"
+  - StaticText "14-10"
+  - button "Ajouter aux favoris" [ref=e65]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e66]
+  - StaticText "New York Liberty"
+  - StaticText "13-11"
+  - image "New York Liberty"
+  - button "Regarder" [ref=e67]
+  - button [ref=e68]
+  - button "Suivre" [ref=e69]
+    - StaticText "Suivre"
+- generic
+  - StaticText "WNBA"
+  - StaticText "19 juil. 12:00 AM"
+  - image "Minnesota Lynx"
+  - StaticText "Minnesota Lynx"
+  - StaticText "19-6"
+  - button "Ajouter aux favoris" [ref=e70]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e71]
+  - StaticText "Portland Fire"
+  - StaticText "10-14"
+  - image "Portland Fire"
+  - button "Regarder" [ref=e72]
+  - button [ref=e73]
+  - button "Suivre" [ref=e74]
+    - StaticText "Suivre"
+- generic
+  - StaticText "WNBA"
+  - StaticText "19 juil. 12:30 AM"
+  - image "Golden State Valkyries"
+  - StaticText "Golden State Valkyries"
+  - StaticText "18-7"
+  - button "Ajouter aux favoris" [ref=e75]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e76]
+  - StaticText "Washington Mystics"
+  - StaticText "12-10"
+  - image "Washington Mystics"
+  - button "Regarder" [ref=e77]
+  - button [ref=e78]
+  - button "Suivre" [ref=e79]
+    - StaticText "Suivre"
+- generic
+  - StaticText "WNBA"
+  - StaticText "19 juil. 05:00 PM"
+  - image "Dallas Wings"
+  - StaticText "Dallas Wings"
+  - StaticText "16-8"
+  - button "Ajouter aux favoris" [ref=e80]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e81]
+  - StaticText "Los Angeles Sparks"
+  - StaticText "10-13"
+  - image "Los Angeles Sparks"
+  - button "Regarder" [ref=e82]
+  - button [ref=e83]
+  - button "Suivre" [ref=e84]
+    - StaticText "Suivre"
+- generic
+  - StaticText "WNBA"
+  - StaticText "19 juil. 08:00 PM"
+  - image "Atlanta Dream"
+  - StaticText "Atlanta Dream"
+  - StaticText "14-10"
+  - button "Ajouter aux favoris" [ref=e85]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e86]
+  - StaticText "Chicago Sky"
+  - StaticText "8-16"
+  - image "Chicago Sky"
+  - button "Regarder" [ref=e87]
+  - button [ref=e88]
+  - button "Suivre" [ref=e89]
+    - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "2"
+- generic
+  - StaticText "WNBA"
+  - StaticText "21 juil. 12:00 AM"
+  - image "Toronto Tempo"
+  - StaticText "Toronto Tempo"
+  - StaticText "10-14"
+  - button "Ajouter aux favoris" [ref=e90]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e91]
+  - StaticText "Las Vegas Aces"
+  - StaticText "17-7"
+  - image "Las Vegas Aces"
+  - button "Regarder" [ref=e92]
+  - button [ref=e93]
+  - button "Suivre" [ref=e94]
+    - StaticText "Suivre"
+- generic
+  - StaticText "WNBA"
+  - StaticText "21 juil. 02:00 AM"
+  - image "Seattle Storm"
+  - StaticText "Seattle Storm"
+  - StaticText "6-20"
+  - button "Ajouter aux favoris" [ref=e95]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e96]
+  - StaticText "Minnesota Lynx"
+  - StaticText "19-6"
+  - image "Minnesota Lynx"
+  - button "Regarder" [ref=e97]
+  - button [ref=e98]
+  - button "Suivre" [ref=e99]
+    - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "3"
+- generic
+  - StaticText "WNBA"
+  - StaticText "22 juil. 07:00 PM"
+  - image "Los Angeles Sparks"
+  - StaticText "Los Angeles Sparks"
+  - StaticText "10-13"
+  - button "Ajouter aux favoris" [ref=e100]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e101]
+  - StaticText "Phoenix Mercury"
+  - StaticText "8-17"
+  - image "Phoenix Mercury"
+  - button "Regarder" [ref=e102]
+  - button [ref=e103]
+  - button "Suivre" [ref=e104]
+    - StaticText "Suivre"
+- generic
+  - StaticText "WNBA"
+  - StaticText "22 juil. 11:00 PM"
+  - image "New York Liberty"
+  - StaticText "New York Liberty"
+  - StaticText "13-11"
+  - button "Ajouter aux favoris" [ref=e105]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e106]
+  - StaticText "Chicago Sky"
+  - StaticText "8-16"
+  - image "Chicago Sky"
+  - button "Regarder" [ref=e107]
+  - button [ref=e108]
+  - button "Suivre" [ref=e109]
+    - StaticText "Suivre"
+- generic
+  - StaticText "WNBA"
+  - StaticText "22 juil. 11:30 PM"
+  - image "Washington Mystics"
+  - StaticText "Washington Mystics"
+  - StaticText "12-10"
+  - button "Ajouter aux favoris" [ref=e110]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e111]
+  - StaticText "Las Vegas Aces"
+  - StaticText "17-7"
+  - image "Las Vegas Aces"
+  - button "Regarder" [ref=e112]
+  - button [ref=e113]
+  - button "Suivre" [ref=e114]
+    - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "1"
+- generic
+  - StaticText "WNBA"
+  - StaticText "23 juil. 12:00 AM"
+  - image "Indiana Fever"
+  - StaticText "Indiana Fever"
+  - StaticText "14-10"
+  - button "Ajouter aux favoris" [ref=e115]
+  - StaticText "VS"
+  - button "Ajouter aux favoris" [ref=e116]
+  - StaticText "Connecticut Sun"
+  - StaticText "6-18"
+  - image "Connecticut Sun"
+  - button "Regarder" [ref=e117]
+  - button [ref=e118]
+  - button "Suivre" [ref=e119]
+    - StaticText "Suivre"
+- StaticText "mercredi 15 juillet"
+- StaticText "2"
+- StaticText "matchs"
+- StaticText "Aujourd'hui"
+- StaticText "2"
+- StaticText "matchs"
+- generic
+  - heading "Regarder en direct" [level=2, ref=e33]
+  - paragraph
+    - StaticText "Washington Mystics vs Portland Fire"
+  - button [ref=e34]
+- paragraph
+  - StaticText "Aucun flux gratuit trouvé pour ce match"
+- paragraph
+  - StaticText "Les liens redirigent vers des sites tiers. GoalStream ne héberge aucun contenu."
+- paragraph
+  - StaticText "WNBA • Washington Mystics vs Portland Fire"
+- StaticText "Demain"
+- StaticText "4"
+- StaticText "matchs"
+- StaticText "samedi 18 juillet"
+- StaticText "1"
+- StaticText "matchs"
+- StaticText "dimanche 19 juillet"
+- StaticText "5"
+- StaticText "matchs"
+- StaticText "mardi 21 juillet"
+- StaticText "2"
+- StaticText "matchs"
+- StaticText "mercredi 22 juillet"
+- StaticText "3"
+- StaticText "matchs"
+- StaticText "jeudi 23 juillet"
+- StaticText "1"
+- StaticText "matchs"
+- StaticText "WNBA"
+- StaticText "TERMINÉ"
+- image "Chicago Sky"
+- StaticText "Chicago Sky"
+- StaticText "8-16"
+- button "Ajouter aux favoris" [ref=e18]
+- StaticText "95"
+- StaticText ":"
+- StaticText "90"
+- button "Ajouter aux favoris" [ref=e19]
+- StaticText "Seattle Storm"
+- StaticText "6-20"
+- image "Seattle Storm"
+- button "Voir le résumé" [ref=e20]
+- button "Suivre" [ref=e21]
+  - StaticText "Suivre"
+- button "Résumé vidéo" [ref=e22]
+- StaticText "WNBA"
+- StaticText "TERMINÉ"
+- image "Minnesota Lynx"
+- StaticText "Minnesota Lynx"
+- StaticText "19-6"
+- button "Ajouter aux favoris" [ref=e23]
+- StaticText "96"
+- StaticText ":"
+- StaticText "87"
+- button "Ajouter aux favoris" [ref=e24]
+- StaticText "Los Angeles Sparks"
+- StaticText "10-13"
+- image "Los Angeles Sparks"
+- button "Voir le résumé" [ref=e25]
+- button "Suivre" [ref=e26]
+  - StaticText "Suivre"
+- button "Résumé vidéo" [ref=e27]
+- StaticText "WNBA"
+- StaticText "Aujourd'hui 11:00 PM"
+- image "Washington Mystics"
+- StaticText "Washington Mystics"
+- StaticText "12-10"
+- button "Ajouter aux favoris" [ref=e28]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e29]
+- StaticText "Portland Fire"
+- StaticText "10-14"
+- image "Portland Fire"
+- button "Regarder" [ref=e30]
+- button [ref=e31]
+- button "Suivre" [ref=e32]
+  - StaticText "Suivre"
+- heading "Regarder en direct" [level=2, ref=e33]
+- paragraph
+  - StaticText "Washington Mystics vs Portland Fire"
+- button [ref=e34]
+- StaticText "WNBA"
+- StaticText "TERMINÉ"
+- image "Indiana Fever"
+- StaticText "Indiana Fever"
+- StaticText "14-10"
+- button "Ajouter aux favoris" [ref=e35]
+- StaticText "75"
+- StaticText ":"
+- StaticText "88"
+- button "Ajouter aux favoris" [ref=e36]
+- StaticText "Golden State Valkyries"
+- StaticText "18-7"
+- image "Golden State Valkyries"
+- button "Voir le résumé" [ref=e37]
+- button "Suivre" [ref=e38]
+  - StaticText "Suivre"
+- button "Résumé vidéo" [ref=e39]
+- StaticText "WNBA"
+- StaticText "Demain 11:30 PM"
+- image "Indiana Fever"
+- StaticText "Indiana Fever"
+- StaticText "14-10"
+- button "Ajouter aux favoris" [ref=e40]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e41]
+- StaticText "Seattle Storm"
+- StaticText "6-20"
+- image "Seattle Storm"
+- button "Regarder" [ref=e42]
+- button [ref=e43]
+- button "Suivre" [ref=e44]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "Demain 11:30 PM"
+- image "Toronto Tempo"
+- StaticText "Toronto Tempo"
+- StaticText "10-14"
+- button "Ajouter aux favoris" [ref=e45]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e46]
+- StaticText "Atlanta Dream"
+- StaticText "14-10"
+- image "Atlanta Dream"
+- button "Regarder" [ref=e47]
+- button [ref=e48]
+- button "Suivre" [ref=e49]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "Demain 11:30 PM"
+- image "Chicago Sky"
+- StaticText "Chicago Sky"
+- StaticText "8-16"
+- button "Ajouter aux favoris" [ref=e50]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e51]
+- StaticText "Los Angeles Sparks"
+- StaticText "10-13"
+- image "Los Angeles Sparks"
+- button "Regarder" [ref=e52]
+- button [ref=e53]
+- button "Suivre" [ref=e54]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "TERMINÉ"
+- image "Dallas Wings"
+- StaticText "Dallas Wings"
+- StaticText "16-8"
+- button "Ajouter aux favoris" [ref=e55]
+- StaticText "0"
+- StaticText ":"
+- StaticText "0"
+- button "Ajouter aux favoris" [ref=e56]
+- StaticText "New York Liberty"
+- StaticText "13-11"
+- image "New York Liberty"
+- button "Voir le résumé" [ref=e57]
+- button "Suivre" [ref=e58]
+  - StaticText "Suivre"
+- button "Résumé vidéo" [ref=e59]
+- StaticText "WNBA"
+- StaticText "18 juil. 02:00 AM"
+- image "Phoenix Mercury"
+- StaticText "Phoenix Mercury"
+- StaticText "8-17"
+- button "Ajouter aux favoris" [ref=e60]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e61]
+- StaticText "Connecticut Sun"
+- StaticText "6-18"
+- image "Connecticut Sun"
+- button "Regarder" [ref=e62]
+- button [ref=e63]
+- button "Suivre" [ref=e64]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "19 juil. 12:00 AM"
+- image "Indiana Fever"
+- StaticText "Indiana Fever"
+- StaticText "14-10"
+- button "Ajouter aux favoris" [ref=e65]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e66]
+- StaticText "New York Liberty"
+- StaticText "13-11"
+- image "New York Liberty"
+- button "Regarder" [ref=e67]
+- button [ref=e68]
+- button "Suivre" [ref=e69]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "19 juil. 12:00 AM"
+- image "Minnesota Lynx"
+- StaticText "Minnesota Lynx"
+- StaticText "19-6"
+- button "Ajouter aux favoris" [ref=e70]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e71]
+- StaticText "Portland Fire"
+- StaticText "10-14"
+- image "Portland Fire"
+- button "Regarder" [ref=e72]
+- button [ref=e73]
+- button "Suivre" [ref=e74]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "19 juil. 12:30 AM"
+- image "Golden State Valkyries"
+- StaticText "Golden State Valkyries"
+- StaticText "18-7"
+- button "Ajouter aux favoris" [ref=e75]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e76]
+- StaticText "Washington Mystics"
+- StaticText "12-10"
+- image "Washington Mystics"
+- button "Regarder" [ref=e77]
+- button [ref=e78]
+- button "Suivre" [ref=e79]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "19 juil. 05:00 PM"
+- image "Dallas Wings"
+- StaticText "Dallas Wings"
+- StaticText "16-8"
+- button "Ajouter aux favoris" [ref=e80]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e81]
+- StaticText "Los Angeles Sparks"
+- StaticText "10-13"
+- image "Los Angeles Sparks"
+- button "Regarder" [ref=e82]
+- button [ref=e83]
+- button "Suivre" [ref=e84]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "19 juil. 08:00 PM"
+- image "Atlanta Dream"
+- StaticText "Atlanta Dream"
+- StaticText "14-10"
+- button "Ajouter aux favoris" [ref=e85]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e86]
+- StaticText "Chicago Sky"
+- StaticText "8-16"
+- image "Chicago Sky"
+- button "Regarder" [ref=e87]
+- button [ref=e88]
+- button "Suivre" [ref=e89]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "21 juil. 12:00 AM"
+- image "Toronto Tempo"
+- StaticText "Toronto Tempo"
+- StaticText "10-14"
+- button "Ajouter aux favoris" [ref=e90]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e91]
+- StaticText "Las Vegas Aces"
+- StaticText "17-7"
+- image "Las Vegas Aces"
+- button "Regarder" [ref=e92]
+- button [ref=e93]
+- button "Suivre" [ref=e94]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "21 juil. 02:00 AM"
+- image "Seattle Storm"
+- StaticText "Seattle Storm"
+- StaticText "6-20"
+- button "Ajouter aux favoris" [ref=e95]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e96]
+- StaticText "Minnesota Lynx"
+- StaticText "19-6"
+- image "Minnesota Lynx"
+- button "Regarder" [ref=e97]
+- button [ref=e98]
+- button "Suivre" [ref=e99]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "22 juil. 07:00 PM"
+- image "Los Angeles Sparks"
+- StaticText "Los Angeles Sparks"
+- StaticText "10-13"
+- button "Ajouter aux favoris" [ref=e100]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e101]
+- StaticText "Phoenix Mercury"
+- StaticText "8-17"
+- image "Phoenix Mercury"
+- button "Regarder" [ref=e102]
+- button [ref=e103]
+- button "Suivre" [ref=e104]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "22 juil. 11:00 PM"
+- image "New York Liberty"
+- StaticText "New York Liberty"
+- StaticText "13-11"
+- button "Ajouter aux favoris" [ref=e105]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e106]
+- StaticText "Chicago Sky"
+- StaticText "8-16"
+- image "Chicago Sky"
+- button "Regarder" [ref=e107]
+- button [ref=e108]
+- button "Suivre" [ref=e109]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "22 juil. 11:30 PM"
+- image "Washington Mystics"
+- StaticText "Washington Mystics"
+- StaticText "12-10"
+- button "Ajouter aux favoris" [ref=e110]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e111]
+- StaticText "Las Vegas Aces"
+- StaticText "17-7"
+- image "Las Vegas Aces"
+- button "Regarder" [ref=e112]
+- button [ref=e113]
+- button "Suivre" [ref=e114]
+  - StaticText "Suivre"
+- StaticText "WNBA"
+- StaticText "23 juil. 12:00 AM"
+- image "Indiana Fever"
+- StaticText "Indiana Fever"
+- StaticText "14-10"
+- button "Ajouter aux favoris" [ref=e115]
+- StaticText "VS"
+- button "Ajouter aux favoris" [ref=e116]
+- StaticText "Connecticut Sun"
+- StaticText "6-18"
+- image "Connecticut Sun"
+- button "Regarder" [ref=e117]
+- button [ref=e118]
+- button "Suivre" [ref=e119]
+  - StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"
+- StaticText "Suivre"

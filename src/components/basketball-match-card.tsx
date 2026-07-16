@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Play, Clock, Radio, Heart, Activity, Film } from 'lucide-react';
+import { Play, Clock, Radio, Heart, Activity, Film, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
@@ -20,6 +20,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
   const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
   const [showTracker, setShowTracker] = useState(false);
   const [showStreamOptions, setShowStreamOptions] = useState(false);
+  const [autoSearching, setAutoSearching] = useState(false);
 
   const isLive = match.status === 'live';
   const isFinished = match.status === 'finished';
@@ -42,19 +43,42 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
     return diffMs <= 30 * 60 * 1000 && diffMs > -5 * 60 * 1000;
   })();
 
-  // Show "Watch" button only for live matches or matches about to start
   const canWatchLive = isLive || isAboutToStart;
 
-  const handleWatchLive = () => {
-    // Open stream options panel - it will fetch free streams from /api/streams
-    setShowStreamOptions(true);
-  };
+  const handleWatchLive = async () => {
+    // For live basketball matches, auto-find a working stream
+    if (isLive || isAboutToStart) {
+      setAutoSearching(true);
+      try {
+        const res = await fetch(`/api/find-stream?homeTeam=${encodeURIComponent(match.homeTeam)}&awayTeam=${encodeURIComponent(match.awayTeam)}&sport=basketball`);
+        const data = await res.json();
 
-  /** Open YouTube live search for this basketball match */
-  const handleYoutubeLive = () => {
-    const year = matchDate ? matchDate.getFullYear() : new Date().getFullYear();
-    const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || 'NBA'} live ${year}`);
-    window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank', 'noopener,noreferrer');
+        if (data.found && data.stream) {
+          const alternatives = (data.alternatives || []).map((a: any) => ({
+            name: a.name,
+            url: a.url,
+            logo: a.logo,
+          }));
+          openPlayer(
+            data.stream.url,
+            data.stream.name || `${match.homeTeam} vs ${match.awayTeam}`,
+            data.stream.logo || undefined,
+            alternatives
+          );
+          setAutoSearching(false);
+          return;
+        }
+
+        // No working stream found — show stream options as fallback
+        setAutoSearching(false);
+        setShowStreamOptions(true);
+      } catch {
+        setAutoSearching(false);
+        setShowStreamOptions(true);
+      }
+    } else {
+      setShowStreamOptions(true);
+    }
   };
 
   return (
@@ -62,21 +86,21 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
       <div
         className={`group relative rounded-2xl overflow-hidden transition-all duration-250 hover:translate-y-[-1px] ${
           isLive
-            ? 'glass-card-basketball shadow-lg shadow-orange-500/5'
+            ? 'glass-card-basketball shadow-lg shadow-orange-500/10'
             : isFinished
-            ? 'glass-card opacity-60 hover:opacity-80'
+            ? 'glass-card opacity-75 hover:opacity-100'
             : 'glass-card hover:shadow-md'
         }`}
       >
-        {/* Live shimmer effect */}
-        {isLive && <div className="absolute inset-0 shimmer pointer-events-none" />}
+        {/* Live subtle gradient overlay */}
+        {isLive && <div className="absolute inset-0 bg-gradient-to-br from-orange-500/[0.03] to-transparent pointer-events-none" />}
 
         <div className="relative px-4 py-4">
           {/* Top row: competition + date/time/status */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className={`w-1 h-4 rounded-full ${isLive ? 'bg-orange-500' : isFinished ? 'bg-muted-foreground/20' : 'bg-orange-400/50'}`} />
-              <span className="text-[11px] text-muted-foreground/40 font-semibold uppercase tracking-wide">
+              <div className={`w-1 h-4 rounded-full ${isLive ? 'bg-orange-500' : isFinished ? 'bg-muted-foreground/40' : 'bg-orange-400/60'}`} />
+              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wide">
                 {match.competition || t(language, 'nav.basketball')}
               </span>
             </div>
@@ -86,14 +110,14 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
                 periodDisplay={match.periodDisplay}
               />
             ) : isFinished ? (
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-secondary/50 dark:bg-white/[0.02] border border-border/30 dark:border-white/[0.03]">
-                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/20" />
-                <span className="text-[10px] font-bold text-muted-foreground/30 uppercase tracking-wider">{t(language, 'common.finished')}</span>
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-secondary/50 dark:bg-white/[0.04] border border-border/40 dark:border-white/[0.06]">
+                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider">{t(language, 'common.finished')}</span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
-                <Clock className="h-3 w-3 text-orange-400/40" />
-                <span className="text-[11px] font-semibold text-muted-foreground/50">
+                <Clock className="h-3 w-3 text-orange-400/60" />
+                <span className="text-[11px] font-semibold text-muted-foreground/70">
                   {isToday ? `${t(language, 'common.today')} ${timeStr}` : isTomorrow ? `${t(language, 'common.tomorrow')} ${timeStr}` : `${dateStr} ${timeStr}`}
                 </span>
               </div>
@@ -108,48 +132,48 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
                 <img
                   src={match.homeLogo}
                   alt={match.homeTeam}
-                  className="w-10 h-10 rounded-xl object-contain bg-secondary/30 dark:bg-white/[0.02] p-1 shrink-0"
+                  className="w-10 h-10 rounded-xl object-contain bg-secondary/30 dark:bg-white/[0.04] p-1 shrink-0"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : (
-                <div className="w-10 h-10 rounded-xl bg-secondary/30 dark:bg-white/[0.03] flex items-center justify-center text-[11px] font-bold shrink-0 text-orange-400/50">
+                <div className="w-10 h-10 rounded-xl bg-secondary/30 dark:bg-white/[0.04] flex items-center justify-center text-[11px] font-bold shrink-0 text-orange-400/60">
                   {match.homeAbbreviation || match.homeTeam.slice(0, 2).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
-                <span className={`font-semibold text-[13px] truncate block leading-tight ${homeFav ? 'text-orange-400' : ''}`}>
+                <span className={`font-semibold text-sm truncate block leading-tight ${homeFav ? 'text-orange-400' : 'text-foreground'}`}>
                   {match.homeTeam}
                 </span>
                 {match.homeRecord && (
-                  <span className="text-[10px] text-muted-foreground/30">{match.homeRecord}</span>
+                  <span className="text-[10px] text-muted-foreground/50">{match.homeRecord}</span>
                 )}
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); toggleTeamFavorite(match.homeTeam, match.homeLogo); }}
-                className="shrink-0 ml-auto opacity-30 hover:opacity-100 transition-opacity"
+                className="shrink-0 ml-auto opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
                 title={homeFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
               >
-                <Heart className={`h-3.5 w-3.5 transition-colors ${homeFav ? 'fill-orange-400 text-orange-400' : 'text-muted-foreground hover:text-orange-400'}`} />
+                <Heart className={`h-3.5 w-3.5 transition-colors ${homeFav ? 'fill-orange-400 text-orange-400 opacity-100' : 'text-muted-foreground hover:text-orange-400'}`} />
               </button>
             </div>
 
             {/* Score or VS */}
-            <div className="flex flex-col items-center shrink-0 px-2 min-w-[60px]">
+            <div className="flex flex-col items-center shrink-0 px-2 min-w-[72px]">
               {isLive ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-black tabular-nums text-orange-400 score-pulse-orange">{homeScore}</span>
-                  <span className="text-xs text-muted-foreground/20 font-bold">:</span>
-                  <span className="text-xl font-black tabular-nums text-orange-400 score-pulse-orange">{awayScore}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[28px] font-black tabular-nums text-orange-400 score-pulse-orange leading-none">{homeScore}</span>
+                  <span className="text-base text-orange-400/80 font-bold">-</span>
+                  <span className="text-[28px] font-black tabular-nums text-orange-400 score-pulse-orange leading-none">{awayScore}</span>
                 </div>
               ) : isFinished ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-black tabular-nums text-muted-foreground/50">{homeScore}</span>
-                  <span className="text-xs text-muted-foreground/20 font-bold">:</span>
-                  <span className="text-xl font-black tabular-nums text-muted-foreground/50">{awayScore}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[28px] font-black tabular-nums text-foreground leading-none">{homeScore}</span>
+                  <span className="text-base text-muted-foreground font-bold">-</span>
+                  <span className="text-[28px] font-black tabular-nums text-foreground leading-none">{awayScore}</span>
                 </div>
               ) : (
-                <div className="px-4 py-1.5 rounded-xl bg-secondary/30 dark:bg-white/[0.02] border border-border/30 dark:border-white/[0.04]">
-                  <span className="text-xs font-bold text-muted-foreground/30 tracking-[0.2em]">VS</span>
+                <div className="px-4 py-1.5 rounded-xl bg-secondary/30 dark:bg-white/[0.04] border border-border/40 dark:border-white/[0.06]">
+                  <span className="text-xs font-bold text-muted-foreground/50 tracking-[0.2em]">VS</span>
                 </div>
               )}
             </div>
@@ -158,28 +182,28 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
             <div className="flex items-center gap-2.5 flex-1 min-w-0 justify-end">
               <button
                 onClick={(e) => { e.stopPropagation(); toggleTeamFavorite(match.awayTeam, match.awayLogo); }}
-                className="shrink-0 opacity-30 hover:opacity-100 transition-opacity"
+                className="shrink-0 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
                 title={awayFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
               >
-                <Heart className={`h-3.5 w-3.5 transition-colors ${awayFav ? 'fill-orange-400 text-orange-400' : 'text-muted-foreground hover:text-orange-400'}`} />
+                <Heart className={`h-3.5 w-3.5 transition-colors ${awayFav ? 'fill-orange-400 text-orange-400 opacity-100' : 'text-muted-foreground hover:text-orange-400'}`} />
               </button>
               <div className="min-w-0 text-right">
-                <span className={`font-semibold text-[13px] truncate block leading-tight ${awayFav ? 'text-orange-400' : ''}`}>
+                <span className={`font-semibold text-sm truncate block leading-tight ${awayFav ? 'text-orange-400' : 'text-foreground'}`}>
                   {match.awayTeam}
                 </span>
                 {match.awayRecord && (
-                  <span className="text-[10px] text-muted-foreground/30">{match.awayRecord}</span>
+                  <span className="text-[10px] text-muted-foreground/50">{match.awayRecord}</span>
                 )}
               </div>
               {match.awayLogo ? (
                 <img
                   src={match.awayLogo}
                   alt={match.awayTeam}
-                  className="w-10 h-10 rounded-xl object-contain bg-secondary/30 dark:bg-white/[0.02] p-1 shrink-0"
+                  className="w-10 h-10 rounded-xl object-contain bg-secondary/30 dark:bg-white/[0.04] p-1 shrink-0"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : (
-                <div className="w-10 h-10 rounded-xl bg-secondary/30 dark:bg-white/[0.03] flex items-center justify-center text-[11px] font-bold shrink-0 text-orange-400/50">
+                <div className="w-10 h-10 rounded-xl bg-secondary/30 dark:bg-white/[0.04] flex items-center justify-center text-[11px] font-bold shrink-0 text-orange-400/60">
                   {match.awayAbbreviation || match.awayTeam.slice(0, 2).toUpperCase()}
                 </div>
               )}
@@ -187,19 +211,27 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
           </div>
 
           {/* Action buttons */}
-          <div className="mt-4 pt-3 border-t border-border/20 dark:border-white/[0.03] flex gap-2">
+          <div className="mt-3 pt-3 border-t border-border/30 dark:border-white/[0.06] flex gap-2">
             {canWatchLive ? (
               <>
                 <Button
                   size="sm"
                   onClick={handleWatchLive}
+                  disabled={autoSearching}
                   className={`flex-1 h-9 gap-2 text-xs font-bold rounded-xl transition-all duration-200 ${
-                    isLive
+                    autoSearching
+                      ? 'bg-muted text-muted-foreground'
+                      : isLive
                       ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-600/20'
                       : 'bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/20'
                   }`}
                 >
-                  {isLive ? (
+                  {autoSearching ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Recherche...
+                    </>
+                  ) : isLive ? (
                     <>
                       <Radio className="h-3.5 w-3.5 fill-current" />
                       {t(language, 'match.watchLive')}
@@ -211,21 +243,12 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
                     </>
                   )}
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleYoutubeLive}
-                  className="h-9 px-3 gap-1.5 text-xs font-semibold rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20"
-                  title="YouTube Live"
-                >
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                  <span className="hidden sm:inline">YT</span>
-                </Button>
               </>
             ) : isFinished ? (
               <Button
                 size="sm"
                 onClick={() => setShowTracker(true)}
-                className="flex-1 h-9 gap-2 text-xs font-semibold rounded-xl bg-secondary/50 dark:bg-white/[0.03] hover:bg-secondary dark:hover:bg-white/[0.06] text-foreground border border-border/30 dark:border-white/[0.04]"
+                className="flex-1 h-9 gap-2 text-xs font-semibold rounded-xl bg-secondary/50 dark:bg-white/[0.04] hover:bg-secondary dark:hover:bg-white/[0.08] text-foreground/80 border border-border/40 dark:border-white/[0.06]"
               >
                 <Activity className="h-3.5 w-3.5" />
                 {t(language, 'match.seeSummary')}
@@ -240,14 +263,6 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
                   <Play className="h-3.5 w-3.5" />
                   {t(language, 'match.watch')}
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowTracker(true)}
-                  className="h-9 px-3 rounded-xl border-border/30 dark:border-white/[0.04] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1 text-muted-foreground"
-                >
-                  <Activity className="h-3.5 w-3.5" />
-                </Button>
               </div>
             )}
             {/* Match Tracker button */}
@@ -255,27 +270,11 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
               size="sm"
               variant="outline"
               onClick={() => setShowTracker(true)}
-              className="h-9 px-3 rounded-xl border-border/30 dark:border-white/[0.04] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1"
+              className="h-9 px-3 rounded-xl border-border/40 dark:border-white/[0.06] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1 text-muted-foreground/70"
             >
               <Activity className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t(language, 'match.follow')}</span>
             </Button>
-            {/* Highlights button — only for finished matches */}
-            {isFinished && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  const year = matchDate ? matchDate.getFullYear() : new Date().getFullYear();
-                  const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || ''} highlights ${year}`);
-                  window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank', 'noopener,noreferrer');
-                }}
-                className="h-9 px-3 rounded-xl border-border/30 dark:border-white/[0.04] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1"
-                title={t(language, 'match.highlights')}
-              >
-                <Film className="h-3.5 w-3.5" />
-              </Button>
-            )}
           </div>
         </div>
 
@@ -296,6 +295,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
         competition={match.competition}
         sport="basketball"
         matchId={match.id}
+        isLive={isLive}
       />
     </>
   );

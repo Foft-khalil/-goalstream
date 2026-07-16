@@ -1,0 +1,1583 @@
+     1→- main
+     2→  - heading "🏀 21 matchs" [level=2, ref=e8]
+     3→    - StaticText "🏀"
+     4→    - StaticText "21"
+     5→    - StaticText " "
+     6→    - StaticText "matchs"
+     7→  - StaticText "Maj"
+     8→  - StaticText " "
+     9→  - StaticText "1:45"
+    10→  - button [ref=e9]
+    11→  - generic
+    12→    - generic
+    13→      - StaticText "mercredi 15 juillet"
+    14→      - StaticText "2"
+    15→      - StaticText " "
+    16→      - StaticText "matchs"
+    17→    - StaticText "TERMINÉ"
+    18→    - StaticText "2"
+    19→    - StaticText "WNBA"
+    20→    - generic
+    21→      - StaticText "WNBA"
+    22→      - StaticText "TERMINÉ"
+    23→      - image "Chicago Sky"
+    24→      - StaticText "Chicago Sky"
+    25→      - StaticText "8-16"
+    26→      - button "Ajouter aux favoris" [ref=e18]
+    27→      - StaticText "95"
+    28→      - StaticText ":"
+    29→      - StaticText "90"
+    30→      - button "Ajouter aux favoris" [ref=e19]
+    31→      - StaticText "Seattle Storm"
+    32→      - StaticText "6-20"
+    33→      - image "Seattle Storm"
+    34→      - button "Voir le résumé" [ref=e20]
+    35→      - button "Suivre" [ref=e21]
+    36→        - StaticText "Suivre"
+    37→      - button "Résumé vidéo" [ref=e22]
+    38→    - generic
+    39→      - StaticText "WNBA"
+    40→      - StaticText "TERMINÉ"
+    41→      - image "Minnesota Lynx"
+    42→      - StaticText "Minnesota Lynx"
+    43→      - StaticText "19-6"
+    44→      - button "Ajouter aux favoris" [ref=e23]
+    45→      - StaticText "96"
+    46→      - StaticText ":"
+    47→      - StaticText "87"
+    48→      - button "Ajouter aux favoris" [ref=e24]
+    49→      - StaticText "Los Angeles Sparks"
+    50→      - StaticText "10-13"
+    51→      - image "Los Angeles Sparks"
+    52→      - button "Voir le résumé" [ref=e25]
+    53→      - button "Suivre" [ref=e26]
+    54→        - StaticText "Suivre"
+    55→      - button "Résumé vidéo" [ref=e27]
+    56→  - generic
+    57→    - generic
+    58→      - StaticText "Aujourd'hui"
+    59→      - StaticText "2"
+    60→      - StaticText " "
+    61→      - StaticText "matchs"
+    62→    - StaticText "WNBA"
+    63→    - StaticText "1"
+    64→    - generic
+    65→      - StaticText "WNBA"
+    66→      - StaticText "Aujourd'hui 11:00 PM"
+    67→      - image "Washington Mystics"
+    68→      - StaticText "Washington Mystics"
+    69→      - StaticText "12-10"
+    70→      - button "Ajouter aux favoris" [ref=e28]
+    71→      - StaticText "VS"
+    72→      - button "Ajouter aux favoris" [ref=e29]
+    73→      - StaticText "Portland Fire"
+    74→      - StaticText "10-14"
+    75→      - image "Portland Fire"
+    76→      - button "Regarder" [ref=e30]
+    77→      - button [ref=e31]
+    78→      - button "Suivre" [ref=e32]
+    79→        - StaticText "Suivre"
+    80→    - generic
+    81→      - heading "Regarder en direct" [level=2, ref=e33]
+    82→      - paragraph
+    83→        - StaticText "Washington Mystics vs Portland Fire"
+    84→      - button [ref=e34]
+    85→    - paragraph
+    86→      - StaticText "Aucun flux gratuit trouvé pour ce match"
+    87→    - paragraph
+    88→      - StaticText "Les liens redirigent vers des sites tiers. GoalStream ne héberge aucun contenu."
+    89→    - paragraph
+    90→      - StaticText "WNBA • Washington Mystics vs Portland Fire"
+    91→    - StaticText "TERMINÉ"
+    92→    - StaticText "1"
+    93→    - StaticText "WNBA"
+    94→    - generic
+    95→      - StaticText "WNBA"
+    96→      - StaticText "TERMINÉ"
+    97→      - image "Indiana Fever"
+    98→      - StaticText "Indiana Fever"
+    99→      - StaticText "14-10"
+   100→      - button "Ajouter aux favoris" [ref=e35]
+   101→      - StaticText "75"
+   102→      - StaticText ":"
+   103→      - StaticText "88"
+   104→      - button "Ajouter aux favoris" [ref=e36]
+   105→      - StaticText "Golden State Valkyries"
+   106→      - StaticText "18-7"
+   107→      - image "Golden State Valkyries"
+   108→      - button "Voir le résumé" [ref=e37]
+   109→      - button "Suivre" [ref=e38]
+   110→        - StaticText "Suivre"
+   111→      - button "Résumé vidéo" [ref=e39]
+   112→  - generic
+   113→    - generic
+   114→      - StaticText "Demain"
+   115→      - StaticText "4"
+   116→      - StaticText " "
+   117→      - StaticText "matchs"
+   118→    - StaticText "WNBA"
+   119→    - StaticText "3"
+   120→    - generic
+   121→      - StaticText "WNBA"
+   122→      - StaticText "Demain 11:30 PM"
+   123→      - image "Indiana Fever"
+   124→      - StaticText "Indiana Fever"
+   125→      - StaticText "14-10"
+   126→      - button "Ajouter aux favoris" [ref=e40]
+   127→      - StaticText "VS"
+   128→      - button "Ajouter aux favoris" [ref=e41]
+   129→      - StaticText "Seattle Storm"
+   130→      - StaticText "6-20"
+   131→      - image "Seattle Storm"
+   132→      - button "Regarder" [ref=e42]
+   133→      - button [ref=e43]
+   134→      - button "Suivre" [ref=e44]
+   135→        - StaticText "Suivre"
+   136→    - generic
+   137→      - StaticText "WNBA"
+   138→      - StaticText "Demain 11:30 PM"
+   139→      - image "Toronto Tempo"
+   140→      - StaticText "Toronto Tempo"
+   141→      - StaticText "10-14"
+   142→      - button "Ajouter aux favoris" [ref=e45]
+   143→      - StaticText "VS"
+   144→      - button "Ajouter aux favoris" [ref=e46]
+   145→      - StaticText "Atlanta Dream"
+   146→      - StaticText "14-10"
+   147→      - image "Atlanta Dream"
+   148→      - button "Regarder" [ref=e47]
+   149→      - button [ref=e48]
+   150→      - button "Suivre" [ref=e49]
+   151→        - StaticText "Suivre"
+   152→    - generic
+   153→      - StaticText "WNBA"
+   154→      - StaticText "Demain 11:30 PM"
+   155→      - image "Chicago Sky"
+   156→      - StaticText "Chicago Sky"
+   157→      - StaticText "8-16"
+   158→      - button "Ajouter aux favoris" [ref=e50]
+   159→      - StaticText "VS"
+   160→      - button "Ajouter aux favoris" [ref=e51]
+   161→      - StaticText "Los Angeles Sparks"
+   162→      - StaticText "10-13"
+   163→      - image "Los Angeles Sparks"
+   164→      - button "Regarder" [ref=e52]
+   165→      - button [ref=e53]
+   166→      - button "Suivre" [ref=e54]
+   167→        - StaticText "Suivre"
+   168→    - StaticText "TERMINÉ"
+   169→    - StaticText "1"
+   170→    - StaticText "WNBA"
+   171→    - generic
+   172→      - StaticText "WNBA"
+   173→      - StaticText "TERMINÉ"
+   174→      - image "Dallas Wings"
+   175→      - StaticText "Dallas Wings"
+   176→      - StaticText "16-8"
+   177→      - button "Ajouter aux favoris" [ref=e55]
+   178→      - StaticText "0"
+   179→      - StaticText ":"
+   180→      - StaticText "0"
+   181→      - button "Ajouter aux favoris" [ref=e56]
+   182→      - StaticText "New York Liberty"
+   183→      - StaticText "13-11"
+   184→      - image "New York Liberty"
+   185→      - button "Voir le résumé" [ref=e57]
+   186→      - button "Suivre" [ref=e58]
+   187→        - StaticText "Suivre"
+   188→      - button "Résumé vidéo" [ref=e59]
+   189→  - generic
+   190→    - generic
+   191→      - StaticText "samedi 18 juillet"
+   192→      - StaticText "1"
+   193→      - StaticText " "
+   194→      - StaticText "matchs"
+   195→    - StaticText "WNBA"
+   196→    - StaticText "1"
+   197→    - generic
+   198→      - StaticText "WNBA"
+   199→      - StaticText "18 juil. 02:00 AM"
+   200→      - image "Phoenix Mercury"
+   201→      - StaticText "Phoenix Mercury"
+   202→      - StaticText "8-17"
+   203→      - button "Ajouter aux favoris" [ref=e60]
+   204→      - StaticText "VS"
+   205→      - button "Ajouter aux favoris" [ref=e61]
+   206→      - StaticText "Connecticut Sun"
+   207→      - StaticText "6-18"
+   208→      - image "Connecticut Sun"
+   209→      - button "Regarder" [ref=e62]
+   210→      - button [ref=e63]
+   211→      - button "Suivre" [ref=e64]
+   212→        - StaticText "Suivre"
+   213→  - generic
+   214→    - generic
+   215→      - StaticText "dimanche 19 juillet"
+   216→      - StaticText "5"
+   217→      - StaticText " "
+   218→      - StaticText "matchs"
+   219→    - StaticText "WNBA"
+   220→    - StaticText "5"
+   221→    - generic
+   222→      - StaticText "WNBA"
+   223→      - StaticText "19 juil. 12:00 AM"
+   224→      - image "Indiana Fever"
+   225→      - StaticText "Indiana Fever"
+   226→      - StaticText "14-10"
+   227→      - button "Ajouter aux favoris" [ref=e65]
+   228→      - StaticText "VS"
+   229→      - button "Ajouter aux favoris" [ref=e66]
+   230→      - StaticText "New York Liberty"
+   231→      - StaticText "13-11"
+   232→      - image "New York Liberty"
+   233→      - button "Regarder" [ref=e67]
+   234→      - button [ref=e68]
+   235→      - button "Suivre" [ref=e69]
+   236→        - StaticText "Suivre"
+   237→    - generic
+   238→      - StaticText "WNBA"
+   239→      - StaticText "19 juil. 12:00 AM"
+   240→      - image "Minnesota Lynx"
+   241→      - StaticText "Minnesota Lynx"
+   242→      - StaticText "19-6"
+   243→      - button "Ajouter aux favoris" [ref=e70]
+   244→      - StaticText "VS"
+   245→      - button "Ajouter aux favoris" [ref=e71]
+   246→      - StaticText "Portland Fire"
+   247→      - StaticText "10-14"
+   248→      - image "Portland Fire"
+   249→      - button "Regarder" [ref=e72]
+   250→      - button [ref=e73]
+   251→      - button "Suivre" [ref=e74]
+   252→        - StaticText "Suivre"
+   253→    - generic
+   254→      - StaticText "WNBA"
+   255→      - StaticText "19 juil. 12:30 AM"
+   256→      - image "Golden State Valkyries"
+   257→      - StaticText "Golden State Valkyries"
+   258→      - StaticText "18-7"
+   259→      - button "Ajouter aux favoris" [ref=e75]
+   260→      - StaticText "VS"
+   261→      - button "Ajouter aux favoris" [ref=e76]
+   262→      - StaticText "Washington Mystics"
+   263→      - StaticText "12-10"
+   264→      - image "Washington Mystics"
+   265→      - button "Regarder" [ref=e77]
+   266→      - button [ref=e78]
+   267→      - button "Suivre" [ref=e79]
+   268→        - StaticText "Suivre"
+   269→    - generic
+   270→      - StaticText "WNBA"
+   271→      - StaticText "19 juil. 05:00 PM"
+   272→      - image "Dallas Wings"
+   273→      - StaticText "Dallas Wings"
+   274→      - StaticText "16-8"
+   275→      - button "Ajouter aux favoris" [ref=e80]
+   276→      - StaticText "VS"
+   277→      - button "Ajouter aux favoris" [ref=e81]
+   278→      - StaticText "Los Angeles Sparks"
+   279→      - StaticText "10-13"
+   280→      - image "Los Angeles Sparks"
+   281→      - button "Regarder" [ref=e82]
+   282→      - button [ref=e83]
+   283→      - button "Suivre" [ref=e84]
+   284→        - StaticText "Suivre"
+   285→    - generic
+   286→      - StaticText "WNBA"
+   287→      - StaticText "19 juil. 08:00 PM"
+   288→      - image "Atlanta Dream"
+   289→      - StaticText "Atlanta Dream"
+   290→      - StaticText "14-10"
+   291→      - button "Ajouter aux favoris" [ref=e85]
+   292→      - StaticText "VS"
+   293→      - button "Ajouter aux favoris" [ref=e86]
+   294→      - StaticText "Chicago Sky"
+   295→      - StaticText "8-16"
+   296→      - image "Chicago Sky"
+   297→      - button "Regarder" [ref=e87]
+   298→      - button [ref=e88]
+   299→      - button "Suivre" [ref=e89]
+   300→        - StaticText "Suivre"
+   301→  - generic
+   302→    - generic
+   303→      - StaticText "mardi 21 juillet"
+   304→      - StaticText "2"
+   305→      - StaticText " "
+   306→      - StaticText "matchs"
+   307→    - StaticText "WNBA"
+   308→    - StaticText "2"
+   309→    - generic
+   310→      - StaticText "WNBA"
+   311→      - StaticText "21 juil. 12:00 AM"
+   312→      - image "Toronto Tempo"
+   313→      - StaticText "Toronto Tempo"
+   314→      - StaticText "10-14"
+   315→      - button "Ajouter aux favoris" [ref=e90]
+   316→      - StaticText "VS"
+   317→      - button "Ajouter aux favoris" [ref=e91]
+   318→      - StaticText "Las Vegas Aces"
+   319→      - StaticText "17-7"
+   320→      - image "Las Vegas Aces"
+   321→      - button "Regarder" [ref=e92]
+   322→      - button [ref=e93]
+   323→      - button "Suivre" [ref=e94]
+   324→        - StaticText "Suivre"
+   325→    - generic
+   326→      - StaticText "WNBA"
+   327→      - StaticText "21 juil. 02:00 AM"
+   328→      - image "Seattle Storm"
+   329→      - StaticText "Seattle Storm"
+   330→      - StaticText "6-20"
+   331→      - button "Ajouter aux favoris" [ref=e95]
+   332→      - StaticText "VS"
+   333→      - button "Ajouter aux favoris" [ref=e96]
+   334→      - StaticText "Minnesota Lynx"
+   335→      - StaticText "19-6"
+   336→      - image "Minnesota Lynx"
+   337→      - button "Regarder" [ref=e97]
+   338→      - button [ref=e98]
+   339→      - button "Suivre" [ref=e99]
+   340→        - StaticText "Suivre"
+   341→  - generic
+   342→    - generic
+   343→      - StaticText "mercredi 22 juillet"
+   344→      - StaticText "3"
+   345→      - StaticText " "
+   346→      - StaticText "matchs"
+   347→    - StaticText "WNBA"
+   348→    - StaticText "3"
+   349→    - generic
+   350→      - StaticText "WNBA"
+   351→      - StaticText "22 juil. 07:00 PM"
+   352→      - image "Los Angeles Sparks"
+   353→      - StaticText "Los Angeles Sparks"
+   354→      - StaticText "10-13"
+   355→      - button "Ajouter aux favoris" [ref=e100]
+   356→      - StaticText "VS"
+   357→      - button "Ajouter aux favoris" [ref=e101]
+   358→      - StaticText "Phoenix Mercury"
+   359→      - StaticText "8-17"
+   360→      - image "Phoenix Mercury"
+   361→      - button "Regarder" [ref=e102]
+   362→      - button [ref=e103]
+   363→      - button "Suivre" [ref=e104]
+   364→        - StaticText "Suivre"
+   365→    - generic
+   366→      - StaticText "WNBA"
+   367→      - StaticText "22 juil. 11:00 PM"
+   368→      - image "New York Liberty"
+   369→      - StaticText "New York Liberty"
+   370→      - StaticText "13-11"
+   371→      - button "Ajouter aux favoris" [ref=e105]
+   372→      - StaticText "VS"
+   373→      - button "Ajouter aux favoris" [ref=e106]
+   374→      - StaticText "Chicago Sky"
+   375→      - StaticText "8-16"
+   376→      - image "Chicago Sky"
+   377→      - button "Regarder" [ref=e107]
+   378→      - button [ref=e108]
+   379→      - button "Suivre" [ref=e109]
+   380→        - StaticText "Suivre"
+   381→    - generic
+   382→      - StaticText "WNBA"
+   383→      - StaticText "22 juil. 11:30 PM"
+   384→      - image "Washington Mystics"
+   385→      - StaticText "Washington Mystics"
+   386→      - StaticText "12-10"
+   387→      - button "Ajouter aux favoris" [ref=e110]
+   388→      - StaticText "VS"
+   389→      - button "Ajouter aux favoris" [ref=e111]
+   390→      - StaticText "Las Vegas Aces"
+   391→      - StaticText "17-7"
+   392→      - image "Las Vegas Aces"
+   393→      - button "Regarder" [ref=e112]
+   394→      - button [ref=e113]
+   395→      - button "Suivre" [ref=e114]
+   396→        - StaticText "Suivre"
+   397→  - generic
+   398→    - generic
+   399→      - StaticText "jeudi 23 juillet"
+   400→      - StaticText "1"
+   401→      - StaticText " "
+   402→      - StaticText "matchs"
+   403→    - StaticText "WNBA"
+   404→    - StaticText "1"
+   405→    - generic
+   406→      - StaticText "WNBA"
+   407→      - StaticText "23 juil. 12:00 AM"
+   408→      - image "Indiana Fever"
+   409→      - StaticText "Indiana Fever"
+   410→      - StaticText "14-10"
+   411→      - button "Ajouter aux favoris" [ref=e115]
+   412→      - StaticText "VS"
+   413→      - button "Ajouter aux favoris" [ref=e116]
+   414→      - StaticText "Connecticut Sun"
+   415→      - StaticText "6-18"
+   416→      - image "Connecticut Sun"
+   417→      - button "Regarder" [ref=e117]
+   418→      - button [ref=e118]
+   419→      - button "Suivre" [ref=e119]
+   420→        - StaticText "Suivre"
+   421→  - StaticText "20"
+   422→  - StaticText " / "
+   423→  - StaticText "21"
+   424→  - StaticText " "
+   425→  - StaticText "matchs"
+   426→  - generic
+   427→    - StaticText "NBA · NCAA · EuroLeague · WNBA — Maj 2 min"
+   428→- heading "🏀 21 matchs" [level=2, ref=e8]
+   429→  - StaticText "🏀"
+   430→  - StaticText "21"
+   431→  - StaticText " "
+   432→  - StaticText "matchs"
+   433→- StaticText "Maj"
+   434→- StaticText "1:45"
+   435→- button [ref=e9]
+   436→- generic
+   437→  - generic
+   438→    - StaticText "mercredi 15 juillet"
+   439→    - StaticText "2"
+   440→    - StaticText " "
+   441→    - StaticText "matchs"
+   442→  - StaticText "TERMINÉ"
+   443→  - StaticText "2"
+   444→  - StaticText "WNBA"
+   445→  - generic
+   446→    - StaticText "WNBA"
+   447→    - StaticText "TERMINÉ"
+   448→    - image "Chicago Sky"
+   449→    - StaticText "Chicago Sky"
+   450→    - StaticText "8-16"
+   451→    - button "Ajouter aux favoris" [ref=e18]
+   452→    - StaticText "95"
+   453→    - StaticText ":"
+   454→    - StaticText "90"
+   455→    - button "Ajouter aux favoris" [ref=e19]
+   456→    - StaticText "Seattle Storm"
+   457→    - StaticText "6-20"
+   458→    - image "Seattle Storm"
+   459→    - button "Voir le résumé" [ref=e20]
+   460→    - button "Suivre" [ref=e21]
+   461→      - StaticText "Suivre"
+   462→    - button "Résumé vidéo" [ref=e22]
+   463→  - generic
+   464→    - StaticText "WNBA"
+   465→    - StaticText "TERMINÉ"
+   466→    - image "Minnesota Lynx"
+   467→    - StaticText "Minnesota Lynx"
+   468→    - StaticText "19-6"
+   469→    - button "Ajouter aux favoris" [ref=e23]
+   470→    - StaticText "96"
+   471→    - StaticText ":"
+   472→    - StaticText "87"
+   473→    - button "Ajouter aux favoris" [ref=e24]
+   474→    - StaticText "Los Angeles Sparks"
+   475→    - StaticText "10-13"
+   476→    - image "Los Angeles Sparks"
+   477→    - button "Voir le résumé" [ref=e25]
+   478→    - button "Suivre" [ref=e26]
+   479→      - StaticText "Suivre"
+   480→    - button "Résumé vidéo" [ref=e27]
+   481→- generic
+   482→  - generic
+   483→    - StaticText "Aujourd'hui"
+   484→    - StaticText "2"
+   485→    - StaticText " "
+   486→    - StaticText "matchs"
+   487→  - StaticText "WNBA"
+   488→  - StaticText "1"
+   489→  - generic
+   490→    - StaticText "WNBA"
+   491→    - StaticText "Aujourd'hui 11:00 PM"
+   492→    - image "Washington Mystics"
+   493→    - StaticText "Washington Mystics"
+   494→    - StaticText "12-10"
+   495→    - button "Ajouter aux favoris" [ref=e28]
+   496→    - StaticText "VS"
+   497→    - button "Ajouter aux favoris" [ref=e29]
+   498→    - StaticText "Portland Fire"
+   499→    - StaticText "10-14"
+   500→    - image "Portland Fire"
+   501→    - button "Regarder" [ref=e30]
+   502→    - button [ref=e31]
+   503→    - button "Suivre" [ref=e32]
+   504→      - StaticText "Suivre"
+   505→  - generic
+   506→    - heading "Regarder en direct" [level=2, ref=e33]
+   507→    - paragraph
+   508→      - StaticText "Washington Mystics vs Portland Fire"
+   509→    - button [ref=e34]
+   510→  - paragraph
+   511→    - StaticText "Aucun flux gratuit trouvé pour ce match"
+   512→  - paragraph
+   513→    - StaticText "Les liens redirigent vers des sites tiers. GoalStream ne héberge aucun contenu."
+   514→  - paragraph
+   515→    - StaticText "WNBA • Washington Mystics vs Portland Fire"
+   516→  - StaticText "TERMINÉ"
+   517→  - StaticText "1"
+   518→  - StaticText "WNBA"
+   519→  - generic
+   520→    - StaticText "WNBA"
+   521→    - StaticText "TERMINÉ"
+   522→    - image "Indiana Fever"
+   523→    - StaticText "Indiana Fever"
+   524→    - StaticText "14-10"
+   525→    - button "Ajouter aux favoris" [ref=e35]
+   526→    - StaticText "75"
+   527→    - StaticText ":"
+   528→    - StaticText "88"
+   529→    - button "Ajouter aux favoris" [ref=e36]
+   530→    - StaticText "Golden State Valkyries"
+   531→    - StaticText "18-7"
+   532→    - image "Golden State Valkyries"
+   533→    - button "Voir le résumé" [ref=e37]
+   534→    - button "Suivre" [ref=e38]
+   535→      - StaticText "Suivre"
+   536→    - button "Résumé vidéo" [ref=e39]
+   537→- generic
+   538→  - generic
+   539→    - StaticText "Demain"
+   540→    - StaticText "4"
+   541→    - StaticText " "
+   542→    - StaticText "matchs"
+   543→  - StaticText "WNBA"
+   544→  - StaticText "3"
+   545→  - generic
+   546→    - StaticText "WNBA"
+   547→    - StaticText "Demain 11:30 PM"
+   548→    - image "Indiana Fever"
+   549→    - StaticText "Indiana Fever"
+   550→    - StaticText "14-10"
+   551→    - button "Ajouter aux favoris" [ref=e40]
+   552→    - StaticText "VS"
+   553→    - button "Ajouter aux favoris" [ref=e41]
+   554→    - StaticText "Seattle Storm"
+   555→    - StaticText "6-20"
+   556→    - image "Seattle Storm"
+   557→    - button "Regarder" [ref=e42]
+   558→    - button [ref=e43]
+   559→    - button "Suivre" [ref=e44]
+   560→      - StaticText "Suivre"
+   561→  - generic
+   562→    - StaticText "WNBA"
+   563→    - StaticText "Demain 11:30 PM"
+   564→    - image "Toronto Tempo"
+   565→    - StaticText "Toronto Tempo"
+   566→    - StaticText "10-14"
+   567→    - button "Ajouter aux favoris" [ref=e45]
+   568→    - StaticText "VS"
+   569→    - button "Ajouter aux favoris" [ref=e46]
+   570→    - StaticText "Atlanta Dream"
+   571→    - StaticText "14-10"
+   572→    - image "Atlanta Dream"
+   573→    - button "Regarder" [ref=e47]
+   574→    - button [ref=e48]
+   575→    - button "Suivre" [ref=e49]
+   576→      - StaticText "Suivre"
+   577→  - generic
+   578→    - StaticText "WNBA"
+   579→    - StaticText "Demain 11:30 PM"
+   580→    - image "Chicago Sky"
+   581→    - StaticText "Chicago Sky"
+   582→    - StaticText "8-16"
+   583→    - button "Ajouter aux favoris" [ref=e50]
+   584→    - StaticText "VS"
+   585→    - button "Ajouter aux favoris" [ref=e51]
+   586→    - StaticText "Los Angeles Sparks"
+   587→    - StaticText "10-13"
+   588→    - image "Los Angeles Sparks"
+   589→    - button "Regarder" [ref=e52]
+   590→    - button [ref=e53]
+   591→    - button "Suivre" [ref=e54]
+   592→      - StaticText "Suivre"
+   593→  - StaticText "TERMINÉ"
+   594→  - StaticText "1"
+   595→  - StaticText "WNBA"
+   596→  - generic
+   597→    - StaticText "WNBA"
+   598→    - StaticText "TERMINÉ"
+   599→    - image "Dallas Wings"
+   600→    - StaticText "Dallas Wings"
+   601→    - StaticText "16-8"
+   602→    - button "Ajouter aux favoris" [ref=e55]
+   603→    - StaticText "0"
+   604→    - StaticText ":"
+   605→    - StaticText "0"
+   606→    - button "Ajouter aux favoris" [ref=e56]
+   607→    - StaticText "New York Liberty"
+   608→    - StaticText "13-11"
+   609→    - image "New York Liberty"
+   610→    - button "Voir le résumé" [ref=e57]
+   611→    - button "Suivre" [ref=e58]
+   612→      - StaticText "Suivre"
+   613→    - button "Résumé vidéo" [ref=e59]
+   614→- generic
+   615→  - generic
+   616→    - StaticText "samedi 18 juillet"
+   617→    - StaticText "1"
+   618→    - StaticText " "
+   619→    - StaticText "matchs"
+   620→  - StaticText "WNBA"
+   621→  - StaticText "1"
+   622→  - generic
+   623→    - StaticText "WNBA"
+   624→    - StaticText "18 juil. 02:00 AM"
+   625→    - image "Phoenix Mercury"
+   626→    - StaticText "Phoenix Mercury"
+   627→    - StaticText "8-17"
+   628→    - button "Ajouter aux favoris" [ref=e60]
+   629→    - StaticText "VS"
+   630→    - button "Ajouter aux favoris" [ref=e61]
+   631→    - StaticText "Connecticut Sun"
+   632→    - StaticText "6-18"
+   633→    - image "Connecticut Sun"
+   634→    - button "Regarder" [ref=e62]
+   635→    - button [ref=e63]
+   636→    - button "Suivre" [ref=e64]
+   637→      - StaticText "Suivre"
+   638→- generic
+   639→  - generic
+   640→    - StaticText "dimanche 19 juillet"
+   641→    - StaticText "5"
+   642→    - StaticText " "
+   643→    - StaticText "matchs"
+   644→  - StaticText "WNBA"
+   645→  - StaticText "5"
+   646→  - generic
+   647→    - StaticText "WNBA"
+   648→    - StaticText "19 juil. 12:00 AM"
+   649→    - image "Indiana Fever"
+   650→    - StaticText "Indiana Fever"
+   651→    - StaticText "14-10"
+   652→    - button "Ajouter aux favoris" [ref=e65]
+   653→    - StaticText "VS"
+   654→    - button "Ajouter aux favoris" [ref=e66]
+   655→    - StaticText "New York Liberty"
+   656→    - StaticText "13-11"
+   657→    - image "New York Liberty"
+   658→    - button "Regarder" [ref=e67]
+   659→    - button [ref=e68]
+   660→    - button "Suivre" [ref=e69]
+   661→      - StaticText "Suivre"
+   662→  - generic
+   663→    - StaticText "WNBA"
+   664→    - StaticText "19 juil. 12:00 AM"
+   665→    - image "Minnesota Lynx"
+   666→    - StaticText "Minnesota Lynx"
+   667→    - StaticText "19-6"
+   668→    - button "Ajouter aux favoris" [ref=e70]
+   669→    - StaticText "VS"
+   670→    - button "Ajouter aux favoris" [ref=e71]
+   671→    - StaticText "Portland Fire"
+   672→    - StaticText "10-14"
+   673→    - image "Portland Fire"
+   674→    - button "Regarder" [ref=e72]
+   675→    - button [ref=e73]
+   676→    - button "Suivre" [ref=e74]
+   677→      - StaticText "Suivre"
+   678→  - generic
+   679→    - StaticText "WNBA"
+   680→    - StaticText "19 juil. 12:30 AM"
+   681→    - image "Golden State Valkyries"
+   682→    - StaticText "Golden State Valkyries"
+   683→    - StaticText "18-7"
+   684→    - button "Ajouter aux favoris" [ref=e75]
+   685→    - StaticText "VS"
+   686→    - button "Ajouter aux favoris" [ref=e76]
+   687→    - StaticText "Washington Mystics"
+   688→    - StaticText "12-10"
+   689→    - image "Washington Mystics"
+   690→    - button "Regarder" [ref=e77]
+   691→    - button [ref=e78]
+   692→    - button "Suivre" [ref=e79]
+   693→      - StaticText "Suivre"
+   694→  - generic
+   695→    - StaticText "WNBA"
+   696→    - StaticText "19 juil. 05:00 PM"
+   697→    - image "Dallas Wings"
+   698→    - StaticText "Dallas Wings"
+   699→    - StaticText "16-8"
+   700→    - button "Ajouter aux favoris" [ref=e80]
+   701→    - StaticText "VS"
+   702→    - button "Ajouter aux favoris" [ref=e81]
+   703→    - StaticText "Los Angeles Sparks"
+   704→    - StaticText "10-13"
+   705→    - image "Los Angeles Sparks"
+   706→    - button "Regarder" [ref=e82]
+   707→    - button [ref=e83]
+   708→    - button "Suivre" [ref=e84]
+   709→      - StaticText "Suivre"
+   710→  - generic
+   711→    - StaticText "WNBA"
+   712→    - StaticText "19 juil. 08:00 PM"
+   713→    - image "Atlanta Dream"
+   714→    - StaticText "Atlanta Dream"
+   715→    - StaticText "14-10"
+   716→    - button "Ajouter aux favoris" [ref=e85]
+   717→    - StaticText "VS"
+   718→    - button "Ajouter aux favoris" [ref=e86]
+   719→    - StaticText "Chicago Sky"
+   720→    - StaticText "8-16"
+   721→    - image "Chicago Sky"
+   722→    - button "Regarder" [ref=e87]
+   723→    - button [ref=e88]
+   724→    - button "Suivre" [ref=e89]
+   725→      - StaticText "Suivre"
+   726→- generic
+   727→  - generic
+   728→    - StaticText "mardi 21 juillet"
+   729→    - StaticText "2"
+   730→    - StaticText " "
+   731→    - StaticText "matchs"
+   732→  - StaticText "WNBA"
+   733→  - StaticText "2"
+   734→  - generic
+   735→    - StaticText "WNBA"
+   736→    - StaticText "21 juil. 12:00 AM"
+   737→    - image "Toronto Tempo"
+   738→    - StaticText "Toronto Tempo"
+   739→    - StaticText "10-14"
+   740→    - button "Ajouter aux favoris" [ref=e90]
+   741→    - StaticText "VS"
+   742→    - button "Ajouter aux favoris" [ref=e91]
+   743→    - StaticText "Las Vegas Aces"
+   744→    - StaticText "17-7"
+   745→    - image "Las Vegas Aces"
+   746→    - button "Regarder" [ref=e92]
+   747→    - button [ref=e93]
+   748→    - button "Suivre" [ref=e94]
+   749→      - StaticText "Suivre"
+   750→  - generic
+   751→    - StaticText "WNBA"
+   752→    - StaticText "21 juil. 02:00 AM"
+   753→    - image "Seattle Storm"
+   754→    - StaticText "Seattle Storm"
+   755→    - StaticText "6-20"
+   756→    - button "Ajouter aux favoris" [ref=e95]
+   757→    - StaticText "VS"
+   758→    - button "Ajouter aux favoris" [ref=e96]
+   759→    - StaticText "Minnesota Lynx"
+   760→    - StaticText "19-6"
+   761→    - image "Minnesota Lynx"
+   762→    - button "Regarder" [ref=e97]
+   763→    - button [ref=e98]
+   764→    - button "Suivre" [ref=e99]
+   765→      - StaticText "Suivre"
+   766→- generic
+   767→  - generic
+   768→    - StaticText "mercredi 22 juillet"
+   769→    - StaticText "3"
+   770→    - StaticText " "
+   771→    - StaticText "matchs"
+   772→  - StaticText "WNBA"
+   773→  - StaticText "3"
+   774→  - generic
+   775→    - StaticText "WNBA"
+   776→    - StaticText "22 juil. 07:00 PM"
+   777→    - image "Los Angeles Sparks"
+   778→    - StaticText "Los Angeles Sparks"
+   779→    - StaticText "10-13"
+   780→    - button "Ajouter aux favoris" [ref=e100]
+   781→    - StaticText "VS"
+   782→    - button "Ajouter aux favoris" [ref=e101]
+   783→    - StaticText "Phoenix Mercury"
+   784→    - StaticText "8-17"
+   785→    - image "Phoenix Mercury"
+   786→    - button "Regarder" [ref=e102]
+   787→    - button [ref=e103]
+   788→    - button "Suivre" [ref=e104]
+   789→      - StaticText "Suivre"
+   790→  - generic
+   791→    - StaticText "WNBA"
+   792→    - StaticText "22 juil. 11:00 PM"
+   793→    - image "New York Liberty"
+   794→    - StaticText "New York Liberty"
+   795→    - StaticText "13-11"
+   796→    - button "Ajouter aux favoris" [ref=e105]
+   797→    - StaticText "VS"
+   798→    - button "Ajouter aux favoris" [ref=e106]
+   799→    - StaticText "Chicago Sky"
+   800→    - StaticText "8-16"
+   801→    - image "Chicago Sky"
+   802→    - button "Regarder" [ref=e107]
+   803→    - button [ref=e108]
+   804→    - button "Suivre" [ref=e109]
+   805→      - StaticText "Suivre"
+   806→  - generic
+   807→    - StaticText "WNBA"
+   808→    - StaticText "22 juil. 11:30 PM"
+   809→    - image "Washington Mystics"
+   810→    - StaticText "Washington Mystics"
+   811→    - StaticText "12-10"
+   812→    - button "Ajouter aux favoris" [ref=e110]
+   813→    - StaticText "VS"
+   814→    - button "Ajouter aux favoris" [ref=e111]
+   815→    - StaticText "Las Vegas Aces"
+   816→    - StaticText "17-7"
+   817→    - image "Las Vegas Aces"
+   818→    - button "Regarder" [ref=e112]
+   819→    - button [ref=e113]
+   820→    - button "Suivre" [ref=e114]
+   821→      - StaticText "Suivre"
+   822→- generic
+   823→  - generic
+   824→    - StaticText "jeudi 23 juillet"
+   825→    - StaticText "1"
+   826→    - StaticText " "
+   827→    - StaticText "matchs"
+   828→  - StaticText "WNBA"
+   829→  - StaticText "1"
+   830→  - generic
+   831→    - StaticText "WNBA"
+   832→    - StaticText "23 juil. 12:00 AM"
+   833→    - image "Indiana Fever"
+   834→    - StaticText "Indiana Fever"
+   835→    - StaticText "14-10"
+   836→    - button "Ajouter aux favoris" [ref=e115]
+   837→    - StaticText "VS"
+   838→    - button "Ajouter aux favoris" [ref=e116]
+   839→    - StaticText "Connecticut Sun"
+   840→    - StaticText "6-18"
+   841→    - image "Connecticut Sun"
+   842→    - button "Regarder" [ref=e117]
+   843→    - button [ref=e118]
+   844→    - button "Suivre" [ref=e119]
+   845→      - StaticText "Suivre"
+   846→- StaticText "20"
+   847→- StaticText " / "
+   848→- StaticText "21"
+   849→- StaticText "matchs"
+   850→- generic
+   851→  - StaticText "NBA · NCAA · EuroLeague · WNBA — Maj 2 min"
+   852→- StaticText "🏀"
+   853→- StaticText "21"
+   854→- StaticText "matchs"
+   855→- StaticText "TERMINÉ"
+   856→- StaticText "2"
+   857→- StaticText "WNBA"
+   858→- generic
+   859→  - StaticText "WNBA"
+   860→  - StaticText "TERMINÉ"
+   861→  - image "Chicago Sky"
+   862→  - StaticText "Chicago Sky"
+   863→  - StaticText "8-16"
+   864→  - button "Ajouter aux favoris" [ref=e18]
+   865→  - StaticText "95"
+   866→  - StaticText ":"
+   867→  - StaticText "90"
+   868→  - button "Ajouter aux favoris" [ref=e19]
+   869→  - StaticText "Seattle Storm"
+   870→  - StaticText "6-20"
+   871→  - image "Seattle Storm"
+   872→  - button "Voir le résumé" [ref=e20]
+   873→  - button "Suivre" [ref=e21]
+   874→    - StaticText "Suivre"
+   875→  - button "Résumé vidéo" [ref=e22]
+   876→- generic
+   877→  - StaticText "WNBA"
+   878→  - StaticText "TERMINÉ"
+   879→  - image "Minnesota Lynx"
+   880→  - StaticText "Minnesota Lynx"
+   881→  - StaticText "19-6"
+   882→  - button "Ajouter aux favoris" [ref=e23]
+   883→  - StaticText "96"
+   884→  - StaticText ":"
+   885→  - StaticText "87"
+   886→  - button "Ajouter aux favoris" [ref=e24]
+   887→  - StaticText "Los Angeles Sparks"
+   888→  - StaticText "10-13"
+   889→  - image "Los Angeles Sparks"
+   890→  - button "Voir le résumé" [ref=e25]
+   891→  - button "Suivre" [ref=e26]
+   892→    - StaticText "Suivre"
+   893→  - button "Résumé vidéo" [ref=e27]
+   894→- StaticText "WNBA"
+   895→- StaticText "1"
+   896→- generic
+   897→  - StaticText "WNBA"
+   898→  - StaticText "Aujourd'hui 11:00 PM"
+   899→  - image "Washington Mystics"
+   900→  - StaticText "Washington Mystics"
+   901→  - StaticText "12-10"
+   902→  - button "Ajouter aux favoris" [ref=e28]
+   903→  - StaticText "VS"
+   904→  - button "Ajouter aux favoris" [ref=e29]
+   905→  - StaticText "Portland Fire"
+   906→  - StaticText "10-14"
+   907→  - image "Portland Fire"
+   908→  - button "Regarder" [ref=e30]
+   909→  - button [ref=e31]
+   910→  - button "Suivre" [ref=e32]
+   911→    - StaticText "Suivre"
+   912→- generic
+   913→  - heading "Regarder en direct" [level=2, ref=e33]
+   914→  - paragraph
+   915→    - StaticText "Washington Mystics vs Portland Fire"
+   916→  - button [ref=e34]
+   917→- paragraph
+   918→  - StaticText "Aucun flux gratuit trouvé pour ce match"
+   919→- paragraph
+   920→  - StaticText "Les liens redirigent vers des sites tiers. GoalStream ne héberge aucun contenu."
+   921→- paragraph
+   922→  - StaticText "WNBA • Washington Mystics vs Portland Fire"
+   923→- StaticText "TERMINÉ"
+   924→- StaticText "1"
+   925→- StaticText "WNBA"
+   926→- generic
+   927→  - StaticText "WNBA"
+   928→  - StaticText "TERMINÉ"
+   929→  - image "Indiana Fever"
+   930→  - StaticText "Indiana Fever"
+   931→  - StaticText "14-10"
+   932→  - button "Ajouter aux favoris" [ref=e35]
+   933→  - StaticText "75"
+   934→  - StaticText ":"
+   935→  - StaticText "88"
+   936→  - button "Ajouter aux favoris" [ref=e36]
+   937→  - StaticText "Golden State Valkyries"
+   938→  - StaticText "18-7"
+   939→  - image "Golden State Valkyries"
+   940→  - button "Voir le résumé" [ref=e37]
+   941→  - button "Suivre" [ref=e38]
+   942→    - StaticText "Suivre"
+   943→  - button "Résumé vidéo" [ref=e39]
+   944→- StaticText "WNBA"
+   945→- StaticText "3"
+   946→- generic
+   947→  - StaticText "WNBA"
+   948→  - StaticText "Demain 11:30 PM"
+   949→  - image "Indiana Fever"
+   950→  - StaticText "Indiana Fever"
+   951→  - StaticText "14-10"
+   952→  - button "Ajouter aux favoris" [ref=e40]
+   953→  - StaticText "VS"
+   954→  - button "Ajouter aux favoris" [ref=e41]
+   955→  - StaticText "Seattle Storm"
+   956→  - StaticText "6-20"
+   957→  - image "Seattle Storm"
+   958→  - button "Regarder" [ref=e42]
+   959→  - button [ref=e43]
+   960→  - button "Suivre" [ref=e44]
+   961→    - StaticText "Suivre"
+   962→- generic
+   963→  - StaticText "WNBA"
+   964→  - StaticText "Demain 11:30 PM"
+   965→  - image "Toronto Tempo"
+   966→  - StaticText "Toronto Tempo"
+   967→  - StaticText "10-14"
+   968→  - button "Ajouter aux favoris" [ref=e45]
+   969→  - StaticText "VS"
+   970→  - button "Ajouter aux favoris" [ref=e46]
+   971→  - StaticText "Atlanta Dream"
+   972→  - StaticText "14-10"
+   973→  - image "Atlanta Dream"
+   974→  - button "Regarder" [ref=e47]
+   975→  - button [ref=e48]
+   976→  - button "Suivre" [ref=e49]
+   977→    - StaticText "Suivre"
+   978→- generic
+   979→  - StaticText "WNBA"
+   980→  - StaticText "Demain 11:30 PM"
+   981→  - image "Chicago Sky"
+   982→  - StaticText "Chicago Sky"
+   983→  - StaticText "8-16"
+   984→  - button "Ajouter aux favoris" [ref=e50]
+   985→  - StaticText "VS"
+   986→  - button "Ajouter aux favoris" [ref=e51]
+   987→  - StaticText "Los Angeles Sparks"
+   988→  - StaticText "10-13"
+   989→  - image "Los Angeles Sparks"
+   990→  - button "Regarder" [ref=e52]
+   991→  - button [ref=e53]
+   992→  - button "Suivre" [ref=e54]
+   993→    - StaticText "Suivre"
+   994→- StaticText "TERMINÉ"
+   995→- StaticText "1"
+   996→- StaticText "WNBA"
+   997→- generic
+   998→  - StaticText "WNBA"
+   999→  - StaticText "TERMINÉ"
+  1000→  - image "Dallas Wings"
+  1001→  - StaticText "Dallas Wings"
+  1002→  - StaticText "16-8"
+  1003→  - button "Ajouter aux favoris" [ref=e55]
+  1004→  - StaticText "0"
+  1005→  - StaticText ":"
+  1006→  - StaticText "0"
+  1007→  - button "Ajouter aux favoris" [ref=e56]
+  1008→  - StaticText "New York Liberty"
+  1009→  - StaticText "13-11"
+  1010→  - image "New York Liberty"
+  1011→  - button "Voir le résumé" [ref=e57]
+  1012→  - button "Suivre" [ref=e58]
+  1013→    - StaticText "Suivre"
+  1014→  - button "Résumé vidéo" [ref=e59]
+  1015→- StaticText "WNBA"
+  1016→- StaticText "1"
+  1017→- generic
+  1018→  - StaticText "WNBA"
+  1019→  - StaticText "18 juil. 02:00 AM"
+  1020→  - image "Phoenix Mercury"
+  1021→  - StaticText "Phoenix Mercury"
+  1022→  - StaticText "8-17"
+  1023→  - button "Ajouter aux favoris" [ref=e60]
+  1024→  - StaticText "VS"
+  1025→  - button "Ajouter aux favoris" [ref=e61]
+  1026→  - StaticText "Connecticut Sun"
+  1027→  - StaticText "6-18"
+  1028→  - image "Connecticut Sun"
+  1029→  - button "Regarder" [ref=e62]
+  1030→  - button [ref=e63]
+  1031→  - button "Suivre" [ref=e64]
+  1032→    - StaticText "Suivre"
+  1033→- StaticText "WNBA"
+  1034→- StaticText "5"
+  1035→- generic
+  1036→  - StaticText "WNBA"
+  1037→  - StaticText "19 juil. 12:00 AM"
+  1038→  - image "Indiana Fever"
+  1039→  - StaticText "Indiana Fever"
+  1040→  - StaticText "14-10"
+  1041→  - button "Ajouter aux favoris" [ref=e65]
+  1042→  - StaticText "VS"
+  1043→  - button "Ajouter aux favoris" [ref=e66]
+  1044→  - StaticText "New York Liberty"
+  1045→  - StaticText "13-11"
+  1046→  - image "New York Liberty"
+  1047→  - button "Regarder" [ref=e67]
+  1048→  - button [ref=e68]
+  1049→  - button "Suivre" [ref=e69]
+  1050→    - StaticText "Suivre"
+  1051→- generic
+  1052→  - StaticText "WNBA"
+  1053→  - StaticText "19 juil. 12:00 AM"
+  1054→  - image "Minnesota Lynx"
+  1055→  - StaticText "Minnesota Lynx"
+  1056→  - StaticText "19-6"
+  1057→  - button "Ajouter aux favoris" [ref=e70]
+  1058→  - StaticText "VS"
+  1059→  - button "Ajouter aux favoris" [ref=e71]
+  1060→  - StaticText "Portland Fire"
+  1061→  - StaticText "10-14"
+  1062→  - image "Portland Fire"
+  1063→  - button "Regarder" [ref=e72]
+  1064→  - button [ref=e73]
+  1065→  - button "Suivre" [ref=e74]
+  1066→    - StaticText "Suivre"
+  1067→- generic
+  1068→  - StaticText "WNBA"
+  1069→  - StaticText "19 juil. 12:30 AM"
+  1070→  - image "Golden State Valkyries"
+  1071→  - StaticText "Golden State Valkyries"
+  1072→  - StaticText "18-7"
+  1073→  - button "Ajouter aux favoris" [ref=e75]
+  1074→  - StaticText "VS"
+  1075→  - button "Ajouter aux favoris" [ref=e76]
+  1076→  - StaticText "Washington Mystics"
+  1077→  - StaticText "12-10"
+  1078→  - image "Washington Mystics"
+  1079→  - button "Regarder" [ref=e77]
+  1080→  - button [ref=e78]
+  1081→  - button "Suivre" [ref=e79]
+  1082→    - StaticText "Suivre"
+  1083→- generic
+  1084→  - StaticText "WNBA"
+  1085→  - StaticText "19 juil. 05:00 PM"
+  1086→  - image "Dallas Wings"
+  1087→  - StaticText "Dallas Wings"
+  1088→  - StaticText "16-8"
+  1089→  - button "Ajouter aux favoris" [ref=e80]
+  1090→  - StaticText "VS"
+  1091→  - button "Ajouter aux favoris" [ref=e81]
+  1092→  - StaticText "Los Angeles Sparks"
+  1093→  - StaticText "10-13"
+  1094→  - image "Los Angeles Sparks"
+  1095→  - button "Regarder" [ref=e82]
+  1096→  - button [ref=e83]
+  1097→  - button "Suivre" [ref=e84]
+  1098→    - StaticText "Suivre"
+  1099→- generic
+  1100→  - StaticText "WNBA"
+  1101→  - StaticText "19 juil. 08:00 PM"
+  1102→  - image "Atlanta Dream"
+  1103→  - StaticText "Atlanta Dream"
+  1104→  - StaticText "14-10"
+  1105→  - button "Ajouter aux favoris" [ref=e85]
+  1106→  - StaticText "VS"
+  1107→  - button "Ajouter aux favoris" [ref=e86]
+  1108→  - StaticText "Chicago Sky"
+  1109→  - StaticText "8-16"
+  1110→  - image "Chicago Sky"
+  1111→  - button "Regarder" [ref=e87]
+  1112→  - button [ref=e88]
+  1113→  - button "Suivre" [ref=e89]
+  1114→    - StaticText "Suivre"
+  1115→- StaticText "WNBA"
+  1116→- StaticText "2"
+  1117→- generic
+  1118→  - StaticText "WNBA"
+  1119→  - StaticText "21 juil. 12:00 AM"
+  1120→  - image "Toronto Tempo"
+  1121→  - StaticText "Toronto Tempo"
+  1122→  - StaticText "10-14"
+  1123→  - button "Ajouter aux favoris" [ref=e90]
+  1124→  - StaticText "VS"
+  1125→  - button "Ajouter aux favoris" [ref=e91]
+  1126→  - StaticText "Las Vegas Aces"
+  1127→  - StaticText "17-7"
+  1128→  - image "Las Vegas Aces"
+  1129→  - button "Regarder" [ref=e92]
+  1130→  - button [ref=e93]
+  1131→  - button "Suivre" [ref=e94]
+  1132→    - StaticText "Suivre"
+  1133→- generic
+  1134→  - StaticText "WNBA"
+  1135→  - StaticText "21 juil. 02:00 AM"
+  1136→  - image "Seattle Storm"
+  1137→  - StaticText "Seattle Storm"
+  1138→  - StaticText "6-20"
+  1139→  - button "Ajouter aux favoris" [ref=e95]
+  1140→  - StaticText "VS"
+  1141→  - button "Ajouter aux favoris" [ref=e96]
+  1142→  - StaticText "Minnesota Lynx"
+  1143→  - StaticText "19-6"
+  1144→  - image "Minnesota Lynx"
+  1145→  - button "Regarder" [ref=e97]
+  1146→  - button [ref=e98]
+  1147→  - button "Suivre" [ref=e99]
+  1148→    - StaticText "Suivre"
+  1149→- StaticText "WNBA"
+  1150→- StaticText "3"
+  1151→- generic
+  1152→  - StaticText "WNBA"
+  1153→  - StaticText "22 juil. 07:00 PM"
+  1154→  - image "Los Angeles Sparks"
+  1155→  - StaticText "Los Angeles Sparks"
+  1156→  - StaticText "10-13"
+  1157→  - button "Ajouter aux favoris" [ref=e100]
+  1158→  - StaticText "VS"
+  1159→  - button "Ajouter aux favoris" [ref=e101]
+  1160→  - StaticText "Phoenix Mercury"
+  1161→  - StaticText "8-17"
+  1162→  - image "Phoenix Mercury"
+  1163→  - button "Regarder" [ref=e102]
+  1164→  - button [ref=e103]
+  1165→  - button "Suivre" [ref=e104]
+  1166→    - StaticText "Suivre"
+  1167→- generic
+  1168→  - StaticText "WNBA"
+  1169→  - StaticText "22 juil. 11:00 PM"
+  1170→  - image "New York Liberty"
+  1171→  - StaticText "New York Liberty"
+  1172→  - StaticText "13-11"
+  1173→  - button "Ajouter aux favoris" [ref=e105]
+  1174→  - StaticText "VS"
+  1175→  - button "Ajouter aux favoris" [ref=e106]
+  1176→  - StaticText "Chicago Sky"
+  1177→  - StaticText "8-16"
+  1178→  - image "Chicago Sky"
+  1179→  - button "Regarder" [ref=e107]
+  1180→  - button [ref=e108]
+  1181→  - button "Suivre" [ref=e109]
+  1182→    - StaticText "Suivre"
+  1183→- generic
+  1184→  - StaticText "WNBA"
+  1185→  - StaticText "22 juil. 11:30 PM"
+  1186→  - image "Washington Mystics"
+  1187→  - StaticText "Washington Mystics"
+  1188→  - StaticText "12-10"
+  1189→  - button "Ajouter aux favoris" [ref=e110]
+  1190→  - StaticText "VS"
+  1191→  - button "Ajouter aux favoris" [ref=e111]
+  1192→  - StaticText "Las Vegas Aces"
+  1193→  - StaticText "17-7"
+  1194→  - image "Las Vegas Aces"
+  1195→  - button "Regarder" [ref=e112]
+  1196→  - button [ref=e113]
+  1197→  - button "Suivre" [ref=e114]
+  1198→    - StaticText "Suivre"
+  1199→- StaticText "WNBA"
+  1200→- StaticText "1"
+  1201→- generic
+  1202→  - StaticText "WNBA"
+  1203→  - StaticText "23 juil. 12:00 AM"
+  1204→  - image "Indiana Fever"
+  1205→  - StaticText "Indiana Fever"
+  1206→  - StaticText "14-10"
+  1207→  - button "Ajouter aux favoris" [ref=e115]
+  1208→  - StaticText "VS"
+  1209→  - button "Ajouter aux favoris" [ref=e116]
+  1210→  - StaticText "Connecticut Sun"
+  1211→  - StaticText "6-18"
+  1212→  - image "Connecticut Sun"
+  1213→  - button "Regarder" [ref=e117]
+  1214→  - button [ref=e118]
+  1215→  - button "Suivre" [ref=e119]
+  1216→    - StaticText "Suivre"
+  1217→- StaticText "mercredi 15 juillet"
+  1218→- StaticText "2"
+  1219→- StaticText "matchs"
+  1220→- StaticText "Aujourd'hui"
+  1221→- StaticText "2"
+  1222→- StaticText "matchs"
+  1223→- generic
+  1224→  - heading "Regarder en direct" [level=2, ref=e33]
+  1225→  - paragraph
+  1226→    - StaticText "Washington Mystics vs Portland Fire"
+  1227→  - button [ref=e34]
+  1228→- paragraph
+  1229→  - StaticText "Aucun flux gratuit trouvé pour ce match"
+  1230→- paragraph
+  1231→  - StaticText "Les liens redirigent vers des sites tiers. GoalStream ne héberge aucun contenu."
+  1232→- paragraph
+  1233→  - StaticText "WNBA • Washington Mystics vs Portland Fire"
+  1234→- StaticText "Demain"
+  1235→- StaticText "4"
+  1236→- StaticText "matchs"
+  1237→- StaticText "samedi 18 juillet"
+  1238→- StaticText "1"
+  1239→- StaticText "matchs"
+  1240→- StaticText "dimanche 19 juillet"
+  1241→- StaticText "5"
+  1242→- StaticText "matchs"
+  1243→- StaticText "mardi 21 juillet"
+  1244→- StaticText "2"
+  1245→- StaticText "matchs"
+  1246→- StaticText "mercredi 22 juillet"
+  1247→- StaticText "3"
+  1248→- StaticText "matchs"
+  1249→- StaticText "jeudi 23 juillet"
+  1250→- StaticText "1"
+  1251→- StaticText "matchs"
+  1252→- StaticText "WNBA"
+  1253→- StaticText "TERMINÉ"
+  1254→- image "Chicago Sky"
+  1255→- StaticText "Chicago Sky"
+  1256→- StaticText "8-16"
+  1257→- button "Ajouter aux favoris" [ref=e18]
+  1258→- StaticText "95"
+  1259→- StaticText ":"
+  1260→- StaticText "90"
+  1261→- button "Ajouter aux favoris" [ref=e19]
+  1262→- StaticText "Seattle Storm"
+  1263→- StaticText "6-20"
+  1264→- image "Seattle Storm"
+  1265→- button "Voir le résumé" [ref=e20]
+  1266→- button "Suivre" [ref=e21]
+  1267→  - StaticText "Suivre"
+  1268→- button "Résumé vidéo" [ref=e22]
+  1269→- StaticText "WNBA"
+  1270→- StaticText "TERMINÉ"
+  1271→- image "Minnesota Lynx"
+  1272→- StaticText "Minnesota Lynx"
+  1273→- StaticText "19-6"
+  1274→- button "Ajouter aux favoris" [ref=e23]
+  1275→- StaticText "96"
+  1276→- StaticText ":"
+  1277→- StaticText "87"
+  1278→- button "Ajouter aux favoris" [ref=e24]
+  1279→- StaticText "Los Angeles Sparks"
+  1280→- StaticText "10-13"
+  1281→- image "Los Angeles Sparks"
+  1282→- button "Voir le résumé" [ref=e25]
+  1283→- button "Suivre" [ref=e26]
+  1284→  - StaticText "Suivre"
+  1285→- button "Résumé vidéo" [ref=e27]
+  1286→- StaticText "WNBA"
+  1287→- StaticText "Aujourd'hui 11:00 PM"
+  1288→- image "Washington Mystics"
+  1289→- StaticText "Washington Mystics"
+  1290→- StaticText "12-10"
+  1291→- button "Ajouter aux favoris" [ref=e28]
+  1292→- StaticText "VS"
+  1293→- button "Ajouter aux favoris" [ref=e29]
+  1294→- StaticText "Portland Fire"
+  1295→- StaticText "10-14"
+  1296→- image "Portland Fire"
+  1297→- button "Regarder" [ref=e30]
+  1298→- button [ref=e31]
+  1299→- button "Suivre" [ref=e32]
+  1300→  - StaticText "Suivre"
+  1301→- heading "Regarder en direct" [level=2, ref=e33]
+  1302→- paragraph
+  1303→  - StaticText "Washington Mystics vs Portland Fire"
+  1304→- button [ref=e34]
+  1305→- StaticText "WNBA"
+  1306→- StaticText "TERMINÉ"
+  1307→- image "Indiana Fever"
+  1308→- StaticText "Indiana Fever"
+  1309→- StaticText "14-10"
+  1310→- button "Ajouter aux favoris" [ref=e35]
+  1311→- StaticText "75"
+  1312→- StaticText ":"
+  1313→- StaticText "88"
+  1314→- button "Ajouter aux favoris" [ref=e36]
+  1315→- StaticText "Golden State Valkyries"
+  1316→- StaticText "18-7"
+  1317→- image "Golden State Valkyries"
+  1318→- button "Voir le résumé" [ref=e37]
+  1319→- button "Suivre" [ref=e38]
+  1320→  - StaticText "Suivre"
+  1321→- button "Résumé vidéo" [ref=e39]
+  1322→- StaticText "WNBA"
+  1323→- StaticText "Demain 11:30 PM"
+  1324→- image "Indiana Fever"
+  1325→- StaticText "Indiana Fever"
+  1326→- StaticText "14-10"
+  1327→- button "Ajouter aux favoris" [ref=e40]
+  1328→- StaticText "VS"
+  1329→- button "Ajouter aux favoris" [ref=e41]
+  1330→- StaticText "Seattle Storm"
+  1331→- StaticText "6-20"
+  1332→- image "Seattle Storm"
+  1333→- button "Regarder" [ref=e42]
+  1334→- button [ref=e43]
+  1335→- button "Suivre" [ref=e44]
+  1336→  - StaticText "Suivre"
+  1337→- StaticText "WNBA"
+  1338→- StaticText "Demain 11:30 PM"
+  1339→- image "Toronto Tempo"
+  1340→- StaticText "Toronto Tempo"
+  1341→- StaticText "10-14"
+  1342→- button "Ajouter aux favoris" [ref=e45]
+  1343→- StaticText "VS"
+  1344→- button "Ajouter aux favoris" [ref=e46]
+  1345→- StaticText "Atlanta Dream"
+  1346→- StaticText "14-10"
+  1347→- image "Atlanta Dream"
+  1348→- button "Regarder" [ref=e47]
+  1349→- button [ref=e48]
+  1350→- button "Suivre" [ref=e49]
+  1351→  - StaticText "Suivre"
+  1352→- StaticText "WNBA"
+  1353→- StaticText "Demain 11:30 PM"
+  1354→- image "Chicago Sky"
+  1355→- StaticText "Chicago Sky"
+  1356→- StaticText "8-16"
+  1357→- button "Ajouter aux favoris" [ref=e50]
+  1358→- StaticText "VS"
+  1359→- button "Ajouter aux favoris" [ref=e51]
+  1360→- StaticText "Los Angeles Sparks"
+  1361→- StaticText "10-13"
+  1362→- image "Los Angeles Sparks"
+  1363→- button "Regarder" [ref=e52]
+  1364→- button [ref=e53]
+  1365→- button "Suivre" [ref=e54]
+  1366→  - StaticText "Suivre"
+  1367→- StaticText "WNBA"
+  1368→- StaticText "TERMINÉ"
+  1369→- image "Dallas Wings"
+  1370→- StaticText "Dallas Wings"
+  1371→- StaticText "16-8"
+  1372→- button "Ajouter aux favoris" [ref=e55]
+  1373→- StaticText "0"
+  1374→- StaticText ":"
+  1375→- StaticText "0"
+  1376→- button "Ajouter aux favoris" [ref=e56]
+  1377→- StaticText "New York Liberty"
+  1378→- StaticText "13-11"
+  1379→- image "New York Liberty"
+  1380→- button "Voir le résumé" [ref=e57]
+  1381→- button "Suivre" [ref=e58]
+  1382→  - StaticText "Suivre"
+  1383→- button "Résumé vidéo" [ref=e59]
+  1384→- StaticText "WNBA"
+  1385→- StaticText "18 juil. 02:00 AM"
+  1386→- image "Phoenix Mercury"
+  1387→- StaticText "Phoenix Mercury"
+  1388→- StaticText "8-17"
+  1389→- button "Ajouter aux favoris" [ref=e60]
+  1390→- StaticText "VS"
+  1391→- button "Ajouter aux favoris" [ref=e61]
+  1392→- StaticText "Connecticut Sun"
+  1393→- StaticText "6-18"
+  1394→- image "Connecticut Sun"
+  1395→- button "Regarder" [ref=e62]
+  1396→- button [ref=e63]
+  1397→- button "Suivre" [ref=e64]
+  1398→  - StaticText "Suivre"
+  1399→- StaticText "WNBA"
+  1400→- StaticText "19 juil. 12:00 AM"
+  1401→- image "Indiana Fever"
+  1402→- StaticText "Indiana Fever"
+  1403→- StaticText "14-10"
+  1404→- button "Ajouter aux favoris" [ref=e65]
+  1405→- StaticText "VS"
+  1406→- button "Ajouter aux favoris" [ref=e66]
+  1407→- StaticText "New York Liberty"
+  1408→- StaticText "13-11"
+  1409→- image "New York Liberty"
+  1410→- button "Regarder" [ref=e67]
+  1411→- button [ref=e68]
+  1412→- button "Suivre" [ref=e69]
+  1413→  - StaticText "Suivre"
+  1414→- StaticText "WNBA"
+  1415→- StaticText "19 juil. 12:00 AM"
+  1416→- image "Minnesota Lynx"
+  1417→- StaticText "Minnesota Lynx"
+  1418→- StaticText "19-6"
+  1419→- button "Ajouter aux favoris" [ref=e70]
+  1420→- StaticText "VS"
+  1421→- button "Ajouter aux favoris" [ref=e71]
+  1422→- StaticText "Portland Fire"
+  1423→- StaticText "10-14"
+  1424→- image "Portland Fire"
+  1425→- button "Regarder" [ref=e72]
+  1426→- button [ref=e73]
+  1427→- button "Suivre" [ref=e74]
+  1428→  - StaticText "Suivre"
+  1429→- StaticText "WNBA"
+  1430→- StaticText "19 juil. 12:30 AM"
+  1431→- image "Golden State Valkyries"
+  1432→- StaticText "Golden State Valkyries"
+  1433→- StaticText "18-7"
+  1434→- button "Ajouter aux favoris" [ref=e75]
+  1435→- StaticText "VS"
+  1436→- button "Ajouter aux favoris" [ref=e76]
+  1437→- StaticText "Washington Mystics"
+  1438→- StaticText "12-10"
+  1439→- image "Washington Mystics"
+  1440→- button "Regarder" [ref=e77]
+  1441→- button [ref=e78]
+  1442→- button "Suivre" [ref=e79]
+  1443→  - StaticText "Suivre"
+  1444→- StaticText "WNBA"
+  1445→- StaticText "19 juil. 05:00 PM"
+  1446→- image "Dallas Wings"
+  1447→- StaticText "Dallas Wings"
+  1448→- StaticText "16-8"
+  1449→- button "Ajouter aux favoris" [ref=e80]
+  1450→- StaticText "VS"
+  1451→- button "Ajouter aux favoris" [ref=e81]
+  1452→- StaticText "Los Angeles Sparks"
+  1453→- StaticText "10-13"
+  1454→- image "Los Angeles Sparks"
+  1455→- button "Regarder" [ref=e82]
+  1456→- button [ref=e83]
+  1457→- button "Suivre" [ref=e84]
+  1458→  - StaticText "Suivre"
+  1459→- StaticText "WNBA"
+  1460→- StaticText "19 juil. 08:00 PM"
+  1461→- image "Atlanta Dream"
+  1462→- StaticText "Atlanta Dream"
+  1463→- StaticText "14-10"
+  1464→- button "Ajouter aux favoris" [ref=e85]
+  1465→- StaticText "VS"
+  1466→- button "Ajouter aux favoris" [ref=e86]
+  1467→- StaticText "Chicago Sky"
+  1468→- StaticText "8-16"
+  1469→- image "Chicago Sky"
+  1470→- button "Regarder" [ref=e87]
+  1471→- button [ref=e88]
+  1472→- button "Suivre" [ref=e89]
+  1473→  - StaticText "Suivre"
+  1474→- StaticText "WNBA"
+  1475→- StaticText "21 juil. 12:00 AM"
+  1476→- image "Toronto Tempo"
+  1477→- StaticText "Toronto Tempo"
+  1478→- StaticText "10-14"
+  1479→- button "Ajouter aux favoris" [ref=e90]
+  1480→- StaticText "VS"
+  1481→- button "Ajouter aux favoris" [ref=e91]
+  1482→- StaticText "Las Vegas Aces"
+  1483→- StaticText "17-7"
+  1484→- image "Las Vegas Aces"
+  1485→- button "Regarder" [ref=e92]
+  1486→- button [ref=e93]
+  1487→- button "Suivre" [ref=e94]
+  1488→  - StaticText "Suivre"
+  1489→- StaticText "WNBA"
+  1490→- StaticText "21 juil. 02:00 AM"
+  1491→- image "Seattle Storm"
+  1492→- StaticText "Seattle Storm"
+  1493→- StaticText "6-20"
+  1494→- button "Ajouter aux favoris" [ref=e95]
+  1495→- StaticText "VS"
+  1496→- button "Ajouter aux favoris" [ref=e96]
+  1497→- StaticText "Minnesota Lynx"
+  1498→- StaticText "19-6"
+  1499→- image "Minnesota Lynx"
+  1500→- button "Regarder" [ref=e97]
+  1501→- button [ref=e98]
+  1502→- button "Suivre" [ref=e99]
+  1503→  - StaticText "Suivre"
+  1504→- StaticText "WNBA"
+  1505→- StaticText "22 juil. 07:00 PM"
+  1506→- image "Los Angeles Sparks"
+  1507→- StaticText "Los Angeles Sparks"
+  1508→- StaticText "10-13"
+  1509→- button "Ajouter aux favoris" [ref=e100]
+  1510→- StaticText "VS"
+  1511→- button "Ajouter aux favoris" [ref=e101]
+  1512→- StaticText "Phoenix Mercury"
+  1513→- StaticText "8-17"
+  1514→- image "Phoenix Mercury"
+  1515→- button "Regarder" [ref=e102]
+  1516→- button [ref=e103]
+  1517→- button "Suivre" [ref=e104]
+  1518→  - StaticText "Suivre"
+  1519→- StaticText "WNBA"
+  1520→- StaticText "22 juil. 11:00 PM"
+  1521→- image "New York Liberty"
+  1522→- StaticText "New York Liberty"
+  1523→- StaticText "13-11"
+  1524→- button "Ajouter aux favoris" [ref=e105]
+  1525→- StaticText "VS"
+  1526→- button "Ajouter aux favoris" [ref=e106]
+  1527→- StaticText "Chicago Sky"
+  1528→- StaticText "8-16"
+  1529→- image "Chicago Sky"
+  1530→- button "Regarder" [ref=e107]
+  1531→- button [ref=e108]
+  1532→- button "Suivre" [ref=e109]
+  1533→  - StaticText "Suivre"
+  1534→- StaticText "WNBA"
+  1535→- StaticText "22 juil. 11:30 PM"
+  1536→- image "Washington Mystics"
+  1537→- StaticText "Washington Mystics"
+  1538→- StaticText "12-10"
+  1539→- button "Ajouter aux favoris" [ref=e110]
+  1540→- StaticText "VS"
+  1541→- button "Ajouter aux favoris" [ref=e111]
+  1542→- StaticText "Las Vegas Aces"
+  1543→- StaticText "17-7"
+  1544→- image "Las Vegas Aces"
+  1545→- button "Regarder" [ref=e112]
+  1546→- button [ref=e113]
+  1547→- button "Suivre" [ref=e114]
+  1548→  - StaticText "Suivre"
+  1549→- StaticText "WNBA"
+  1550→- StaticText "23 juil. 12:00 AM"
+  1551→- image "Indiana Fever"
+  1552→- StaticText "Indiana Fever"
+  1553→- StaticText "14-10"
+  1554→- button "Ajouter aux favoris" [ref=e115]
+  1555→- StaticText "VS"
+  1556→- button "Ajouter aux favoris" [ref=e116]
+  1557→- StaticText "Connecticut Sun"
+  1558→- StaticText "6-18"
+  1559→- image "Connecticut Sun"
+  1560→- button "Regarder" [ref=e117]
+  1561→- button [ref=e118]
+  1562→- button "Suivre" [ref=e119]
+  1563→  - StaticText "Suivre"
+  1564→- StaticText "Suivre"
+  1565→- StaticText "Suivre"
+  1566→- StaticText "Suivre"
+  1567→- StaticText "Suivre"
+  1568→- StaticText "Suivre"
+  1569→- StaticText "Suivre"
+  1570→- StaticText "Suivre"
+  1571→- StaticText "Suivre"
+  1572→- StaticText "Suivre"
+  1573→- StaticText "Suivre"
+  1574→- StaticText "Suivre"
+  1575→- StaticText "Suivre"
+  1576→- StaticText "Suivre"
+  1577→- StaticText "Suivre"
+  1578→- StaticText "Suivre"
+  1579→- StaticText "Suivre"
+  1580→- StaticText "Suivre"
+  1581→- StaticText "Suivre"
+  1582→- StaticText "Suivre"
+  1583→- StaticText "Suivre"

@@ -332,35 +332,91 @@ export const useAppStore = create<AppState>((set, get) => ({
         const newMatches = data.matches || [];
         const newDates = data.dates || [];
 
-        // Merge with existing matches: replace matches for requested dates, keep others
+        // ── Smart merge: stable, never loses live matches ──
         let mergedMatches: typeof currentMatches;
         if (dates && dates.length > 0 && currentMatches.length > 0) {
-          // Remove existing matches that fall on any of the newly fetched dates
-          const existingKept = currentMatches.filter(m => {
-            if (!m.matchDate) return true;
+          // Build a set of YYYYMMDD strings for the newly fetched dates
+          const fetchedDateSet = new Set(newDates);
+
+          // Separate existing matches into "on fetched dates" and "on other dates"
+          const existingOnFetchedDates = currentMatches.filter(m => {
+            if (!m.matchDate) return true; // keep undated matches for merge
             const d = new Date(m.matchDate);
-            const y = d.getFullYear();
-            const mo = String(d.getMonth() + 1).padStart(2, '0');
-            const dy = String(d.getDate()).padStart(2, '0');
-            const ymd = `${y}${mo}${dy}`;
-            return !newDates.includes(ymd);
+            const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+            return fetchedDateSet.has(ymd);
           });
-          mergedMatches = [...existingKept, ...newMatches];
-          // Deduplicate by id
-          const seen = new Set<string>();
-          mergedMatches = mergedMatches.filter(m => {
-            if (seen.has(m.id)) return false;
-            seen.add(m.id);
-            return true;
+          const existingOnOtherDates = currentMatches.filter(m => {
+            if (!m.matchDate) return false;
+            const d = new Date(m.matchDate);
+            const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+            return !fetchedDateSet.has(ymd);
           });
-          // Sort: live first, then upcoming by time, then finished
-          const statusOrder = { live: 0, upcoming: 1, finished: 2 };
-          mergedMatches.sort((a, b) => {
-            const sd = (statusOrder[a.status] ?? 1) - (statusOrder[b.status] ?? 1);
-            if (sd !== 0) return sd;
-            return (a.matchDate ? new Date(a.matchDate).getTime() : Infinity) -
-                   (b.matchDate ? new Date(b.matchDate).getTime() : Infinity);
-          });
+
+          // Count how many existing live matches are on fetched dates
+          const existingLiveOnFetched = existingOnFetchedDates.filter(m => m.status === 'live');
+
+          // GUARD: If new data is empty but we had live matches, keep existing data entirely
+          // (API failure / empty response should never wipe live matches)
+          if (newMatches.length === 0 && existingLiveOnFetched.length > 0) {
+            mergedMatches = [...currentMatches]; // no changes
+          } else {
+            // Build a map of new matches by ID for smart per-match merge
+            const newMatchMap = new Map<string, typeof newMatches[0]>();
+            for (const nm of newMatches) {
+              newMatchMap.set(nm.id, nm);
+            }
+
+            // Merge: for each existing match on fetched dates, prefer new data
+            // BUT never downgrade "live" → "upcoming" (API lag can cause this)
+            const mergedOnFetchedDates = existingOnFetchedDates.map(existing => {
+              const newer = newMatchMap.get(existing.id);
+              if (!newer) {
+                // Existing match not in new data: keep it if live (might be mid-update)
+                // otherwise keep it too (finished/upcoming matches shouldn't vanish)
+                return existing;
+              }
+              // Smart status merge: never downgrade live → upcoming
+              if (existing.status === 'live' && newer.status === 'upcoming') {
+                // Keep live status but update scores if available
+                return {
+                  ...existing,
+                  homeScore: newer.homeScore ?? existing.homeScore,
+                  awayScore: newer.awayScore ?? existing.awayScore,
+                  minute: newer.minute ?? existing.minute,
+                  displayClock: newer.displayClock ?? existing.displayClock,
+                  period: newer.period ?? existing.period,
+                  isHalftime: newer.isHalftime ?? existing.isHalftime,
+                  statusDescription: newer.statusDescription ?? existing.statusDescription,
+                  lastUpdated: newer.lastUpdated ?? existing.lastUpdated,
+                };
+              }
+              // Otherwise use newer data (score updates, status changes live→finished, etc.)
+              return newer;
+            });
+
+            // Add any new matches that didn't exist before
+            const existingIds = new Set(existingOnFetchedDates.map(m => m.id));
+            const trulyNew = newMatches.filter(nm => !existingIds.has(nm.id));
+
+            mergedMatches = [...existingOnOtherDates, ...mergedOnFetchedDates, ...trulyNew];
+
+            // Deduplicate by id (shouldn't happen, but safety)
+            const seen = new Set<string>();
+            mergedMatches = mergedMatches.filter(m => {
+              if (seen.has(m.id)) return false;
+              seen.add(m.id);
+              return true;
+            });
+
+            // Sort: live first, then upcoming by time, then finished
+            const statusOrder = { live: 0, upcoming: 1, finished: 2 };
+            mergedMatches.sort((a, b) => {
+              const sd = (statusOrder[a.status] ?? 1) - (statusOrder[b.status] ?? 1);
+              if (sd !== 0) return sd;
+              return (a.matchDate ? new Date(a.matchDate).getTime() : Infinity) -
+                     (b.matchDate ? new Date(b.matchDate).getTime() : Infinity);
+            });
+          }
         } else {
           mergedMatches = newMatches;
         }
@@ -424,37 +480,76 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!res.ok) throw new Error('Échec du chargement des matchs de basketball');
       const data = await res.json();
       const newMatches = data.matches || [];
-
-      // Merge with existing matches: replace matches for requested dates, keep others
       const newDates = data.dates || [];
+
+      // ── Smart merge: stable, never loses live matches ──
       let mergedMatches: typeof currentMatches;
       if (dates && dates.length > 0 && currentMatches.length > 0) {
-        // Remove existing matches that fall on any of the newly fetched dates
-        const existingKept = currentMatches.filter(m => {
+        const fetchedDateSet = new Set(newDates);
+
+        const existingOnFetchedDates = currentMatches.filter(m => {
           if (!m.matchDate) return true;
           const d = new Date(m.matchDate);
-          const y = d.getFullYear();
-          const mo = String(d.getMonth() + 1).padStart(2, '0');
-          const dy = String(d.getDate()).padStart(2, '0');
-          const ymd = `${y}${mo}${dy}`;
-          return !newDates.includes(ymd);
+          const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+          return fetchedDateSet.has(ymd);
         });
-        mergedMatches = [...existingKept, ...newMatches];
-        // Deduplicate by id
-        const seen = new Set<string>();
-        mergedMatches = mergedMatches.filter(m => {
-          if (seen.has(m.id)) return false;
-          seen.add(m.id);
-          return true;
+        const existingOnOtherDates = currentMatches.filter(m => {
+          if (!m.matchDate) return false;
+          const d = new Date(m.matchDate);
+          const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+          return !fetchedDateSet.has(ymd);
         });
-        // Sort: live first, then upcoming, then finished
-        const statusOrder = { live: 0, upcoming: 1, finished: 2 };
-        mergedMatches.sort((a, b) => {
-          const sd = (statusOrder[a.status] ?? 1) - (statusOrder[b.status] ?? 1);
-          if (sd !== 0) return sd;
-          return (a.matchDate ? new Date(a.matchDate).getTime() : Infinity) -
-                 (b.matchDate ? new Date(b.matchDate).getTime() : Infinity);
-        });
+
+        const existingLiveOnFetched = existingOnFetchedDates.filter(m => m.status === 'live');
+
+        // GUARD: Never wipe live matches with empty data
+        if (newMatches.length === 0 && existingLiveOnFetched.length > 0) {
+          mergedMatches = [...currentMatches];
+        } else {
+          const newMatchMap = new Map<string, typeof newMatches[0]>();
+          for (const nm of newMatches) {
+            newMatchMap.set(nm.id, nm);
+          }
+
+          const mergedOnFetchedDates = existingOnFetchedDates.map(existing => {
+            const newer = newMatchMap.get(existing.id);
+            if (!newer) return existing;
+            if (existing.status === 'live' && newer.status === 'upcoming') {
+              return {
+                ...existing,
+                homeScore: newer.homeScore ?? existing.homeScore,
+                awayScore: newer.awayScore ?? existing.awayScore,
+                // Basketball-specific fields
+                homePeriodScores: newer.homePeriodScores ?? existing.homePeriodScores,
+                awayPeriodScores: newer.awayPeriodScores ?? existing.awayPeriodScores,
+                period: newer.period ?? existing.period,
+                displayClock: newer.displayClock ?? existing.displayClock,
+                lastUpdated: newer.lastUpdated ?? existing.lastUpdated,
+              };
+            }
+            return newer;
+          });
+
+          const existingIds = new Set(existingOnFetchedDates.map(m => m.id));
+          const trulyNew = newMatches.filter(nm => !existingIds.has(nm.id));
+
+          mergedMatches = [...existingOnOtherDates, ...mergedOnFetchedDates, ...trulyNew];
+
+          const seen = new Set<string>();
+          mergedMatches = mergedMatches.filter(m => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+          });
+
+          const statusOrder = { live: 0, upcoming: 1, finished: 2 };
+          mergedMatches.sort((a, b) => {
+            const sd = (statusOrder[a.status] ?? 1) - (statusOrder[b.status] ?? 1);
+            if (sd !== 0) return sd;
+            return (a.matchDate ? new Date(a.matchDate).getTime() : Infinity) -
+                   (b.matchDate ? new Date(b.matchDate).getTime() : Infinity);
+          });
+        }
       } else {
         mergedMatches = newMatches;
       }

@@ -2,7 +2,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Play, Tv, Clock, Radio, Heart, Activity, Share, Film, Zap } from 'lucide-react';
+import { Play, Tv, Clock, Radio, Heart, Activity, Share, Film, Zap, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
@@ -41,6 +41,8 @@ export default function MatchCard({ match }: MatchCardProps) {
   const [showTracker, setShowTracker] = useState(false);
   const [showStreamOptions, setShowStreamOptions] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [autoSearching, setAutoSearching] = useState(false);
+  const [autoSearchError, setAutoSearchError] = useState<string | null>(null);
 
   const isLive = match.status === 'live';
   const isFinished = match.status === 'finished';
@@ -69,26 +71,58 @@ export default function MatchCard({ match }: MatchCardProps) {
   const sportType = isBasketballSport ? 'basketball' : 'football';
 
   /**
-   * "Watch Live" handler:
-   * 1. If direct m3u8 stream available → play directly in-app (IPTV channels)
-   * 2. Otherwise → open stream options panel which fetches free streams from API
+   * "Watch Live" handler — Smart Auto-Play:
+   * 1. If direct m3u8 stream available → play directly in-app
+   * 2. For live matches → auto-search for a working stream via /api/find-stream
+   *    - If found → play directly (one-click watch!)
+   *    - If not found → show stream options panel as fallback
+   * 3. For non-live → open stream options panel
    */
-  const handleWatchLive = () => {
-    // If we already have a direct m3u8 stream URL, play it in-app
+  const handleWatchLive = async () => {
+    // If we already have a direct m3u8 URL, play it immediately
     if (match.streamUrl && (match.streamUrl.includes('.m3u8') || match.streamUrl.includes('m3u8'))) {
       openPlayer(match.streamUrl, match.channelName || `${match.homeTeam} vs ${match.awayTeam}`, match.channelLogo || undefined);
       return;
     }
 
-    // Open stream options panel - it will fetch free streams from /api/streams
-    setShowStreamOptions(true);
-  };
+    // For live matches, try to auto-find a working stream
+    if (isLive || isAboutToStart) {
+      setAutoSearching(true);
+      setAutoSearchError(null);
+      try {
+        const res = await fetch(`/api/find-stream?homeTeam=${encodeURIComponent(match.homeTeam)}&awayTeam=${encodeURIComponent(match.awayTeam)}&sport=${sportType}`);
+        const data = await res.json();
 
-  /** Open YouTube live search for this match */
-  const handleYoutubeLive = () => {
-    const year = matchDate ? matchDate.getFullYear() : new Date().getFullYear();
-    const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || ''} live ${year}`);
-    window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank', 'noopener,noreferrer');
+        if (data.found && data.stream) {
+          // Found a working stream! Play it immediately
+          const alternatives = (data.alternatives || []).map((a: any) => ({
+            name: a.name,
+            url: a.url,
+            logo: a.logo,
+          }));
+          openPlayer(
+            data.stream.url,
+            data.stream.name || `${match.homeTeam} vs ${match.awayTeam}`,
+            data.stream.logo || undefined,
+            alternatives
+          );
+          setAutoSearching(false);
+          return;
+        }
+
+        // No working stream found — show stream options as fallback
+        setAutoSearching(false);
+        setShowStreamOptions(true);
+      } catch {
+        // Auto-search failed — fall back to stream options
+        setAutoSearching(false);
+        setAutoSearchError('Recherche automatique échouée');
+        setShowStreamOptions(true);
+      }
+    } else {
+      // Non-live match → show stream options panel
+      setShowStreamOptions(true);
+    }
   };
 
   const handleShare = async () => {
@@ -136,21 +170,21 @@ export default function MatchCard({ match }: MatchCardProps) {
       <div
         className={`group relative rounded-2xl overflow-hidden transition-all duration-250 hover:translate-y-[-1px] ${
           isLive
-            ? 'glass-card-live shadow-lg shadow-red-500/5'
+            ? 'glass-card-live shadow-lg shadow-red-500/10'
             : isFinished
-            ? 'glass-card opacity-60 hover:opacity-80'
+            ? 'glass-card opacity-75 hover:opacity-100'
             : 'glass-card hover:shadow-md'
         }`}
       >
-        {/* Live shimmer effect */}
-        {isLive && <div className="absolute inset-0 shimmer pointer-events-none" />}
+        {/* Live subtle gradient overlay instead of shimmer for clarity */}
+        {isLive && <div className="absolute inset-0 bg-gradient-to-br from-red-500/[0.03] to-transparent pointer-events-none" />}
 
         <div className="relative px-4 py-4">
           {/* Top row: competition + status */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className={`w-1 h-4 rounded-full ${isLive ? 'bg-red-500' : isFinished ? 'bg-muted-foreground/20' : 'bg-emerald-500/50'}`} />
-              <span className="text-[11px] text-muted-foreground/40 font-semibold uppercase tracking-wide truncate max-w-[180px]">
+              <div className={`w-1 h-4 rounded-full ${isLive ? 'bg-red-500' : isFinished ? 'bg-muted-foreground/40' : 'bg-emerald-500/60'}`} />
+              <span className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wide truncate max-w-[180px]">
                 {match.competition || t(language, 'match.friendly')}
               </span>
             </div>
@@ -164,14 +198,14 @@ export default function MatchCard({ match }: MatchCardProps) {
                 minute={match.minute != null ? match.minute : null}
               />
             ) : isFinished ? (
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-secondary/50 dark:bg-white/[0.02] border border-border/30 dark:border-white/[0.03]">
-                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/20" />
-                <span className="text-[10px] font-bold text-muted-foreground/30 uppercase tracking-wider">{t(language, 'common.finished')}</span>
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-secondary/50 dark:bg-white/[0.04] border border-border/40 dark:border-white/[0.06]">
+                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                <span className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-wider">{t(language, 'common.finished')}</span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
-                <Clock className="h-3 w-3 text-emerald-500/40" />
-                <span className="text-[11px] font-semibold text-muted-foreground/50">
+                <Clock className="h-3 w-3 text-emerald-500/60" />
+                <span className="text-[11px] font-semibold text-muted-foreground/70">
                   {isToday ? `${t(language, 'common.today')} ${timeStr}` : isTomorrow ? `${t(language, 'common.tomorrow')} ${timeStr}` : `${dateStr} ${timeStr}`}
                 </span>
               </div>
@@ -186,43 +220,43 @@ export default function MatchCard({ match }: MatchCardProps) {
                 <img
                   src={match.homeLogo}
                   alt={match.homeTeam}
-                  className="w-10 h-10 rounded-xl object-contain bg-secondary/30 dark:bg-white/[0.02] p-1 shrink-0"
+                  className="w-10 h-10 rounded-xl object-contain bg-secondary/30 dark:bg-white/[0.04] p-1 shrink-0"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : (
-                <div className="w-10 h-10 rounded-xl bg-secondary/30 dark:bg-white/[0.03] flex items-center justify-center text-[11px] font-bold shrink-0 text-muted-foreground/40">
+                <div className="w-10 h-10 rounded-xl bg-secondary/30 dark:bg-white/[0.04] flex items-center justify-center text-[11px] font-bold shrink-0 text-muted-foreground/60">
                   {match.homeTeam.slice(0, 2).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
-                <span className={`font-semibold text-[13px] truncate block leading-tight ${homeFav ? 'text-emerald-400' : ''}`}>{match.homeTeam}</span>
+                <span className={`font-semibold text-sm truncate block leading-tight ${homeFav ? 'text-emerald-400' : 'text-foreground'}`}>{match.homeTeam}</span>
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); toggleTeamFavorite(match.homeTeam, match.homeLogo); }}
-                className="shrink-0 ml-auto opacity-30 hover:opacity-100 transition-opacity"
+                className="shrink-0 ml-auto opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
                 title={homeFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
               >
-                <Heart className={`h-3.5 w-3.5 transition-colors ${homeFav ? 'fill-emerald-400 text-emerald-400' : 'text-muted-foreground hover:text-emerald-400'}`} />
+                <Heart className={`h-3.5 w-3.5 transition-colors ${homeFav ? 'fill-emerald-400 text-emerald-400 opacity-100' : 'text-muted-foreground hover:text-emerald-400'}`} />
               </button>
             </div>
 
             {/* Score or VS */}
-            <div className="flex flex-col items-center shrink-0 px-2 min-w-[60px]">
+            <div className="flex flex-col items-center shrink-0 px-2 min-w-[72px]">
               {isLive ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-black tabular-nums text-red-400 score-pulse">{homeScore}</span>
-                  <span className="text-xs text-muted-foreground/20 font-bold">:</span>
-                  <span className="text-xl font-black tabular-nums text-red-400 score-pulse">{awayScore}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[28px] font-black tabular-nums text-red-400 score-pulse leading-none">{homeScore}</span>
+                  <span className="text-base text-red-400/80 font-bold">-</span>
+                  <span className="text-[28px] font-black tabular-nums text-red-400 score-pulse leading-none">{awayScore}</span>
                 </div>
               ) : isFinished ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-black tabular-nums text-muted-foreground/50">{homeScore}</span>
-                  <span className="text-xs text-muted-foreground/20 font-bold">:</span>
-                  <span className="text-xl font-black tabular-nums text-muted-foreground/50">{awayScore}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[28px] font-black tabular-nums text-foreground leading-none">{homeScore}</span>
+                  <span className="text-base text-muted-foreground font-bold">-</span>
+                  <span className="text-[28px] font-black tabular-nums text-foreground leading-none">{awayScore}</span>
                 </div>
               ) : (
-                <div className="px-4 py-1.5 rounded-xl bg-secondary/30 dark:bg-white/[0.02] border border-border/30 dark:border-white/[0.04]">
-                  <span className="text-xs font-bold text-muted-foreground/30 tracking-[0.2em]">VS</span>
+                <div className="px-4 py-1.5 rounded-xl bg-secondary/30 dark:bg-white/[0.04] border border-border/40 dark:border-white/[0.06]">
+                  <span className="text-xs font-bold text-muted-foreground/70 tracking-[0.2em]">VS</span>
                 </div>
               )}
             </div>
@@ -231,23 +265,23 @@ export default function MatchCard({ match }: MatchCardProps) {
             <div className="flex items-center gap-2.5 flex-1 min-w-0 justify-end">
               <button
                 onClick={(e) => { e.stopPropagation(); toggleTeamFavorite(match.awayTeam, match.awayLogo); }}
-                className="shrink-0 opacity-30 hover:opacity-100 transition-opacity"
+                className="shrink-0 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
                 title={awayFav ? t(language, 'favorites.removeFavorites') : t(language, 'favorites.addFavorites')}
               >
-                <Heart className={`h-3.5 w-3.5 transition-colors ${awayFav ? 'fill-emerald-400 text-emerald-400' : 'text-muted-foreground hover:text-emerald-400'}`} />
+                <Heart className={`h-3.5 w-3.5 transition-colors ${awayFav ? 'fill-emerald-400 text-emerald-400 opacity-100' : 'text-muted-foreground hover:text-emerald-400'}`} />
               </button>
               <div className="min-w-0 text-right">
-                <span className={`font-semibold text-[13px] truncate block leading-tight ${awayFav ? 'text-emerald-400' : ''}`}>{match.awayTeam}</span>
+                <span className={`font-semibold text-sm truncate block leading-tight ${awayFav ? 'text-emerald-400' : 'text-foreground'}`}>{match.awayTeam}</span>
               </div>
               {match.awayLogo ? (
                 <img
                   src={match.awayLogo}
                   alt={match.awayTeam}
-                  className="w-10 h-10 rounded-xl object-contain bg-secondary/30 dark:bg-white/[0.02] p-1 shrink-0"
+                  className="w-10 h-10 rounded-xl object-contain bg-secondary/30 dark:bg-white/[0.04] p-1 shrink-0"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ) : (
-                <div className="w-10 h-10 rounded-xl bg-secondary/30 dark:bg-white/[0.03] flex items-center justify-center text-[11px] font-bold shrink-0 text-muted-foreground/40">
+                <div className="w-10 h-10 rounded-xl bg-secondary/30 dark:bg-white/[0.04] flex items-center justify-center text-[11px] font-bold shrink-0 text-muted-foreground/60">
                   {match.awayTeam.slice(0, 2).toUpperCase()}
                 </div>
               )}
@@ -255,19 +289,27 @@ export default function MatchCard({ match }: MatchCardProps) {
           </div>
 
           {/* Action buttons */}
-          <div className="mt-4 pt-3 border-t border-border/20 dark:border-white/[0.03] flex gap-2">
+          <div className="mt-3 pt-3 border-t border-border/30 dark:border-white/[0.06] flex gap-2">
             {canWatchLive ? (
               <>
                 <Button
                   size="sm"
                   onClick={handleWatchLive}
+                  disabled={autoSearching}
                   className={`flex-1 h-9 gap-2 text-xs font-bold rounded-xl transition-all duration-200 ${
-                    isLive
+                    autoSearching
+                      ? 'bg-muted text-muted-foreground'
+                      : isLive
                       ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20'
                       : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20'
                   }`}
                 >
-                  {isLive ? (
+                  {autoSearching ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Recherche...
+                    </>
+                  ) : isLive ? (
                     <>
                       <Radio className="h-3.5 w-3.5 fill-current" />
                       {t(language, 'match.watchLive')}
@@ -279,21 +321,12 @@ export default function MatchCard({ match }: MatchCardProps) {
                     </>
                   )}
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleYoutubeLive}
-                  className="h-9 px-3 gap-1.5 text-xs font-semibold rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20"
-                  title="YouTube Live"
-                >
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-                  <span className="hidden sm:inline">YT</span>
-                </Button>
               </>
             ) : isFinished ? (
               <Button
                 size="sm"
                 onClick={() => setShowTracker(true)}
-                className="flex-1 h-9 gap-2 text-xs font-semibold rounded-xl bg-secondary/50 dark:bg-white/[0.03] hover:bg-secondary dark:hover:bg-white/[0.06] text-foreground border border-border/30 dark:border-white/[0.04]"
+                className="flex-1 h-9 gap-2 text-xs font-semibold rounded-xl bg-secondary/50 dark:bg-white/[0.04] hover:bg-secondary dark:hover:bg-white/[0.08] text-foreground/80 border border-border/40 dark:border-white/[0.06]"
               >
                 <Activity className="h-3.5 w-3.5" />
                 {t(language, 'match.seeSummary')}
@@ -308,14 +341,6 @@ export default function MatchCard({ match }: MatchCardProps) {
                   <Play className="h-3.5 w-3.5" />
                   {t(language, 'match.watch')}
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowTracker(true)}
-                  className="h-9 px-3 rounded-xl border-border/30 dark:border-white/[0.04] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1 text-muted-foreground"
-                >
-                  <Activity className="h-3.5 w-3.5" />
-                </Button>
               </div>
             )}
             {/* Match Tracker button */}
@@ -323,33 +348,17 @@ export default function MatchCard({ match }: MatchCardProps) {
               size="sm"
               variant="outline"
               onClick={() => setShowTracker(true)}
-              className="h-9 px-3 rounded-xl border-border/30 dark:border-white/[0.04] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1"
+              className="h-9 px-3 rounded-xl border-border/40 dark:border-white/[0.06] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1 text-muted-foreground/70"
             >
               <Activity className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t(language, 'match.follow')}</span>
             </Button>
-            {/* Highlights button */}
-            {isFinished && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  const year = matchDate ? matchDate.getFullYear() : new Date().getFullYear();
-                  const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || ''} highlights ${year}`);
-                  window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank', 'noopener,noreferrer');
-                }}
-                className="h-9 px-3 rounded-xl border-border/30 dark:border-white/[0.04] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1"
-                title={t(language, 'match.highlights')}
-              >
-                <Film className="h-3.5 w-3.5" />
-              </Button>
-            )}
             {/* Share button */}
             <Button
               size="sm"
               variant="outline"
               onClick={handleShare}
-              className="h-9 px-3 rounded-xl border-border/30 dark:border-white/[0.04] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1"
+              className="h-9 px-3 rounded-xl border-border/40 dark:border-white/[0.06] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1 text-muted-foreground/70"
               title={t(language, 'match.share')}
             >
               <Share className="h-3.5 w-3.5" />
@@ -375,6 +384,7 @@ export default function MatchCard({ match }: MatchCardProps) {
         competition={match.competition}
         sport={sportType}
         matchId={match.id}
+        isLive={isLive}
       />
     </>
   );

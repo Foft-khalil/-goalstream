@@ -67,13 +67,13 @@
   --secondary: 240 12% 10%;
   --secondary-foreground: 0 0% 98%;
   --muted: 240 12% 10%;
-  --muted-foreground: 240 8% 47%;
+  --muted-foreground: 240 6% 60%;
   --accent: 240 12% 10%;
   --accent-foreground: 0 0% 98%;
   --destructive: 0 84% 51%;
   --destructive-foreground: 0 0% 100%;
-  --border: 240 10% 14%;
-  --input: 240 10% 14%;
+  --border: 240 10% 16%;
+  --input: 240 10% 16%;
   --ring: 160 84% 39%;
   --chart-1: 160 84% 39%;
   --chart-2: 22 91% 48%;
@@ -177,10 +177,10 @@
   border-radius: 1rem;
 }
 .dark .glass-card {
-  background: rgba(255, 255, 255, 0.025);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(20, 20, 30, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .glass-card-live {
@@ -189,10 +189,10 @@
   border-radius: 1rem;
 }
 .dark .glass-card-live {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(239, 68, 68, 0.04) 100%);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(239, 68, 68, 0.12);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(20, 20, 30, 0.92) 50%, rgba(239, 68, 68, 0.06) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(239, 68, 68, 0.18);
 }
 
 .glass-card-basketball {
@@ -201,10 +201,10 @@
   border-radius: 1rem;
 }
 .dark .glass-card-basketball {
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.06) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(249, 115, 22, 0.04) 100%);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(249, 115, 22, 0.12);
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(20, 20, 30, 0.92) 50%, rgba(249, 115, 22, 0.06) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(249, 115, 22, 0.18);
 }
 
 /* ─── Premium gradient text ─── */
@@ -368,8 +368,8 @@
   border-color: hsl(var(--border));
 }
 .dark .glass-surface {
-  background: rgba(255, 255, 255, 0.025);
-  border-color: rgba(255, 255, 255, 0.05);
+  background: rgba(20, 20, 30, 0.92);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .glass-surface-subtle {
@@ -377,8 +377,8 @@
   border-color: hsl(var(--border));
 }
 .dark .glass-surface-subtle {
-  background: rgba(255, 255, 255, 0.015);
-  border-color: rgba(255, 255, 255, 0.03);
+  background: rgba(20, 20, 30, 0.85);
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 .glass-surface-hover {
@@ -392,14 +392,14 @@
   border-color: hsl(var(--border));
 }
 .dark .glass-border {
-  border-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .glass-divider {
   border-color: hsl(var(--border));
 }
 .dark .glass-divider {
-  border-color: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 /* ─── Premium bottom nav bar ─── */

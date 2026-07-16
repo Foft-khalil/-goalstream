@@ -7,7 +7,11 @@ import { NextRequest, NextResponse } from 'next/server';
  * 1. Schedule JSON → maps events to channel IDs
  * 2. Channels Data JSON → maps channel IDs to direct m3u8 stream URLs
  *
- * This provides working m3u8 streams for football, basketball, and all other sports.
+ * All streams are returned as playable URLs:
+ * - m3u8 URLs: played directly in-app via HLS.js through stream-proxy
+ * - embed URLs: played in-app via proxy-stream iframe (no external redirects)
+ *
+ * Stream health is validated server-side: broken m3u8 streams are automatically filtered.
  */
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -54,10 +58,97 @@ const CHANNELS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes (channels change less o
 const scheduleCache = new Map<string, CacheEntry<Record<string, Record<string, DLEvent[]>>>>();
 const channelsCache = new Map<string, CacheEntry<Record<string, DLChannelData>>>();
 
+// Stream health cache: URL → { valid, timestamp }
+interface HealthEntry {
+  valid: boolean;
+  timestamp: number;
+}
+const streamHealthCache = new Map<string, HealthEntry>();
+const HEALTH_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
+
 const COMMON_HEADERS: Record<string, string> = {
   'Accept': 'application/json, text/html, */*',
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
 };
+
+// ─── Validate m3u8 stream health ─────────────────────────────────────────────
+async function validateStreamHealth(url: string): Promise<boolean> {
+  // Check cache first
+  const cached = streamHealthCache.get(url);
+  if (cached && Date.now() - cached.timestamp < HEALTH_CACHE_TTL) {
+    return cached.valid;
+  }
+
+  try {
+    // For m3u8 URLs, try a HEAD request first, then GET if needed
+    const isM3u8 = url.includes('.m3u8');
+
+    if (isM3u8) {
+      // Determine the correct Origin header
+      let origin = '';
+      try {
+        const hostname = new URL(url).hostname;
+        if (hostname.includes('newkso.ru')) {
+          origin = 'https://jxoxkplay.xyz';
+        } else if (hostname.includes('fubo') || hostname.includes('fltvhd') || hostname.includes('futbolonlinehd')) {
+          origin = 'https://fltvhd.com';
+        }
+      } catch {}
+
+      const headers: Record<string, string> = {
+        ...COMMON_HEADERS,
+        'Accept': '*/*',
+        ...(origin ? { 'Origin': origin, 'Referer': `${origin}/` } : {}),
+      };
+
+      const res = await fetch(url, {
+        method: 'GET', // Some servers don't support HEAD
+        headers,
+        signal: AbortSignal.timeout(6000),
+        redirect: 'follow',
+      });
+
+      // Valid if we get 200 and it's an m3u8 or similar content
+      if (res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        const text = await res.text();
+        const isValid = text.includes('#EXTM3U') || text.includes('#EXTINF') ||
+                       contentType.includes('mpegurl') || contentType.includes('octet-stream');
+        streamHealthCache.set(url, { valid: isValid, timestamp: Date.now() });
+        return isValid;
+      }
+
+      // 403 might mean Cloudflare is blocking from server but stream exists
+      // Don't mark as invalid - let the client try via proxy
+      if (res.status === 403) {
+        streamHealthCache.set(url, { valid: true, timestamp: Date.now() });
+        return true;
+      }
+
+      streamHealthCache.set(url, { valid: false, timestamp: Date.now() });
+      return false;
+    } else {
+      // For embed URLs, just check if the page is reachable
+      const res = await fetch(url, {
+        method: 'HEAD',
+        headers: COMMON_HEADERS,
+        signal: AbortSignal.timeout(6000),
+        redirect: 'follow',
+      });
+
+      const valid = res.ok || res.status === 403; // 403 = Cloudflare but page exists
+      streamHealthCache.set(url, { valid, timestamp: Date.now() });
+      return valid;
+    }
+  } catch {
+    // Network error - might be temporary, give benefit of the doubt
+    // Only mark as invalid if we've seen it fail before
+    const cached = streamHealthCache.get(url);
+    if (cached && !cached.valid) return false;
+    // First failure - don't cache, let client try
+    return true;
+  }
+}
 
 // ─── Fetch schedule from dlhd.st ────────────────────────────────────────────
 async function fetchSchedule(): Promise<Record<string, Record<string, DLEvent[]>>> {
@@ -232,6 +323,7 @@ export async function GET(request: NextRequest) {
     const homeTeam = searchParams.get('homeTeam') || '';
     const awayTeam = searchParams.get('awayTeam') || '';
     const sport = searchParams.get('sport') || ''; // 'football' or 'basketball'
+    const liveOnly = searchParams.get('liveOnly') === 'true'; // strict: both teams must match
 
     // Fetch schedule and channels data in parallel
     const [schedule, channelsData] = await Promise.all([
@@ -252,8 +344,19 @@ export async function GET(request: NextRequest) {
 
     const matchedStreams: MatchedStream[] = [];
 
+    // Determine today's date key for filtering
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
     // Search through all days and categories
     for (const [dayKey, categories] of Object.entries(schedule)) {
+      // When liveOnly, only search today's and yesterday's schedule (live matches)
+      if (liveOnly) {
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+        if (dayKey !== todayKey && dayKey !== yesterdayKey) continue;
+      }
+
       for (const [category, events] of Object.entries(categories)) {
         const sportDetected = detectSport('', category);
 
@@ -265,10 +368,12 @@ export async function GET(request: NextRequest) {
           const homeMatch = teamMatchesInName(homeVariants, eventName);
           const awayMatch = teamMatchesInName(awayVariants, eventName);
 
-          if (!homeMatch && !awayMatch) continue;
-
-          // Match score: both teams matched is best
-          const score = (homeMatch ? 50 : 0) + (awayMatch ? 50 : 0);
+          // When liveOnly: require BOTH teams to match (strict matching for live matches)
+          if (liveOnly) {
+            if (!homeMatch || !awayMatch) continue;
+          } else {
+            if (!homeMatch && !awayMatch) continue;
+          }
 
           // Get channel streams
           const allChannels = [...(event.channels || []), ...(event.channels2 || [])];
@@ -276,7 +381,6 @@ export async function GET(request: NextRequest) {
           for (const ch of allChannels) {
             // Find the channel in channelsData by channel_id
             const channelEntry = Object.entries(channelsData).find(([name, data]) => {
-              // Match by channel_id in the channel_url
               return data.channel_url.includes(`stream-${ch.channel_id}.php`) ||
                      data.channel_url.includes(`stream_${ch.channel_id}`) ||
                      name.toLowerCase().includes(ch.channel_name.toLowerCase());
@@ -295,7 +399,7 @@ export async function GET(request: NextRequest) {
                 sport: sportDetected,
               });
             } else {
-              // Channel not in channels data - provide the embed page URL via dlhd.st (working domain)
+              // Channel not in channels data - provide the embed page URL via dlhd.st
               matchedStreams.push({
                 channelName: ch.channel_name,
                 channelId: ch.channel_id,
@@ -312,12 +416,51 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Sort: exact matches first, then by sport relevance
-    matchedStreams.sort((a, b) => {
-      // Prioritize m3u8 streams over embed URLs
-      const aM3u8 = a.streamUrl.includes('.m3u8') ? 0 : 1;
-      const bM3u8 = b.streamUrl.includes('.m3u8') ? 0 : 1;
-      if (aM3u8 !== bM3u8) return aM3u8 - bM3u8;
+    // Categorize streams by type
+    const m3u8Streams = matchedStreams.filter(s => s.streamUrl.includes('.m3u8'));
+    const embedStreams = matchedStreams.filter(s => !s.streamUrl.includes('.m3u8'));
+
+    // Validate m3u8 streams in parallel (with concurrency limit)
+    // Only validate if there aren't too many (to avoid long response times)
+    let validatedM3u8Streams: MatchedStream[];
+
+    if (m3u8Streams.length > 0 && m3u8Streams.length <= 10) {
+      console.log(`[DaddyLive API] Validating ${m3u8Streams.length} m3u8 streams...`);
+
+      const validationResults = await Promise.allSettled(
+        m3u8Streams.map(async (stream) => {
+          const isValid = await validateStreamHealth(stream.streamUrl);
+          return { stream, isValid };
+        })
+      );
+
+      validatedM3u8Streams = validationResults
+        .filter((r): r is PromiseFulfilledResult<{ stream: MatchedStream; isValid: boolean }> =>
+          r.status === 'fulfilled' && r.value.isValid
+        )
+        .map(r => r.value.stream);
+
+      const removedCount = m3u8Streams.length - validatedM3u8Streams.length;
+      if (removedCount > 0) {
+        console.log(`[DaddyLive API] Removed ${removedCount} broken m3u8 streams`);
+      }
+    } else if (m3u8Streams.length > 10) {
+      // Too many streams - skip validation to avoid timeout, return all
+      // The client-side validation will catch broken ones
+      validatedM3u8Streams = m3u8Streams;
+    } else {
+      validatedM3u8Streams = [];
+    }
+
+    // Combine: validated m3u8 first, then embed URLs
+    const functionalStreams = [...validatedM3u8Streams, ...embedStreams];
+
+    // Sort: m3u8 first (better UX), then by sport relevance
+    functionalStreams.sort((a, b) => {
+      // m3u8 first
+      const aIsM3u8 = a.streamUrl.includes('.m3u8') ? 0 : 1;
+      const bIsM3u8 = b.streamUrl.includes('.m3u8') ? 0 : 1;
+      if (aIsM3u8 !== bIsM3u8) return aIsM3u8 - bIsM3u8;
 
       // Then by sport match
       if (sport) {
@@ -328,10 +471,10 @@ export async function GET(request: NextRequest) {
       return 0;
     });
 
-    console.log(`[DaddyLive API] Found ${matchedStreams.length} streams for "${homeTeam}" vs "${awayTeam}"`);
+    console.log(`[DaddyLive API] Found ${functionalStreams.length} streams (${validatedM3u8Streams.length} m3u8, ${embedStreams.length} embed) for "${homeTeam}" vs "${awayTeam}"`);
 
     return NextResponse.json({
-      streams: matchedStreams.map(s => ({
+      streams: functionalStreams.map(s => ({
         name: s.channelName,
         url: s.streamUrl,
         channelLogo: s.channelLogo,

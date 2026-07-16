@@ -1,0 +1,858 @@
+     1→import { NextRequest, NextResponse } from 'next/server';
+     2→
+     3→// ─── Constants ────────────────────────────────────────────────────────────────
+     4→const FETCH_TIMEOUT = 12_000; // 12 seconds per fetch
+     5→const MAX_CHAIN_DEPTH = 4; // Prevent infinite iframe chains
+     6→
+     7→const COMMON_HEADERS: Record<string, string> = {
+     8→  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+     9→  'Accept-Language': 'en-US,en;q=0.5,es;q=0.3',
+    10→  'User-Agent':
+    11→    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    12→};
+    13→
+    14→// Known m3u8 URL patterns
+    15→const M3U8_PATTERNS = [
+    16→  /\.m3u8[\?\/]/i,
+    17→  /\.m3u8$/i,
+    18→  /mainstreams\.pro\/hls\//i,
+    19→  /fubohd\.com/i,
+    20→  /\/hls\/.*\.m3u8/i,
+    21→  /stream\..*\.m3u8/i,
+    22→  /live\/.*\.m3u8/i,
+    23→];
+    24→
+    25→// Known stream provider domains that use the decrypt chain
+    26→const DECRYPT_CHAIN_DOMAINS = [
+    27→  'kora-api.top',
+    28→  'go4score.app',
+    29→  'smartagro.mov',
+    30→  'goalz.zip',
+    31→  '000007.mov',
+    32→  'fltvhd.com',   // rojadirecta - canales.php → canal.php → Clappr player with m3u8
+    33→  'futbolonlinehd.com',  // CDN for actual m3u8 streams
+    34→  'dlhd.st',      // DaddyLive - stream pages with embedded players
+    35→];
+    36→
+    37→// Domains that are dead/seized — reject immediately instead of wasting time
+    38→const DEAD_DOMAINS = [
+    39→  'streams.center',
+    40→  'streamcenter.pro',
+    41→  'tvhd2.com',
+    42→  'sportsonlinne.click',
+    43→];
+    44→
+    45→// ─── Helper: decode URL (handles base64 + URL-encoding) ──────────────────────
+    46→function decodeInputUrl(raw: string): string {
+    47→  let url = raw.trim();
+    48→
+    49→  // Try base64 decode (common for embed URLs)
+    50→  try {
+    51→    const decoded = atob(url);
+    52→    if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
+    53→      return decoded;
+    54→    }
+    55→  } catch(_e) {
+    56→    // Not valid base64, continue
+    57→  }
+    58→
+    59→  // Try URL-decoded base64
+    60→  try {
+    61→    const decoded = atob(decodeURIComponent(url));
+    62→    if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
+    63→      return decoded;
+    64→    }
+    65→  } catch(_e) {
+    66→    // Not valid, continue
+    67→  }
+    68→
+    69→  // Try URL decode
+    70→  try {
+    71→    const decoded = decodeURIComponent(url);
+    72→    if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
+    73→      return decoded;
+    74→    }
+    75→  } catch(_e) {
+    76→    // Not valid, continue
+    77→  }
+    78→
+    79→  return url;
+    80→}
+    81→
+    82→// ─── Helper: resolve a potentially relative URL against a base ────────────────
+    83→function resolveUrl(target: string, baseUrl: string): string {
+    84→  if (target.startsWith('http://') || target.startsWith('https://')) {
+    85→    return target;
+    86→  }
+    87→  if (target.startsWith('//')) {
+    88→    return `https:${target}`;
+    89→  }
+    90→  try {
+    91→    const base = new URL(baseUrl);
+    92→    if (target.startsWith('/')) {
+    93→      return `${base.origin}${target}`;
+    94→    }
+    95→    // Relative path
+    96→    const basePath = base.pathname.substring(0, base.pathname.lastIndexOf('/') + 1);
+    97→    return `${base.origin}${basePath}${target}`;
+    98→  } catch(_e) {
+    99→    return target;
+   100→  }
+   101→}
+   102→
+   103→// ─── Helper: find m3u8 URL in text ──────────────────────────────────────────
+   104→function findM3u8InText(text: string): string | null {
+   105→  // Pattern 1: Full URLs containing .m3u8
+   106→  const m3u8UrlRegex = /https?:\/\/[^\s"'<>\\]+\.m3u8[^\s"'<>\\]*/gi;
+   107→  const urlMatch = m3u8UrlRegex.exec(text);
+   108→  if (urlMatch) return urlMatch[0];
+   109→
+   110→  // Pattern 2: Known CDN patterns (without requiring .m3u8 extension)
+   111→  const cdnPatterns = [
+   112→    /https?:\/\/[^\s"'<>\\]*mainstreams\.pro\/hls\/[^\s"'<>\\]*/gi,
+   113→    /https?:\/\/[^\s"'<>\\]*fubohd\.com[^\s"'<>\\]*/gi,
+   114→  ];
+   115→  for (const pattern of cdnPatterns) {
+   116→    const match = pattern.exec(text);
+   117→    if (match) return match[0];
+   118→  }
+   119→
+   120→  return null;
+   121→}
+   122→
+   123→// ─── Helper: find m3u8 URL in JavaScript variable assignments ────────────────
+   124→function findM3u8InJS(text: string): string | null {
+   125→  // Look for patterns like: var source = "https://...m3u8..."
+   126→  // or: src: "https://...m3u8..."
+   127→  // or: url: "https://...m3u8..."
+   128→  const jsVarPatterns = [
+   129→    /(?:var|let|const)\s+\w+\s*=\s*["']([^"']*\.m3u8[^"']*)["']/gi,
+   130→    /(?:src|source|url|stream|file|path)\s*[:=]\s*["']([^"']*\.m3u8[^"']*)["']/gi,
+   131→  ];
+   132→
+   133→  for (const pattern of jsVarPatterns) {
+   134→    const match = pattern.exec(text);
+   135→    if (match && match[1]) return match[1];
+   136→  }
+   137→
+   138→  return null;
+   139→}
+   140→
+   141→// ─── Helper: extract iframe src URLs from HTML ───────────────────────────────
+   142→function extractIframeSrcs(html: string, baseUrl: string): string[] {
+   143→  const srcs: string[] = [];
+   144→  const iframeRegex = /<iframe[^>]+src=["']([^"']+)["']/gi;
+   145→  let match;
+   146→  while ((match = iframeRegex.exec(html)) !== null) {
+   147→    srcs.push(resolveUrl(match[1], baseUrl));
+   148→  }
+   149→  return srcs;
+   150→}
+   151→
+   152→// ─── Helper: extract stream ID from a URL ────────────────────────────────────
+   153→function extractStreamIdFromUrl(url: string): string | null {
+   154→  try {
+   155→    const parsed = new URL(url);
+   156→    const streamParam = parsed.searchParams.get('stream');
+   157→    if (streamParam) return streamParam;
+   158→  } catch(_e) {
+   159→    // Not a valid URL
+   160→  }
+   161→
+   162→  // Pattern: ?stream=XXXX or &stream=XXXX
+   163→  const streamParamRegex = /[?&]stream=([^&"'\s]+)/i;
+   164→  const streamParamMatch = streamParamRegex.exec(url);
+   165→  if (streamParamMatch) return streamParamMatch[1];
+   166→
+   167→  return null;
+   168→}
+   169→
+   170→// ─── Helper: extract stream ID from HTML/JS ──────────────────────────────────
+   171→function extractStreamId(html: string): string | null {
+   172→  // Pattern: ?stream=XXXX or &stream=XXXX
+   173→  const streamParamRegex = /[?&]stream=([^&"'\s]+)/i;
+   174→  const streamParamMatch = streamParamRegex.exec(html);
+   175→  if (streamParamMatch) return streamParamMatch[1];
+   176→
+   177→  // Pattern: stream: 'XXXX' or stream: "XXXX" in JavaScript
+   178→  const streamJsRegex = /stream\s*:\s*["']([^"']+)["']/gi;
+   179→  const streamJsMatch = streamJsRegex.exec(html);
+   180→  if (streamJsMatch) return streamJsMatch[1];
+   181→
+   182→  // Pattern: var stream = 'XXXX' or let stream = "XXXX"
+   183→  const streamVarRegex = /(?:var|let|const)\s+stream\s*=\s*["']([^"']+)["']/gi;
+   184→  const streamVarMatch = streamVarRegex.exec(html);
+   185→  if (streamVarMatch) return streamVarMatch[1];
+   186→
+   187→  return null;
+   188→}
+   189→
+   190→// ─── Helper: find decrypt fetch pattern and extract parameters ───────────────
+   191→interface DecryptCall {
+   192→  url: string; // The decrypt endpoint URL
+   193→  body: string; // The POST body to send
+   194→  contentType: string; // Content-Type for the POST
+   195→}
+   196→
+   197→function findDecryptCall(html: string, baseUrl: string): DecryptCall | null {
+   198→  // ─── Strategy 1: Standard fetch() with string URL ──────────────────────────
+   199→  // Matches: fetch('decrypt.php', { method: 'POST', body: 'stream=XXXX' })
+   200→  // Also matches: fetch("decrypt.php", {...}), fetch('./decrypt.php', {...}), etc.
+   201→  const fetchPatterns = [
+   202→    // fetch with .php endpoint
+   203→    /fetch\s*\(\s*["']([^"']*(?:decrypt|token|getlink|resolve|api|get_url|geturl|get_stream)[^"']*\.php[^"']*)["']\s*,\s*\{([^}]*)\}\s*\)/gi,
+   204→    // fetch with any endpoint containing 'decrypt'
+   205→    /fetch\s*\(\s*["']([^"']*decrypt[^"']*)["']\s*,\s*\{([^}]*)\}\s*\)/gi,
+   206→    // fetch with any endpoint containing 'token' or 'getlink'
+   207→    /fetch\s*\(\s*["']([^"']*(?:token|getlink|get_stream)[^"']*)["']\s*,\s*\{([^}]*)\}\s*\)/gi,
+   208→  ];
+   209→
+   210→  for (const pattern of fetchPatterns) {
+   211→    const match = pattern.exec(html);
+   212→    if (match) {
+   213→      const fetchUrl = resolveUrl(match[1], baseUrl);
+   214→      const optionsStr = match[2];
+   215→
+   216→      const isPost = /method\s*:\s*["']?POST/i.test(optionsStr);
+   217→
+   218→      let body = '';
+   219→      const bodyMatch = /body\s*:\s*["']([^"']+)["']/i.exec(optionsStr);
+   220→      if (bodyMatch) {
+   221→        body = bodyMatch[1];
+   222→      }
+   223→
+   224→      let contentType = 'application/x-www-form-urlencoded';
+   225→      const ctMatch = /(?:content-type|Content-Type)\s*:\s*["']([^"']+)["']/i.exec(optionsStr);
+   226→      if (ctMatch) {
+   227→        contentType = ctMatch[1];
+   228→      }
+   229→
+   230→      // If body references a variable (e.g., body: formData), try to resolve it
+   231→      if (!body) {
+   232→        // Look for FormData .append() patterns
+   233→        const appendRegex = /\.append\s*\(\s*["'](\w+)["']\s*,\s*([^)]+)\)/gi;
+   234→        const params: string[] = [];
+   235→        let appendMatch;
+   236→        while ((appendMatch = appendRegex.exec(html)) !== null) {
+   237→          const key = appendMatch[1];
+   238→          const value = appendMatch[2].trim();
+   239→          // If the value is a string literal
+   240→          const strMatch = /^["']([^"']+)["']$/.exec(value);
+   241→          if (strMatch) {
+   242→            params.push(`${key}=${encodeURIComponent(strMatch[1])}`);
+   243→          } else {
+   244→            // It's a variable reference — try to find its value
+   245→            const varValRegex = new RegExp(`(?:var|let|const)\\s+${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=\\s*["']([^"']+)["']`, 'i');
+   246→            const varValMatch = varValRegex.exec(html);
+   247→            if (varValMatch) {
+   248→              params.push(`${key}=${encodeURIComponent(varValMatch[1])}`);
+   249→            } else {
+   250→              // If we can't resolve the variable, use it as-is for the stream ID
+   251→              const streamId = extractStreamId(html) || extractStreamIdFromUrl(baseUrl);
+   252→              if (streamId && (key === 'stream' || key === 'id' || key === 'code')) {
+   253→                params.push(`${key}=${encodeURIComponent(streamId)}`);
+   254→              }
+   255→            }
+   256→          }
+   257→        }
+   258→        if (params.length > 0) {
+   259→          body = params.join('&');
+   260→        }
+   261→      }
+   262→
+   263→      // If we still don't have a body but have a stream ID, construct one
+   264→      if (!body) {
+   265→        const streamId = extractStreamId(html) || extractStreamIdFromUrl(baseUrl);
+   266→        if (streamId) {
+   267→          body = `stream=${encodeURIComponent(streamId)}`;
+   268→        }
+   269→      }
+   270→
+   271→      if (isPost || body) {
+   272→        return { url: fetchUrl, body, contentType };
+   273→      }
+   274→    }
+   275→  }
+   276→
+   277→  // ─── Strategy 2: jQuery $.ajax / $.post patterns ───────────────────────────
+   278→  const ajaxPatterns = [
+   279→    /\$\.(?:post|ajax)\s*\(\s*["']([^"']*(?:decrypt|token|getlink)[^"']*)["']\s*,\s*\{([^}]*)\}\s*\)/gi,
+   280→  ];
+   281→
+   282→  for (const pattern of ajaxPatterns) {
+   283→    const match = pattern.exec(html);
+   284→    if (match) {
+   285→      const fetchUrl = resolveUrl(match[1], baseUrl);
+   286→      const optionsStr = match[2];
+   287→
+   288→      const streamId = extractStreamId(html) || extractStreamIdFromUrl(baseUrl);
+   289→      let body = '';
+   290→      const dataMatch = /(?:data|body)\s*:\s*["']([^"']+)["']/i.exec(optionsStr);
+   291→      if (dataMatch) {
+   292→        body = dataMatch[1];
+   293→      } else if (streamId) {
+   294→        body = `stream=${encodeURIComponent(streamId)}`;
+   295→      }
+   296→
+   297→      return { url: fetchUrl, body, contentType: 'application/x-www-form-urlencoded' };
+   298→    }
+   299→  }
+   300→
+   301→  // ─── Strategy 3: XMLHttpRequest patterns ────────────────────────────────────
+   302→  const xhrPatterns = [
+   303→    /\.open\s*\(\s*["']POST["']\s*,\s*["']([^"']*(?:decrypt|token|getlink)[^"']*)["']/gi,
+   304→  ];
+   305→
+   306→  for (const pattern of xhrPatterns) {
+   307→    const match = pattern.exec(html);
+   308→    if (match) {
+   309→      const fetchUrl = resolveUrl(match[1], baseUrl);
+   310→      const streamId = extractStreamId(html) || extractStreamIdFromUrl(baseUrl);
+   311→      const body = streamId ? `stream=${encodeURIComponent(streamId)}` : '';
+   312→      return { url: fetchUrl, body, contentType: 'application/x-www-form-urlencoded' };
+   313→    }
+   314→  }
+   315→
+   316→  return null;
+   317→}
+   318→
+   319→// ─── Helper: try a single POST to a decrypt endpoint and check the response ─
+   320→async function tryDecryptPost(
+   321→  decryptUrl: string,
+   322→  body: string,
+   323→  contentType: string,
+   324→  referer: string
+   325→): Promise<string | null> {
+   326→  try {
+   327→    const origin = (() => {
+   328→      try { return new URL(referer).origin; } catch(_e) { return ''; }
+   329→    })();
+   330→
+   331→    const response = await fetch(decryptUrl, {
+   332→      method: 'POST',
+   333→      headers: {
+   334→        ...COMMON_HEADERS,
+   335→        'Content-Type': contentType,
+   336→        Referer: referer,
+   337→        ...(origin ? { Origin: origin } : {}),
+   338→      },
+   339→      body,
+   340→      signal: AbortSignal.timeout(FETCH_TIMEOUT),
+   341→      redirect: 'follow',
+   342→    });
+   343→
+   344→    if (!response.ok) return null;
+   345→
+   346→    const text = await response.text();
+   347→
+   348→    // Skip obvious error responses
+   349→    if (text.toLowerCase().includes('error') && text.length < 100) {
+   350→      console.log(`[Resolve Stream] Decrypt returned error: ${text}`);
+   351→      return null;
+   352→    }
+   353→
+   354→    // Check if response contains m3u8 URL
+   355→    const m3u8 = findM3u8InText(text) || findM3u8InJS(text);
+   356→    if (m3u8) return m3u8;
+   357→
+   358→    // Try as JSON
+   359→    try {
+   360→      const json = JSON.parse(text);
+   361→      const jsonUrl = json.url || json.link || json.src || json.source || json.stream ||
+   362→                      json.data?.url || json.data?.link || json.data?.src;
+   363→      if (jsonUrl && typeof jsonUrl === 'string' && M3U8_PATTERNS.some(p => p.test(jsonUrl))) {
+   364→        return jsonUrl;
+   365→      }
+   366→    } catch(_e) {
+   367→      // Check if raw text is a URL
+   368→      const trimmed = text.trim();
+   369→      if (trimmed.startsWith('http') && M3U8_PATTERNS.some(p => p.test(trimmed))) {
+   370→        return trimmed;
+   371→      }
+   372→    }
+   373→
+   374→    return null;
+   375→  } catch(_e) {
+   376→    return null;
+   377→  }
+   378→}
+   379→
+   380→// ─── Helper: try known decrypt endpoints for a domain ────────────────────────
+   381→// When the JS is too minified to parse, try common endpoints directly
+   382→async function tryKnownDecryptEndpoints(
+   383→  pageUrl: string,
+   384→  streamId: string
+   385→): Promise<string | null> {
+   386→  try {
+   387→    const base = new URL(pageUrl);
+   388→    const origin = base.origin;
+   389→
+   390→    // Common decrypt endpoint paths used by streams.center and similar providers
+   391→    const decryptPaths = [
+   392→      '/embed/decrypt.php',
+   393→      '/embed/player/decrypt.php',
+   394→      '/decrypt.php',
+   395→      '/api/decrypt.php',
+   396→      '/embed/token.php',
+   397→      '/token.php',
+   398→    ];
+   399→
+   400→    // Different body formats to try — providers use different parameter names and formats
+   401→    const bodyFormats = [
+   402→      // URL-encoded form with different param names
+   403→      { body: `stream=${encodeURIComponent(streamId)}`, ct: 'application/x-www-form-urlencoded' },
+   404→      { body: `id=${encodeURIComponent(streamId)}`, ct: 'application/x-www-form-urlencoded' },
+   405→      { body: `code=${encodeURIComponent(streamId)}`, ct: 'application/x-www-form-urlencoded' },
+   406→      { body: `channel=${encodeURIComponent(streamId)}`, ct: 'application/x-www-form-urlencoded' },
+   407→      { body: `data=${encodeURIComponent(streamId)}`, ct: 'application/x-www-form-urlencoded' },
+   408→      // JSON body with different field names
+   409→      { body: JSON.stringify({ stream: streamId }), ct: 'application/json' },
+   410→      { body: JSON.stringify({ id: streamId }), ct: 'application/json' },
+   411→      { body: JSON.stringify({ code: streamId }), ct: 'application/json' },
+   412→      { body: JSON.stringify({ channel: streamId }), ct: 'application/json' },
+   413→      // Raw stream ID as body
+   414→      { body: streamId, ct: 'text/plain' },
+   415→    ];
+   416→
+   417→    for (const path of decryptPaths) {
+   418→      const decryptUrl = `${origin}${path}`;
+   419→      console.log(`[Resolve Stream] Trying known decrypt endpoint: ${decryptUrl}`);
+   420→
+   421→      for (const fmt of bodyFormats) {
+   422→        const result = await tryDecryptPost(decryptUrl, fmt.body, fmt.ct, pageUrl);
+   423→        if (result) {
+   424→          console.log(`[Resolve Stream] Decrypt succeeded with body format: ${fmt.body.substring(0, 60)}`);
+   425→          return result;
+   426→        }
+   427→      }
+   428→    }
+   429→
+   430→    return null;
+   431→  } catch(_e) {
+   432→    return null;
+   433→  }
+   434→}
+   435→
+   436→// ─── Helper: search for decrypt-related code in minified JS ──────────────────
+   437→// Scans large JS blobs for any reference to decrypt/token endpoints
+   438→function findDecryptInMinifiedJS(jsContent: string, baseUrl: string): DecryptCall | null {
+   439→  // Look for any string containing 'decrypt' (minified JS may use variable names or concatenation)
+   440→  const decryptStringRegex = /"([^"]*decrypt[^"]*)"|'([^']*decrypt[^']*)'/gi;
+   441→  let match;
+   442→  while ((match = decryptStringRegex.exec(jsContent)) !== null) {
+   443→    const foundStr = match[1] || match[2];
+   444→    if (foundStr && (foundStr.endsWith('.php') || foundStr.includes('.php?') || foundStr.startsWith('/') || foundStr.startsWith('http'))) {
+   445→      const fetchUrl = resolveUrl(foundStr, baseUrl);
+   446→      const streamId = extractStreamId(jsContent) || extractStreamIdFromUrl(baseUrl);
+   447→      const body = streamId ? `stream=${encodeURIComponent(streamId)}` : '';
+   448→      console.log(`[Resolve Stream] Found decrypt string in minified JS: ${foundStr} -> ${fetchUrl}`);
+   449→      return { url: fetchUrl, body, contentType: 'application/x-www-form-urlencoded' };
+   450→    }
+   451→  }
+   452→
+   453→  // Also look for URL patterns near the word 'decrypt'
+   454→  const nearDecryptRegex = /decrypt[^\n]{0,200}?(https?:\/\/[^\s"'<>]+|\/[\w\/]+\.php[^\s"'<>]*)/gi;
+   455→  while ((match = nearDecryptRegex.exec(jsContent)) !== null) {
+   456→    const foundUrl = match[1];
+   457→    if (foundUrl) {
+   458→      const fetchUrl = resolveUrl(foundUrl, baseUrl);
+   459→      const streamId = extractStreamId(jsContent) || extractStreamIdFromUrl(baseUrl);
+   460→      const body = streamId ? `stream=${encodeURIComponent(streamId)}` : '';
+   461→      console.log(`[Resolve Stream] Found URL near 'decrypt' in minified JS: ${foundUrl} -> ${fetchUrl}`);
+   462→      return { url: fetchUrl, body, contentType: 'application/x-www-form-urlencoded' };
+   463→    }
+   464→  }
+   465→
+   466→  return null;
+   467→}
+   468→
+   469→// ─── Helper: fetch HTML with proper headers ──────────────────────────────────
+   470→async function fetchHtml(url: string, referer?: string): Promise<string | null> {
+   471→  try {
+   472→    const headers: Record<string, string> = {
+   473→      ...COMMON_HEADERS,
+   474→      Referer: referer || url,
+   475→    };
+   476→
+   477→    console.log(`[Resolve Stream] Fetching: ${url}`);
+   478→    const response = await fetch(url, {
+   479→      headers,
+   480→      signal: AbortSignal.timeout(FETCH_TIMEOUT),
+   481→      redirect: 'follow',
+   482→    });
+   483→
+   484→    if (!response.ok) {
+   485→      console.warn(`[Resolve Stream] HTTP ${response.status} for ${url}`);
+   486→      return null;
+   487→    }
+   488→
+   489→    const text = await response.text();
+   490→    console.log(`[Resolve Stream] Got ${text.length} bytes from ${url}`);
+   491→    return text;
+   492→  } catch (err) {
+   493→    console.warn(`[Resolve Stream] Fetch failed for ${url}:`, err instanceof Error ? err.message : err);
+   494→    return null;
+   495→  }
+   496→}
+   497→
+   498→// ─── Helper: POST to a decrypt endpoint ──────────────────────────────────────
+   499→async function postDecrypt(decryptUrl: string, body: string, contentType: string, referer: string): Promise<string | null> {
+   500→  try {
+   501→    console.log(`[Resolve Stream] POST to decrypt: ${decryptUrl} (body: ${body.substring(0, 100)})`);
+   502→
+   503→    const response = await fetch(decryptUrl, {
+   504→      method: 'POST',
+   505→      headers: {
+   506→        ...COMMON_HEADERS,
+   507→        'Content-Type': contentType,
+   508→        Referer: referer,
+   509→        Origin: new URL(referer).origin,
+   510→      },
+   511→      body,
+   512→      signal: AbortSignal.timeout(FETCH_TIMEOUT),
+   513→      redirect: 'follow',
+   514→    });
+   515→
+   516→    if (!response.ok) {
+   517→      console.warn(`[Resolve Stream] Decrypt POST returned HTTP ${response.status}`);
+   518→      return null;
+   519→    }
+   520→
+   521→    const text = await response.text();
+   522→    console.log(`[Resolve Stream] Decrypt response (${text.length} bytes): ${text.substring(0, 200)}`);
+   523→    return text;
+   524→  } catch (err) {
+   525→    console.warn(`[Resolve Stream] Decrypt POST failed:`, err instanceof Error ? err.message : err);
+   526→    return null;
+   527→  }
+   528→}
+   529→
+   530→// ─── Core: resolve the embed chain ───────────────────────────────────────────
+   531→interface ResolveResult {
+   532→  resolvedUrl: string;
+   533→  originalUrl: string;
+   534→  type: 'hls' | 'iframe';
+   535→  resolved: boolean;
+   536→}
+   537→
+   538→async function resolveEmbedChain(embedUrl: string): Promise<ResolveResult> {
+   539→  const result: ResolveResult = {
+   540→    resolvedUrl: embedUrl,
+   541→    originalUrl: embedUrl,
+   542→    type: 'iframe',
+   543→    resolved: false,
+   544→  };
+   545→
+   546→  // Check if the URL is already an m3u8 URL
+   547→  if (M3U8_PATTERNS.some(p => p.test(embedUrl))) {
+   548→    console.log(`[Resolve Stream] URL is already m3u8: ${embedUrl}`);
+   549→    return { resolvedUrl: embedUrl, originalUrl: embedUrl, type: 'hls', resolved: true };
+   550→  }
+   551→
+   552→  // Step 1: Fetch the initial embed page
+   553→  const html = await fetchHtml(embedUrl);
+   554→  if (!html) {
+   555→    console.warn(`[Resolve Stream] Could not fetch embed page: ${embedUrl}`);
+   556→    return result;
+   557→  }
+   558→
+   559→  // Step 2: Check for direct m3u8 URL in the initial page
+   560→  const directM3u8 = findM3u8InText(html) || findM3u8InJS(html);
+   561→  if (directM3u8) {
+   562→    console.log(`[Resolve Stream] Found direct m3u8 in embed page: ${directM3u8}`);
+   563→    return { resolvedUrl: directM3u8, originalUrl: embedUrl, type: 'hls', resolved: true };
+   564→  }
+   565→
+   566→  // Step 3: Look for iframe src URLs and follow them
+   567→  const iframeSrcs = extractIframeSrcs(html, embedUrl);
+   568→  console.log(`[Resolve Stream] Found ${iframeSrcs.length} iframe(s): ${iframeSrcs.map(s => s.substring(0, 80)).join(', ')}`);
+   569→
+   570→  // Track visited URLs to prevent loops
+   571→  const visited = new Set<string>([embedUrl]);
+   572→
+   573→  // BFS through iframe chain up to MAX_CHAIN_DEPTH
+   574→  const queue: Array<{ url: string; depth: number; parentHtml: string }> = iframeSrcs
+   575→    .filter(src => !visited.has(src))
+   576→    .map(src => {
+   577→      visited.add(src);
+   578→      return { url: src, depth: 1, parentHtml: html };
+   579→    });
+   580→
+   581→  while (queue.length > 0) {
+   582→    const { url: currentUrl, depth, parentHtml } = queue.shift()!;
+   583→
+   584→    if (depth > MAX_CHAIN_DEPTH) {
+   585→      console.warn(`[Resolve Stream] Max chain depth reached at: ${currentUrl}`);
+   586→      continue;
+   587→    }
+   588→
+   589→    // Fetch the iframe page
+   590→    const iframeHtml = await fetchHtml(currentUrl, embedUrl);
+   591→    if (!iframeHtml) continue;
+   592→
+   593→    // Check for direct m3u8 in the iframe page
+   594→    const iframeM3u8 = findM3u8InText(iframeHtml) || findM3u8InJS(iframeHtml);
+   595→    if (iframeM3u8) {
+   596→      console.log(`[Resolve Stream] Found m3u8 in iframe page (depth ${depth}): ${iframeM3u8}`);
+   597→      return { resolvedUrl: iframeM3u8, originalUrl: embedUrl, type: 'hls', resolved: true };
+   598→    }
+   599→
+   600→    // Look for decrypt.php call pattern in the JS
+   601→    let decryptCall = findDecryptCall(iframeHtml, currentUrl);
+   602→
+   603→    // If not found with standard patterns, try scanning minified JS
+   604→    if (!decryptCall) {
+   605→      decryptCall = findDecryptInMinifiedJS(iframeHtml, currentUrl);
+   606→    }
+   607→
+   608→    if (decryptCall) {
+   609→      console.log(`[Resolve Stream] Found decrypt call at depth ${depth}: ${decryptCall.url}`);
+   610→
+   611→      const decryptResponse = await postDecrypt(
+   612→        decryptCall.url,
+   613→        decryptCall.body,
+   614→        decryptCall.contentType,
+   615→        currentUrl
+   616→      );
+   617→
+   618→      if (decryptResponse) {
+   619→        const decryptM3u8 = findM3u8InText(decryptResponse) || findM3u8InJS(decryptResponse);
+   620→        if (decryptM3u8) {
+   621→          console.log(`[Resolve Stream] Got m3u8 from decrypt: ${decryptM3u8}`);
+   622→          return { resolvedUrl: decryptM3u8, originalUrl: embedUrl, type: 'hls', resolved: true };
+   623→        }
+   624→
+   625→        // Try parsing as JSON
+   626→        try {
+   627→          const json = JSON.parse(decryptResponse);
+   628→          const jsonUrl = json.url || json.link || json.src || json.source || json.stream ||
+   629→                          json.data?.url || json.data?.link || json.data?.src;
+   630→          if (jsonUrl && typeof jsonUrl === 'string') {
+   631→            if (M3U8_PATTERNS.some(p => p.test(jsonUrl))) {
+   632→              console.log(`[Resolve Stream] Got m3u8 from decrypt JSON: ${jsonUrl}`);
+   633→              return { resolvedUrl: jsonUrl, originalUrl: embedUrl, type: 'hls', resolved: true };
+   634→            }
+   635→            // If it's another URL, follow it
+   636→            if (jsonUrl.startsWith('http')) {
+   637→              console.log(`[Resolve Stream] Decrypt returned another URL: ${jsonUrl}`);
+   638→              if (!visited.has(jsonUrl)) {
+   639→                visited.add(jsonUrl);
+   640→                queue.push({ url: jsonUrl, depth: depth + 1, parentHtml: iframeHtml });
+   641→              }
+   642→            }
+   643→          }
+   644→        } catch(_e) {
+   645→          // Not JSON, check if the raw text is a URL
+   646→          const trimmed = decryptResponse.trim();
+   647→          if (trimmed.startsWith('http') && M3U8_PATTERNS.some(p => p.test(trimmed))) {
+   648→            console.log(`[Resolve Stream] Decrypt returned raw m3u8: ${trimmed}`);
+   649→            return { resolvedUrl: trimmed, originalUrl: embedUrl, type: 'hls', resolved: true };
+   650→          }
+   651→        }
+   652→      }
+   653→    }
+   654→
+   655→    // ── Strategy: If on a known decrypt-chain domain, try known endpoints directly ──
+   656→    // The JS may be too minified to parse, so we try brute-force common paths
+   657→    const isDecryptChainDomain = DECRYPT_CHAIN_DOMAINS.some(d => currentUrl.includes(d));
+   658→    if (isDecryptChainDomain) {
+   659→      const streamId = extractStreamId(iframeHtml) || extractStreamIdFromUrl(currentUrl);
+   660→      if (streamId) {
+   661→        console.log(`[Resolve Stream] On decrypt-chain domain, trying known endpoints with stream ID: ${streamId}`);
+   662→        const knownM3u8 = await tryKnownDecryptEndpoints(currentUrl, streamId);
+   663→        if (knownM3u8) {
+   664→          console.log(`[Resolve Stream] Got m3u8 from known endpoint: ${knownM3u8}`);
+   665→          return { resolvedUrl: knownM3u8, originalUrl: embedUrl, type: 'hls', resolved: true };
+   666→        }
+   667→      }
+   668→    }
+   669→
+   670→    // Look for more iframes within this iframe page
+   671→    const nestedIframes = extractIframeSrcs(iframeHtml, currentUrl);
+   672→    for (const nestedSrc of nestedIframes) {
+   673→      if (!visited.has(nestedSrc)) {
+   674→        visited.add(nestedSrc);
+   675→        queue.push({ url: nestedSrc, depth: depth + 1, parentHtml: iframeHtml });
+   676→      }
+   677→    }
+   678→  }
+   679→
+   680→  // Step 4: Handle special cases — fltvhd.com / tvtvhd.com / tarjetaroja chain
+   681→  // These sites embed the m3u8 URL directly in their page source
+   682→  if (embedUrl.includes('fltvhd.com') || embedUrl.includes('tvtvhd.com') || embedUrl.includes('tarjetaroja') || embedUrl.includes('rojadirecta')) {
+   683→    console.log(`[Resolve Stream] Trying tarjetaroja/fltvhd-style extraction for: ${embedUrl}`);
+   684→    const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+   685→    let scriptMatch;
+   686→    while ((scriptMatch = scriptRegex.exec(html)) !== null) {
+   687→      const scriptContent = scriptMatch[1];
+   688→      const scriptM3u8 = findM3u8InJS(scriptContent) || findM3u8InText(scriptContent);
+   689→      if (scriptM3u8) {
+   690→        console.log(`[Resolve Stream] Found m3u8 in script tag: ${scriptM3u8}`);
+   691→        return { resolvedUrl: scriptM3u8, originalUrl: embedUrl, type: 'hls', resolved: true };
+   692→      }
+   693→    }
+   694→
+   695→    // Also try looking for Clappr or other player configurations
+   696→    const playerConfigRegex = /(?:new\s+Clappr\.Player|Hls\.js|videojs|jwplayer)\s*\(([\s\S]*?)\)\s*;/gi;
+   697→    let playerMatch;
+   698→    while ((playerMatch = playerConfigRegex.exec(html)) !== null) {
+   699→      const configStr = playerMatch[1];
+   700→      const configM3u8 = findM3u8InText(configStr) || findM3u8InJS(configStr);
+   701→      if (configM3u8) {
+   702→        console.log(`[Resolve Stream] Found m3u8 in player config: ${configM3u8}`);
+   703→        return { resolvedUrl: configM3u8, originalUrl: embedUrl, type: 'hls', resolved: true };
+   704→      }
+   705→    }
+   706→  }
+   707→
+   708→  // Step 5: Last resort — scan ALL script tags for m3u8 patterns
+   709→  const allScriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
+   710→  let scriptMatch;
+   711→  while ((scriptMatch = allScriptRegex.exec(html)) !== null) {
+   712→    const scriptContent = scriptMatch[1];
+   713→    const jsM3u8 = findM3u8InJS(scriptContent) || findM3u8InText(scriptContent);
+   714→    if (jsM3u8) {
+   715→      console.log(`[Resolve Stream] Found m3u8 in script tag (last resort): ${jsM3u8}`);
+   716→      return { resolvedUrl: jsM3u8, originalUrl: embedUrl, type: 'hls', resolved: true };
+   717→    }
+   718→  }
+   719→
+   720→  // Step 6: If we found iframe URLs but no m3u8, return the deepest iframe we found
+   721→  if (iframeSrcs.length > 0) {
+   722→    // Return the first iframe URL that looks like a player page
+   723→    const playerIframe = iframeSrcs.find(
+   724→      src => src.includes('hls.php') || src.includes('player') || src.includes('embed') || src.includes('stream')
+   725→    );
+   726→    if (playerIframe) {
+   727→      console.log(`[Resolve Stream] Returning iframe URL (fallback): ${playerIframe}`);
+   728→      return { resolvedUrl: playerIframe, originalUrl: embedUrl, type: 'iframe', resolved: false };
+   729→    }
+   730→  }
+   731→
+   732→  console.warn(`[Resolve Stream] Could not resolve m3u8 for: ${embedUrl}`);
+   733→  return result;
+   734→}
+   735→
+   736→// ─── POST handler ────────────────────────────────────────────────────────────
+   737→export async function POST(request: NextRequest) {
+   738→  try {
+   739→    const body = await request.json();
+   740→    let { url } = body as { url?: string };
+   741→
+   742→    if (!url) {
+   743→      return NextResponse.json(
+   744→        { error: 'Missing url parameter in request body' },
+   745→        { status: 400 }
+   746→      );
+   747→    }
+   748→
+   749→    // Decode the URL (handles base64)
+   750→    url = decodeInputUrl(url);
+   751→
+   752→    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+   753→      return NextResponse.json(
+   754→        { error: 'Invalid URL format — must start with http:// or https://' },
+   755→        { status: 400 }
+   756→      );
+   757→    }
+   758→
+   759→    // Reject dead/seized domains immediately
+   760→    if (DEAD_DOMAINS.some(d => url.includes(d))) {
+   761→      return NextResponse.json(
+   762→        { error: `Domain is no longer available (seized/dead): ${DEAD_DOMAINS.find(d => url.includes(d))}`, resolvedUrl: '', originalUrl: url, type: 'iframe' as const, resolved: false },
+   763→        { status: 410 }
+   764→      );
+   765→    }
+   766→
+   767→    console.log(`[Resolve Stream] POST request — resolving: ${url}`);
+   768→
+   769→    const result = await resolveEmbedChain(url);
+   770→
+   771→    return NextResponse.json(result, {
+   772→      headers: {
+   773→        'Cache-Control': 'no-cache, no-store, must-revalidate',
+   774→        'Access-Control-Allow-Origin': '*',
+   775→      },
+   776→    });
+   777→  } catch (err) {
+   778→    console.error('[Resolve Stream] POST error:', err);
+   779→    return NextResponse.json(
+   780→      {
+   781→        error: 'Failed to resolve stream',
+   782→        resolvedUrl: '',
+   783→        originalUrl: '',
+   784→        type: 'iframe' as const,
+   785→        resolved: false,
+   786→      },
+   787→      { status: 500 }
+   788→    );
+   789→  }
+   790→}
+   791→
+   792→// ─── GET handler (convenience: ?url=BASE64_ENCODED_URL) ─────────────────────
+   793→export async function GET(request: NextRequest) {
+   794→  try {
+   795→    const { searchParams } = new URL(request.url);
+   796→    const rawUrl = searchParams.get('url');
+   797→
+   798→    if (!rawUrl) {
+   799→      return NextResponse.json(
+   800→        { error: 'Missing url query parameter' },
+   801→        { status: 400 }
+   802→      );
+   803→    }
+   804→
+   805→    const url = decodeInputUrl(rawUrl);
+   806→
+   807→    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+   808→      return NextResponse.json(
+   809→        { error: 'Invalid URL format — must start with http:// or https://' },
+   810→        { status: 400 }
+   811→      );
+   812→    }
+   813→
+   814→    // Reject dead/seized domains immediately
+   815→    if (DEAD_DOMAINS.some(d => url.includes(d))) {
+   816→      return NextResponse.json(
+   817→        { error: `Domain is no longer available (seized/dead): ${DEAD_DOMAINS.find(d => url.includes(d))}`, resolvedUrl: '', originalUrl: url, type: 'iframe' as const, resolved: false },
+   818→        { status: 410 }
+   819→      );
+   820→    }
+   821→
+   822→    console.log(`[Resolve Stream] GET request — resolving: ${url}`);
+   823→
+   824→    const result = await resolveEmbedChain(url);
+   825→
+   826→    return NextResponse.json(result, {
+   827→      headers: {
+   828→        'Cache-Control': 'no-cache, no-store, must-revalidate',
+   829→        'Access-Control-Allow-Origin': '*',
+   830→      },
+   831→    });
+   832→  } catch (err) {
+   833→    console.error('[Resolve Stream] GET error:', err);
+   834→    return NextResponse.json(
+   835→      {
+   836→        error: 'Failed to resolve stream',
+   837→        resolvedUrl: '',
+   838→        originalUrl: '',
+   839→        type: 'iframe' as const,
+   840→        resolved: false,
+   841→      },
+   842→      { status: 500 }
+   843→    );
+   844→  }
+   845→}
+   846→
+   847→// ─── OPTIONS handler (CORS preflight) ───────────────────────────────────────
+   848→export async function OPTIONS() {
+   849→  return new NextResponse(null, {
+   850→    status: 204,
+   851→    headers: {
+   852→      'Access-Control-Allow-Origin': '*',
+   853→      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+   854→      'Access-Control-Allow-Headers': 'Content-Type',
+   855→    },
+   856→  });
+   857→}
+   858→
