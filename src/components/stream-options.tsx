@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Shield, Tv, Play, ExternalLink, Youtube, Loader2, Globe, Zap, AlertCircle } from 'lucide-react';
+import { X, Shield, Tv, Play, ExternalLink, Loader2, Globe, Zap, AlertCircle } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
@@ -27,41 +27,6 @@ interface StreamResult {
   group?: string;
   eventTime?: string;
   eventName?: string;
-}
-
-/**
- * Get official broadcaster links based on competition
- */
-function getOfficialBroadcasters(competition: string | null, sport: 'football' | 'basketball'): Array<{ name: string; url: string; icon: string }> {
-  const comp = (competition || '').toLowerCase();
-  const broadcasters: Array<{ name: string; url: string; icon: string }> = [];
-
-  if (sport === 'football') {
-    if (comp.includes('ligue 1') || comp.includes('ligue1')) {
-      broadcasters.push({ name: 'DAZN (Ligue 1)', url: 'https://www.dazn.com/fr-FR/home', icon: '📺' });
-      broadcasters.push({ name: 'beIN Sports', url: 'https://www.beinsports.com/fr/', icon: '📺' });
-    }
-    if (comp.includes('champions') || comp.includes('ucl')) {
-      broadcasters.push({ name: 'Canal+ (UCL)', url: 'https://www.canalplus.com/', icon: '📺' });
-    }
-    if (comp.includes('premier') || comp.includes('eng.1')) {
-      broadcasters.push({ name: 'Sky Sports', url: 'https://www.skysports.com/', icon: '📺' });
-    }
-    if (broadcasters.length === 0) {
-      broadcasters.push({ name: 'DAZN', url: 'https://www.dazn.com/', icon: '📺' });
-      broadcasters.push({ name: 'beIN Sports', url: 'https://www.beinsports.com/', icon: '📺' });
-    }
-  } else {
-    if (comp.includes('nba')) {
-      broadcasters.push({ name: 'NBA League Pass', url: 'https://www.nba.com/watch/league-pass', icon: '🏀' });
-    }
-    if (broadcasters.length === 0) {
-      broadcasters.push({ name: 'NBA League Pass', url: 'https://www.nba.com/watch/league-pass', icon: '🏀' });
-      broadcasters.push({ name: 'ESPN+', url: 'https://www.espn.com/espnplus/', icon: '📺' });
-    }
-  }
-
-  return broadcasters;
 }
 
 /**
@@ -149,13 +114,6 @@ export default function StreamOptions({
   }, [isOpen, fetchStreams]);
 
   if (!isOpen) return null;
-
-  const broadcasters = getOfficialBroadcasters(competition, sport);
-  const year = new Date().getFullYear();
-
-  // YouTube search URLs
-  const youtubeLiveQuery = encodeURIComponent(`${homeTeam} vs ${awayTeam} ${competition || ''} live ${year}`);
-  const youtubeLiveUrl = `https://www.youtube.com/results?search_query=${youtubeLiveQuery}`;
 
   // Merge all streams, DaddyLive first
   const allM3u8Streams = [
@@ -322,61 +280,6 @@ export default function StreamOptions({
               <p className="text-[10px] text-red-500/60 leading-relaxed">{apiError}</p>
             </div>
           )}
-
-          {/* YouTube Live — Always available */}
-          <div>
-            <h3 className="text-[10px] font-bold text-red-500/70 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-              <Youtube className="h-3 w-3" />
-              YouTube Live
-            </h3>
-            <button
-              onClick={() => window.open(youtubeLiveUrl, '_blank', 'noopener,noreferrer')}
-              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-red-500/8 hover:bg-red-500/15 border border-red-500/20 transition-all duration-200 active:scale-[0.98]"
-            >
-              <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
-                <svg className="h-5 w-5 text-red-500" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-              </div>
-              <div className="flex-1 text-left min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-red-400">YouTube Live</span>
-                  <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500/10">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-[8px] font-bold text-red-500">LIVE</span>
-                  </span>
-                </div>
-                <p className="text-[10px] text-muted-foreground/40 truncate">
-                  Chercher en direct sur YouTube
-                </p>
-              </div>
-              <ExternalLink className="h-4 w-4 text-red-500/20 shrink-0" />
-            </button>
-          </div>
-
-          {/* Official Broadcasters */}
-          <div>
-            <h3 className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-              <Tv className="h-3 w-3" />
-              Diffuseurs officiels
-            </h3>
-            <div className="space-y-1.5">
-              {broadcasters.map((b, idx) => (
-                <button
-                  key={`broadcaster-${idx}`}
-                  onClick={() => window.open(b.url, '_blank', 'noopener,noreferrer')}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-secondary/40 dark:hover:bg-white/[0.03] border border-border/10 transition-all duration-200 active:scale-[0.98]"
-                >
-                  <div className="w-9 h-9 rounded-lg bg-secondary/30 dark:bg-white/[0.03] flex items-center justify-center shrink-0 text-lg">
-                    {b.icon}
-                  </div>
-                  <div className="flex-1 text-left min-w-0">
-                    <span className="text-sm font-medium text-muted-foreground/70">{b.name}</span>
-                    <p className="text-[10px] text-muted-foreground/25 truncate">Diffusion officielle</p>
-                  </div>
-                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/15 shrink-0" />
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Disclaimer */}
           <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10">
