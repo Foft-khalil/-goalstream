@@ -31,6 +31,8 @@ const DECRYPT_CHAIN_DOMAINS = [
   'smartagro.mov',
   'goalz.zip',
   '000007.mov',
+  'fltvhd.com',   // rojadirecta - canales.php → canal.php → Clappr player with m3u8
+  'futbolonlinehd.com',  // CDN for actual m3u8 streams
 ];
 
 // ─── Helper: decode URL (handles base64 + URL-encoding) ──────────────────────
@@ -668,10 +670,10 @@ async function resolveEmbedChain(embedUrl: string): Promise<ResolveResult> {
     }
   }
 
-  // Step 4: Handle special cases — tvtvhd.com / tarjetaroja chain
+  // Step 4: Handle special cases — fltvhd.com / tvtvhd.com / tarjetaroja chain
   // These sites embed the m3u8 URL directly in their page source
-  if (embedUrl.includes('tvtvhd.com') || embedUrl.includes('tarjetaroja') || embedUrl.includes('rojadirecta')) {
-    console.log(`[Resolve Stream] Trying tarjetaroja-style extraction for: ${embedUrl}`);
+  if (embedUrl.includes('fltvhd.com') || embedUrl.includes('tvtvhd.com') || embedUrl.includes('tarjetaroja') || embedUrl.includes('rojadirecta')) {
+    console.log(`[Resolve Stream] Trying tarjetaroja/fltvhd-style extraction for: ${embedUrl}`);
     const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
     let scriptMatch;
     while ((scriptMatch = scriptRegex.exec(html)) !== null) {

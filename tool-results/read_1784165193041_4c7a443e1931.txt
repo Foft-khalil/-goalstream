@@ -1,0 +1,765 @@
+     1→import { NextRequest, NextResponse } from 'next/server';
+     2→
+     3→// ─── Language flag emoji mapping ──────────────────────────────────────────────
+     4→const LANG_FLAGS: Record<string, string> = {
+     5→  English: '🇬🇧',
+     6→  Spanish: '🇪🇸',
+     7→  Italian: '🇮🇹',
+     8→  Italien: '🇮🇹',
+     9→  Deutch: '🇩🇪',
+    10→  French: '🇫🇷',
+    11→  Portuguese: '🇵🇹',
+    12→  Arabic: '🇸🇦',
+    13→};
+    14→
+    15→// ─── Category ID mapping ─────────────────────────────────────────────────────
+    16→const SPORT_CATEGORY_IDS: Record<string, number[]> = {
+    17→  basketball: [4, 26],   // Basketball + NCAAB
+    18→  football: [9],          // Soccer
+    19→  soccer: [9],            // Alias
+    20→};
+    21→
+    22→// ─── Kora-API types ──────────────────────────────────────────────────────────
+    23→interface KoraStream {
+    24→  url: string;
+    25→  lang: string;
+    26→}
+    27→
+    28→interface KoraCategory {
+    29→  id: number;
+    30→  name: string;
+    31→  sport_code: string;
+    32→  image?: string;
+    33→}
+    34→
+    35→interface KoraMatch {
+    36→  id: number;
+    37→  name: string;
+    38→  description: string;
+    39→  category: KoraCategory;
+    40→  logo_team1: string;
+    41→  logo_team2: string;
+    42→  begin_at: string;
+    43→  end_at: string;
+    44→  is_live: boolean;
+    45→  streams: KoraStream[];
+    46→}
+    47→
+    48→interface KoraMatchesResponse {
+    49→  total: number;
+    50→  page: number;
+    51→  per_page: number;
+    52→  data: KoraMatch[];
+    53→}
+    54→
+    55→// ─── Rojadirecta (pltvhd.com) types ─────────────────────────────────────────
+    56→interface RojaEmbedAttributes {
+    57→  embed_name: string;
+    58→  embed_iframe: string;
+    59→}
+    60→
+    61→interface RojaEmbedData {
+    62→  id: number;
+    63→  attributes: RojaEmbedAttributes;
+    64→}
+    65→
+    66→interface RojaCountryAttributes {
+    67→  name: string;
+    68→}
+    69→
+    70→interface RojaCountryData {
+    71→  attributes: RojaCountryAttributes;
+    72→}
+    73→
+    74→interface RojaDiaryAttributes {
+    75→  diary_description: string;
+    76→  diary_hour: string;
+    77→  date_diary: string;
+    78→  embeds: {
+    79→    data: RojaEmbedData[];
+    80→  };
+    81→  country: {
+    82→    data: RojaCountryData | null;
+    83→  };
+    84→}
+    85→
+    86→interface RojaDiaryData {
+    87→  id: number;
+    88→  attributes: RojaDiaryAttributes;
+    89→}
+    90→
+    91→interface RojaDiariesResponse {
+    92→  data: RojaDiaryData[];
+    93→}
+    94→
+    95→// ─── In-memory cache with TTL ────────────────────────────────────────────────
+    96→interface CacheEntry {
+    97→  data: KoraMatch[];
+    98→  timestamp: number;
+    99→}
+   100→
+   101→interface RojaCacheEntry {
+   102→  data: RojaDiaryData[];
+   103→  timestamp: number;
+   104→}
+   105→
+   106→const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+   107→const matchesCache = new Map<string, CacheEntry>();
+   108→
+   109→const ROJA_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+   110→const rojaCache = new Map<string, RojaCacheEntry>();
+   111→
+   112→function getCachedMatches(key: string): KoraMatch[] | null {
+   113→  const entry = matchesCache.get(key);
+   114→  if (!entry) return null;
+   115→  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+   116→    matchesCache.delete(key);
+   117→    return null;
+   118→  }
+   119→  return entry.data;
+   120→}
+   121→
+   122→function setCachedMatches(key: string, data: KoraMatch[]): void {
+   123→  matchesCache.set(key, { data, timestamp: Date.now() });
+   124→}
+   125→
+   126→function getCachedRojaDiaries(key: string): RojaDiaryData[] | null {
+   127→  const entry = rojaCache.get(key);
+   128→  if (!entry) return null;
+   129→  if (Date.now() - entry.timestamp > ROJA_CACHE_TTL_MS) {
+   130→    rojaCache.delete(key);
+   131→    return null;
+   132→  }
+   133→  return entry.data;
+   134→}
+   135→
+   136→function setCachedRojaDiaries(key: string, data: RojaDiaryData[]): void {
+   137→  rojaCache.set(key, { data, timestamp: Date.now() });
+   138→}
+   139→
+   140→// ─── Fetch all matches from kora-api (with pagination) ──────────────────────
+   141→async function fetchAllMatches(categoryIds?: number[]): Promise<KoraMatch[]> {
+   142→  const cacheKey = categoryIds ? `matches-cats-${categoryIds.join(',')}` : 'matches-all';
+   143→
+   144→  const cached = getCachedMatches(cacheKey);
+   145→  if (cached) {
+   146→    console.log(`[Streams API] Cache hit for key: ${cacheKey} (${cached.length} matches)`);
+   147→    return cached;
+   148→  }
+   149→
+   150→  const allMatches: KoraMatch[] = [];
+   151→  let page = 1;
+   152→  const perPage = 200;
+   153→  let totalMatches = Infinity;
+   154→
+   155→  try {
+   156→    while ((page - 1) * perPage < totalMatches) {
+   157→      const url = `https://ws.kora-api.space/api/matches?per_page=${perPage}&page=${page}`;
+   158→      console.log(`[Streams API] Fetching page ${page} from kora-api...`);
+   159→
+   160→      const res = await fetch(url, {
+   161→        headers: { 'Accept': 'application/json' },
+   162→        signal: AbortSignal.timeout(10000),
+   163→      });
+   164→
+   165→      if (!res.ok) {
+   166→        console.warn(`[Streams API] kora-api returned HTTP ${res.status}`);
+   167→        break;
+   168→      }
+   169→
+   170→      const data: KoraMatchesResponse = await res.json();
+   171→      totalMatches = data.total;
+   172→
+   173→      const filtered = categoryIds
+   174→        ? data.data.filter((m) => categoryIds.includes(m.category.id))
+   175→        : data.data;
+   176→
+   177→      allMatches.push(...filtered);
+   178→
+   179→      if (data.data.length < perPage) break;
+   180→      page++;
+   181→    }
+   182→  } catch (err) {
+   183→    console.warn('[Streams API] Error fetching from kora-api:', err);
+   184→  }
+   185→
+   186→  console.log(`[Streams API] Fetched ${allMatches.length} matches from kora-api`);
+   187→  setCachedMatches(cacheKey, allMatches);
+   188→  return allMatches;
+   189→}
+   190→
+   191→// ─── Fetch rojadirecta (tarjetaroja/pltvhd.com) streams ─────────────────────
+   192→async function fetchRojaDirectaStreams(
+   193→  homeTeam: string,
+   194→  awayTeam: string
+   195→): Promise<Array<{
+   196→  name: string;
+   197→  url: string;
+   198→  lang: string;
+   199→  langFlag: string;
+   200→  source: string;
+   201→}>> {
+   202→  const cacheKey = 'roja-diaries';
+   203→
+   204→  try {
+   205→    // Check cache first
+   206→    let diaries = getCachedRojaDiaries(cacheKey);
+   207→
+   208→    if (!diaries) {
+   209→      console.log('[Streams API] Fetching diaries from rojadirecta (pltvhd.com)...');
+   210→      const res = await fetch('https://pltvhd.com/diaries.json', {
+   211→        headers: { 'Accept': 'application/json' },
+   212→        signal: AbortSignal.timeout(8000),
+   213→      });
+   214→
+   215→      if (!res.ok) {
+   216→        console.warn(`[Streams API] rojadirecta API returned HTTP ${res.status}`);
+   217→        return [];
+   218→      }
+   219→
+   220→      const data: RojaDiariesResponse = await res.json();
+   221→      diaries = data.data || [];
+   222→
+   223→      console.log(`[Streams API] Fetched ${diaries.length} diary entries from rojadirecta`);
+   224→      setCachedRojaDiaries(cacheKey, diaries);
+   225→    } else {
+   226→      console.log(`[Streams API] rojadirecta cache hit (${diaries.length} entries)`);
+   227→    }
+   228→
+   229→    if (diaries.length === 0) {
+   230→      console.log('[Streams API] No diary entries from rojadirecta');
+   231→      return [];
+   232→    }
+   233→
+   234→    // Generate team name variants for fuzzy matching
+   235→    const homeVariants = getTeamVariants(homeTeam);
+   236→    const awayVariants = getTeamVariants(awayTeam);
+   237→
+   238→    const streams: Array<{
+   239→      name: string;
+   240→      url: string;
+   241→      lang: string;
+   242→      langFlag: string;
+   243→      source: string;
+   244→    }> = [];
+   245→
+   246→    // Match diary entries against team names
+   247→    for (const diary of diaries) {
+   248→      const description = diary.attributes.diary_description;
+   249→      if (!description) continue;
+   250→
+   251→      const homeInName = teamMatchesInName(homeVariants, description);
+   252→      const awayInName = teamMatchesInName(awayVariants, description);
+   253→
+   254→      // Only include if at least one team matches
+   255→      if (!homeInName && !awayInName) continue;
+   256→
+   257→      const embeds = diary.attributes.embeds?.data;
+   258→      if (!embeds || embeds.length === 0) continue;
+   259→
+   260→      console.log(`[Streams API] rojadirecta match: "${description}" (${embeds.length} embeds)`);
+   261→
+   262→      for (const embed of embeds) {
+   263→        const embedAttrs = embed.attributes;
+   264→        if (!embedAttrs.embed_iframe) continue;
+   265→
+   266→        try {
+   267→          // Extract base64 "r" parameter from embed_iframe URL
+   268→          const iframePath = embedAttrs.embed_iframe;
+   269→          const rMatch = iframePath.match(/[?&]r=([^&]+)/);
+   270→
+   271→          if (!rMatch) {
+   272→            console.warn(`[Streams API] No 'r' parameter found in embed_iframe: ${iframePath}`);
+   273→            continue;
+   274→          }
+   275→
+   276→          // Decode the base64 parameter to get the actual stream URL
+   277→          const base64Value = rMatch[1];
+   278→          const decodedUrl = Buffer.from(base64Value, 'base64').toString('utf-8');
+   279→
+   280→          // Resolve relative URLs
+   281→          let streamUrl = decodedUrl;
+   282→          if (decodedUrl.startsWith('/')) {
+   283→            // Use fltvhd.com as base (tvtvhd.com has been seized by law enforcement)
+   284→            streamUrl = `https://fltvhd.com${decodedUrl}`;
+   285→          }
+   286→
+   287→          // Determine language from country if available
+   288→          const countryName = diary.attributes.country?.data?.attributes?.name || '';
+   289→          const lang = mapCountryToLang(countryName);
+   290→          const langFlag = LANG_FLAGS[lang] || '🔴';
+   291→
+   292→          streams.push({
+   293→            name: embedAttrs.embed_name || 'Unknown Channel',
+   294→            url: streamUrl,
+   295→            lang,
+   296→            langFlag,
+   297→            source: 'rojadirecta',
+   298→          });
+   299→        } catch (decodeErr) {
+   300→          console.warn('[Streams API] Error decoding rojadirecta embed:', decodeErr);
+   301→        }
+   302→      }
+   303→    }
+   304→
+   305→    console.log(`[Streams API] rojadirecta found ${streams.length} streams for "${homeTeam}" vs "${awayTeam}"`);
+   306→    return streams;
+   307→  } catch (err) {
+   308→    console.warn('[Streams API] Error fetching from rojadirecta:', err);
+   309→    return [];
+   310→  }
+   311→}
+   312→
+   313→// ─── Map country name to language ────────────────────────────────────────────
+   314→function mapCountryToLang(country: string): string {
+   315→  const COUNTRY_LANG_MAP: Record<string, string> = {
+   316→    'Inglaterra': 'English',
+   317→    'España': 'Spanish',
+   318→    'Italia': 'Italian',
+   319→    'Alemania': 'Deutch',
+   320→    'Francia': 'French',
+   321→    'Portugal': 'Portuguese',
+   322→    'Brasil': 'Portuguese',
+   323→    'Argentina': 'Spanish',
+   324→    'México': 'Spanish',
+   325→    'Arabia Saudí': 'Arabic',
+   326→    'Estados Unidos': 'English',
+   327→    'Países Bajos': 'Deutch',
+   328→    'Turquía': 'English',
+   329→  };
+   330→
+   331→  return COUNTRY_LANG_MAP[country] || 'Spanish'; // Default to Spanish for rojadirecta
+   332→}
+   333→
+   334→// ─── Fuzzy team name matching ────────────────────────────────────────────────
+   335→
+   336→const TEAM_NAME_STRIP_PATTERNS = [
+   337→  /\bFC\b/gi, /\bCF\b/gi, /\bSC\b/gi, /\bAC\b/gi, /\bAS\b/gi, /\bSS\b/gi,
+   338→  /\bRC\b/gi, /\bCD\b/gi, /\bCA\b/gi, /\bSL\b/gi, /\bSD\b/gi, /\bSA\b/gi,
+   339→  /\bAFC\b/gi, /\bSFC\b/gi, /\bBFC\b/gi, /\bInc\b/gi, /\bClub\b/gi, /\bTeam\b/gi,
+   340→];
+   341→
+   342→const TEAM_ABBREVIATIONS: Record<string, string[]> = {
+   343→  'psg': ['paris saint-germain', 'paris sg', 'paris saint germain'],
+   344→  'paris saint-germain': ['psg', 'paris sg'],
+   345→  'manchester united': ['man utd', 'man united'],
+   346→  'manchester city': ['man city'],
+   347→  'bayern munich': ['bayern', 'fc bayern'],
+   348→  'bayern': ['bayern munich', 'fc bayern'],
+   349→  'borussia dortmund': ['dortmund', 'bvb'],
+   350→  'inter milan': ['inter', 'fc internazionale'],
+   351→  'ac milan': ['milan'],
+   352→  'real madrid': ['real'],
+   353→  'atletico madrid': ['atletico', 'athletico'],
+   354→  'crystal palace': ['palace'],
+   355→  'nottingham forest': ['nottm forest', 'forest'],
+   356→  'tottenham hotspur': ['tottenham', 'spurs'],
+   357→  'west ham united': ['west ham', 'hammers'],
+   358→  'brighton and hove albion': ['brighton'],
+   359→  'wolverhampton wanderers': ['wolves', 'wolverhampton'],
+   360→  'aston villa': ['villa'],
+   361→  'newcastle united': ['newcastle', 'newcastle utd'],
+   362→  'sheffield united': ['sheffield utd'],
+   363→  'leicester city': ['leicester'],
+   364→  'los angeles lakers': ['lakers', 'la lakers'],
+   365→  'los angeles clippers': ['clippers', 'la clippers'],
+   366→  'golden state warriors': ['warriors', 'gs warriors'],
+   367→  'oklahoma city thunder': ['okc thunder', 'thunder'],
+   368→  'san antonio spurs': ['spurs'],
+   369→  'new orleans pelicans': ['pelicans'],
+   370→  'washington wizards': ['wizards'],
+   371→  'houston rockets': ['rockets'],
+   372→  'boston celtics': ['celtics'],
+   373→  'miami heat': ['heat'],
+   374→  'milwaukee bucks': ['bucks'],
+   375→  'philadelphia 76ers': ['sixers', '76ers'],
+   376→  'dallas mavericks': ['mavs', 'mavericks'],
+   377→  'denver nuggets': ['nuggets'],
+   378→  'phoenix suns': ['suns'],
+   379→  'brooklyn nets': ['nets'],
+   380→  'chicago bulls': ['bulls'],
+   381→  'portland trail blazers': ['trail blazers', 'blazers'],
+   382→  'atlanta hawks': ['hawks'],
+   383→  'cleveland cavaliers': ['cavaliers'],
+   384→  'detroit pistons': ['pistons'],
+   385→  'indiana pacers': ['pacers'],
+   386→  'memphis grizzlies': ['grizzlies'],
+   387→  'minnesota timberwolves': ['timberwolves', 'wolves'],
+   388→  'sacramento kings': ['kings'],
+   389→  'toronto raptors': ['raptors'],
+   390→  'utah jazz': ['jazz'],
+   391→  'charlotte hornets': ['hornets'],
+   392→  'orlando magic': ['magic'],
+   393→  'new york knicks': ['knicks'],
+   394→  // Saudi Pro League teams
+   395→  'al hilal': ['hilal', 'al-hilal'],
+   396→  'al nassr': ['nassr', 'al-nassr', 'nassr riyadh'],
+   397→  'al ittihad': ['ittihad', 'al-ittihad', 'ittihad jeddah'],
+   398→  'al ahli': ['ahli', 'al-ahli', 'ahli jeddah'],
+   399→  'al shabab': ['shabab', 'al-shabab'],
+   400→  'al raed': ['raed', 'al-raed'],
+   401→  'al taawoun': ['taawoun', 'al-taawoun'],
+   402→  'damac': ['damac fc'],
+   403→  'abha': ['abha club'],
+   404→  'al fateh': ['fateh', 'al-fateh'],
+   405→  'al faisaly': ['faisaly', 'al-faisaly'],
+   406→  'hazen': ['hazen fc', 'al-hazen'],
+   407→  'al khaleej': ['khaleej', 'al-khaleej'],
+   408→  'al wehda': ['wehda', 'al-wehda', 'al wahda'],
+   409→  'al ridha': ['ridha', 'al-ridha'],
+   410→  // MLS teams
+   411→  'inter miami': ['miami', 'inter miami cf'],
+   412→  'la galaxy': ['galaxy', 'los angeles galaxy'],
+   413→  'new york city': ['nyc fc', 'new york city fc'],
+   414→  'seattle sounders': ['sounders'],
+   415→  'atlanta united': ['atlanta utd'],
+   416→  'portland timbers': ['timbers'],
+   417→  // More common teams
+   418→  'benfica': ['sl benfica', 'sporting lisbon'],
+   419→  'porto': ['fc porto'],
+   420→  'sporting cp': ['sporting lisbon', 'sporting clube'],
+   421→  'ajax': ['afc ajax'],
+   422→  'psv': ['psv eindhoven'],
+   423→  'feyenoord': ['feyenoord rotterdam'],
+   424→  'galatasaray': ['galatasaray sk'],
+   425→  'fenerbahce': ['fenerbahce sk'],
+   426→  'besiktas': ['besiktas jk'],
+   427→  'celtic': ['celtic fc'],
+   428→  'rangers': ['rangers fc'],
+   429→};
+   430→
+   431→function normalizeTeamName(name: string): string {
+   432→  let normalized = name.toLowerCase().trim();
+   433→  normalized = normalized.replace(/\([^)]*\)/g, '');
+   434→  for (const pattern of TEAM_NAME_STRIP_PATTERNS) {
+   435→    normalized = normalized.replace(pattern, '');
+   436→  }
+   437→  normalized = normalized.replace(/\s+/g, ' ').trim();
+   438→  normalized = normalized.replace(/[-.]+$/, '').trim();
+   439→  return normalized;
+   440→}
+   441→
+   442→function getTeamVariants(teamName: string): string[] {
+   443→  const normalized = normalizeTeamName(teamName);
+   444→  const variants = new Set<string>([normalized]);
+   445→  variants.add(teamName.toLowerCase().trim());
+   446→
+   447→  const lower = teamName.toLowerCase().trim();
+   448→  for (const [key, values] of Object.entries(TEAM_ABBREVIATIONS)) {
+   449→    if (lower === key || normalized === key) {
+   450→      for (const v of values) {
+   451→        variants.add(v);
+   452→        variants.add(normalizeTeamName(v));
+   453→      }
+   454→    }
+   455→    if (values.some(v => lower === v || normalized === v)) {
+   456→      variants.add(key);
+   457→      variants.add(normalizeTeamName(key));
+   458→      for (const v of values) {
+   459→        variants.add(v);
+   460→        variants.add(normalizeTeamName(v));
+   461→      }
+   462→    }
+   463→  }
+   464→
+   465→  return Array.from(variants).filter(Boolean);
+   466→}
+   467→
+   468→function teamMatchesInName(teamVariants: string[], matchName: string): boolean {
+   469→  const matchLower = matchName.toLowerCase();
+   470→
+   471→  for (const variant of teamVariants) {
+   472→    if (!variant) continue;
+   473→    if (matchLower.includes(variant)) return true;
+   474→
+   475→    const variantWords = variant.split(/\s+/).filter(w => w.length > 2);
+   476→    if (variantWords.length > 1) {
+   477→      const matchCount = variantWords.filter(w => matchLower.includes(w)).length;
+   478→      if (matchCount >= Math.ceil(variantWords.length * 0.6)) return true;
+   479→    }
+   480→
+   481→    if (variant.length >= 4 && matchLower.includes(variant)) return true;
+   482→  }
+   483→
+   484→  return false;
+   485→}
+   486→
+   487→// ─── Competition name to kora-api category matching ────────────────────────
+   488→// Maps our competition names to kora-api category names for fallback matching
+   489→const COMPETITION_TO_KORA_CATEGORY: Record<string, string[]> = {
+   490→  'ligue 1': ['ligue 1', 'ligue1', 'france ligue 1'],
+   491→  'premier league': ['premier league', 'premierleague', 'epl', 'english premier'],
+   492→  'la liga': ['la liga', 'laliga', 'spanish la liga', 'liga ea sports'],
+   493→  'serie a': ['serie a', 'seriea', 'italian serie a'],
+   494→  'bundesliga': ['bundesliga', 'german bundesliga'],
+   495→  'champions league': ['champions league', 'championsleague', 'ucl', 'uefa champions'],
+   496→  'europa league': ['europa league', 'europaleague', 'uel', 'uefa europa'],
+   497→  'conference league': ['conference league', 'uefa conference'],
+   498→  'liga portugal': ['liga portugal', 'portuguese liga', 'liga bwin'],
+   499→  'eredivisie': ['eredivisie', 'dutch eredivisie'],
+   500→  'süper lig': ['süper lig', 'super lig', 'turkish süper', 'turkish super'],
+   501→  'brasileirão': ['brasileirão', 'brasileirao', 'brazilian serie a', 'brasileiro'],
+   502→  'liga profesional': ['liga profesional', 'argentine liga', 'liga argentina'],
+   503→  'liga mx': ['liga mx', 'ligamx', 'mexican liga'],
+   504→  'mls': ['mls', 'major league soccer'],
+   505→  'saudi pro league': ['saudi pro league', 'saudi professional', 'saudi league', 'spl'],
+   506→  'afc champions league': ['afc champions', 'afc champions league'],
+   507→  'caf champions league': ['caf champions', 'caf champions league'],
+   508→  'nba': ['nba', 'national basketball'],
+   509→  'euroleague': ['euroleague', 'euro league'],
+   510→  'ncaa': ['ncaa', 'college basketball'],
+   511→  'fifa': ['fifa', 'world cup'],
+   512→};
+   513→
+   514→function competitionMatchesKoraCategory(competition: string, koraCategoryName: string): boolean {
+   515→  const compLower = competition.toLowerCase();
+   516→  const catLower = koraCategoryName.toLowerCase();
+   517→
+   518→  for (const [compKey, catKeys] of Object.entries(COMPETITION_TO_KORA_CATEGORY)) {
+   519→    if (compLower.includes(compKey)) {
+   520→      return catKeys.some(ck => catLower.includes(ck) || ck.includes(catLower));
+   521→    }
+   522→  }
+   523→
+   524→  // Direct substring match between competition and category name
+   525→  if (compLower.length > 3 && catLower.length > 3) {
+   526→    if (compLower.includes(catLower) || catLower.includes(compLower)) return true;
+   527→  }
+   528→
+   529→  return false;
+   530→}
+   531→
+   532→// ─── POST handler ────────────────────────────────────────────────────────────
+   533→export async function POST(request: NextRequest) {
+   534→  try {
+   535→    const body = await request.json();
+   536→    const { homeTeam, awayTeam, competition, sport } = body as {
+   537→      homeTeam?: string;
+   538→      awayTeam?: string;
+   539→      competition?: string;
+   540→      sport?: string;
+   541→    };
+   542→
+   543→    if (!homeTeam || !awayTeam) {
+   544→      return NextResponse.json(
+   545→        { error: 'homeTeam and awayTeam are required', streams: [] },
+   546→        { status: 400 }
+   547→      );
+   548→    }
+   549→
+   550→    const sportLower = (sport || 'football').toLowerCase();
+   551→    const categoryIds = SPORT_CATEGORY_IDS[sportLower];
+   552→
+   553→    // Fetch matches from kora-api
+   554→    const matches = await fetchAllMatches(categoryIds);
+   555→
+   556→    // ─── Kora-API matching logic ──────────────────────────────────────────
+   557→    let koraStreams: Array<{
+   558→      name: string;
+   559→      url: string;
+   560→      lang: string;
+   561→      langFlag: string;
+   562→      source: string;
+   563→    }> = [];
+   564→    let koraMatchId: number | null = null;
+   565→    let koraIsLive = false;
+   566→    let koraMatchName: string | null = null;
+   567→    let koraIsExactMatch = false;
+   568→    let koraIsCompetitionMatch = false;
+   569→
+   570→    if (matches.length === 0) {
+   571→      console.log('[Streams API] No matches found from kora-api');
+   572→    } else {
+   573→      // Generate team name variants for fuzzy matching
+   574→      const homeVariants = getTeamVariants(homeTeam);
+   575→      const awayVariants = getTeamVariants(awayTeam);
+   576→
+   577→      console.log(`[Streams API] Searching for: "${homeTeam}" vs "${awayTeam}" (${sportLower})`);
+   578→
+   579→      // ─── Step 1: Try exact team name matching (best quality) ──────────────
+   580→      let bestMatch: KoraMatch | null = null;
+   581→      let bestScore = 0;
+   582→
+   583→      for (const match of matches) {
+   584→        let score = 0;
+   585→
+   586→        const homeInName = teamMatchesInName(homeVariants, match.name);
+   587→        const awayInName = teamMatchesInName(awayVariants, match.name);
+   588→
+   589→        if (homeInName) score += 50;
+   590→        if (awayInName) score += 50;
+   591→        if (match.is_live) score += 10;
+   592→        if (match.streams && match.streams.length > 0) score += 5;
+   593→        if (match.streams) score += Math.min(match.streams.length, 5);
+   594→
+   595→        if (score > bestScore && homeInName && awayInName) {
+   596→          bestScore = score;
+   597→          bestMatch = match;
+   598→        }
+   599→      }
+   600→
+   601→      // ─── Step 2: Try partial team name matching (one team matches) ────────
+   602→      if (!bestMatch) {
+   603→        for (const match of matches) {
+   604→          const homeInName = teamMatchesInName(homeVariants, match.name);
+   605→          const awayInName = teamMatchesInName(awayVariants, match.name);
+   606→
+   607→          if ((homeInName || awayInName) && match.streams && match.streams.length > 0) {
+   608→            const score = (homeInName ? 50 : 0) + (awayInName ? 50 : 0) + (match.is_live ? 10 : 0);
+   609→            if (score > bestScore) {
+   610→              bestScore = score;
+   611→              bestMatch = match;
+   612→            }
+   613→          }
+   614→        }
+   615→      }
+   616→
+   617→      // ─── Step 3: Try competition/category matching ───────────────────────
+   618→      if (!bestMatch && competition) {
+   619→        console.log(`[Streams API] Trying competition matching for: "${competition}"`);
+   620→
+   621→        let bestCompMatch: KoraMatch | null = null;
+   622→        let bestCompScore = 0;
+   623→
+   624→        for (const match of matches) {
+   625→          if (!match.streams || match.streams.length === 0) continue;
+   626→
+   627→          const catMatches = competitionMatchesKoraCategory(competition, match.category.name);
+   628→
+   629→          if (catMatches) {
+   630→            let score = match.streams.length * 5;
+   631→            if (match.is_live) score += 20; // Strongly prefer live matches
+   632→            score += 10; // Base score for category match
+   633→
+   634→            if (score > bestCompScore) {
+   635→              bestCompScore = score;
+   636→              bestCompMatch = match;
+   637→            }
+   638→          }
+   639→        }
+   640→
+   641→        if (bestCompMatch) {
+   642→          bestMatch = bestCompMatch;
+   643→          console.log(`[Streams API] Found competition match: "${bestCompMatch.name}" (${bestCompMatch.category.name})`);
+   644→        }
+   645→      }
+   646→
+   647→      // ─── Step 4: Try any live match with streams from the same sport ──────
+   648→      if (!bestMatch) {
+   649→        const liveWithStreams = matches.filter(m => m.is_live && m.streams && m.streams.length > 0);
+   650→        if (liveWithStreams.length > 0) {
+   651→          // Prefer matches from the same category if competition matches
+   652→          if (competition) {
+   653→            const categoryMatch = liveWithStreams.find(m =>
+   654→              competitionMatchesKoraCategory(competition, m.category.name)
+   655→            );
+   656→            if (categoryMatch) bestMatch = categoryMatch;
+   657→          }
+   658→          // If still no match, take the first live match with most streams
+   659→          if (!bestMatch) {
+   660→            bestMatch = liveWithStreams.sort((a, b) => (b.streams?.length || 0) - (a.streams?.length || 0))[0];
+   661→          }
+   662→        }
+   663→      }
+   664→
+   665→      if (bestMatch && bestMatch.streams && bestMatch.streams.length > 0) {
+   666→        // Build the streams response with language flags
+   667→        koraStreams = bestMatch.streams.map((stream) => ({
+   668→          name: `${stream.lang || 'Unknown'} Stream`,
+   669→          url: stream.url,
+   670→          lang: stream.lang || 'Unknown',
+   671→          langFlag: LANG_FLAGS[stream.lang] || '🌐',
+   672→          source: 'kora-api',
+   673→        }));
+   674→
+   675→        koraMatchId = bestMatch.id;
+   676→        koraIsLive = bestMatch.is_live;
+   677→        koraMatchName = bestMatch.name;
+   678→
+   679→        // Determine match quality for the response
+   680→        koraIsExactMatch = bestScore >= 100; // Both teams matched
+   681→        koraIsCompetitionMatch = bestScore < 100 && bestScore > 0;
+   682→
+   683→        console.log(`[Streams API] kora-api match: "${bestMatch.name}" with ${koraStreams.length} streams (live: ${bestMatch.is_live}, exact: ${koraIsExactMatch})`);
+   684→      } else {
+   685→        console.log(`[Streams API] No matching match found from kora-api for "${homeTeam}" vs "${awayTeam}"`);
+   686→      }
+   687→    }
+   688→
+   689→    // ─── Fetch rojadirecta streams ────────────────────────────────────────
+   690→    const rojaStreams = await fetchRojaDirectaStreams(homeTeam, awayTeam);
+   691→
+   692→    // ─── Merge results ────────────────────────────────────────────────────
+   693→    const allStreams = [...koraStreams, ...rojaStreams];
+   694→
+   695→    // ─── Sort streams: prioritize resolvable domains (fltvhd.com → m3u8) ──
+   696→    // Known domains that resolve to m3u8 via our resolve-stream API
+   697→    const RESOLVABLE_DOMAINS = ['fltvhd.com', 'streams.center', 'streamcenter.pro'];
+   698→    // Known domains that use obfuscated JS and can't be resolved server-side
+   699→    const UNRESOLVABLE_DOMAINS = ['tvhd1.com'];
+   700→
+   701→    allStreams.sort((a, b) => {
+   702→      const aResolvable = RESOLVABLE_DOMAINS.some(d => a.url.includes(d));
+   703→      const bResolvable = RESOLVABLE_DOMAINS.some(d => b.url.includes(d));
+   704→      const aUnresolvable = UNRESOLVABLE_DOMAINS.some(d => a.url.includes(d));
+   705→      const bUnresolvable = UNRESOLVABLE_DOMAINS.some(d => b.url.includes(d));
+   706→      const aIsM3u8 = a.url.includes('.m3u8') || a.url.includes('m3u8');
+   707→      const bIsM3u8 = b.url.includes('.m3u8') || b.url.includes('m3u8');
+   708→
+   709→      // Direct m3u8 URLs are best
+   710→      if (aIsM3u8 && !bIsM3u8) return -1;
+   711→      if (!aIsM3u8 && bIsM3u8) return 1;
+   712→      // Resolvable domains next
+   713→      if (aResolvable && !bResolvable) return -1;
+   714→      if (!aResolvable && bResolvable) return 1;
+   715→      // Unresolvable domains last
+   716→      if (!aUnresolvable && bUnresolvable) return -1;
+   717→      if (aUnresolvable && !bUnresolvable) return 1;
+   718→      return 0;
+   719→    });
+   720→
+   721→    // Determine primary source
+   722→    let primarySource = 'kora-api';
+   723→    if (koraStreams.length === 0 && rojaStreams.length > 0) {
+   724→      primarySource = 'rojadirecta';
+   725→    } else if (koraStreams.length > 0 && rojaStreams.length > 0) {
+   726→      primarySource = 'kora-api+rojadirecta';
+   727→    }
+   728→
+   729→    if (allStreams.length === 0) {
+   730→      console.log(`[Streams API] No streams found from any source for "${homeTeam}" vs "${awayTeam}"`);
+   731→      return NextResponse.json({
+   732→        streams: [],
+   733→        matchId: koraMatchId,
+   734→        matchName: koraMatchName,
+   735→        isLive: koraIsLive,
+   736→        source: 'kora-api',
+   737→      });
+   738→    }
+   739→
+   740→    console.log(`[Streams API] Total: ${allStreams.length} streams (kora-api: ${koraStreams.length}, rojadirecta: ${rojaStreams.length}) for "${homeTeam}" vs "${awayTeam}"`);
+   741→
+   742→    return NextResponse.json({
+   743→      streams: allStreams,
+   744→      matchId: koraMatchId,
+   745→      matchName: koraMatchName,
+   746→      isLive: koraIsLive,
+   747→      isExactMatch: koraIsExactMatch,
+   748→      isCompetitionMatch: koraIsCompetitionMatch,
+   749→      source: primarySource,
+   750→    });
+   751→  } catch (err) {
+   752→    console.error('[Streams API] Error:', err);
+   753→    return NextResponse.json(
+   754→      {
+   755→        streams: [],
+   756→        matchId: null,
+   757→        isLive: false,
+   758→        source: 'kora-api',
+   759→        error: err instanceof Error ? err.message : 'Failed to fetch streams',
+   760→      },
+   761→      { status: 200 }
+   762→    );
+   763→  }
+   764→}
+   765→

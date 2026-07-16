@@ -29,7 +29,7 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
     const tomorrowYMD = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
     const dayAfter = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
     const dayAfterYMD = `${dayAfter.getFullYear()}-${String(dayAfter.getMonth() + 1).padStart(2, '0')}-${String(dayAfter.getDate()).padStart(2, '0')}`;
-    if (matchYMD === todayYMD) return t(language, 'common.Today');
+    if (matchYMD === todayYMD) return t(language, 'common.today');
     if (matchYMD === tomorrowYMD) return t(language, 'common.tomorrow');
     if (matchYMD === dayAfterYMD) return t(language, 'dates.dayAfter');
     return matchDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });

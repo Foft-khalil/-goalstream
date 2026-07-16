@@ -280,7 +280,8 @@ async function fetchRojaDirectaStreams(
           // Resolve relative URLs
           let streamUrl = decodedUrl;
           if (decodedUrl.startsWith('/')) {
-            streamUrl = `https://tvtvhd.com${decodedUrl}`;
+            // Use fltvhd.com as base (tvtvhd.com has been seized by law enforcement)
+            streamUrl = `https://fltvhd.com${decodedUrl}`;
           }
 
           // Determine language from country if available
@@ -690,6 +691,32 @@ export async function POST(request: NextRequest) {
 
     // ─── Merge results ────────────────────────────────────────────────────
     const allStreams = [...koraStreams, ...rojaStreams];
+
+    // ─── Sort streams: prioritize resolvable domains (fltvhd.com → m3u8) ──
+    // Known domains that resolve to m3u8 via our resolve-stream API
+    const RESOLVABLE_DOMAINS = ['fltvhd.com', 'streams.center', 'streamcenter.pro'];
+    // Known domains that use obfuscated JS and can't be resolved server-side
+    const UNRESOLVABLE_DOMAINS = ['tvhd1.com'];
+
+    allStreams.sort((a, b) => {
+      const aResolvable = RESOLVABLE_DOMAINS.some(d => a.url.includes(d));
+      const bResolvable = RESOLVABLE_DOMAINS.some(d => b.url.includes(d));
+      const aUnresolvable = UNRESOLVABLE_DOMAINS.some(d => a.url.includes(d));
+      const bUnresolvable = UNRESOLVABLE_DOMAINS.some(d => b.url.includes(d));
+      const aIsM3u8 = a.url.includes('.m3u8') || a.url.includes('m3u8');
+      const bIsM3u8 = b.url.includes('.m3u8') || b.url.includes('m3u8');
+
+      // Direct m3u8 URLs are best
+      if (aIsM3u8 && !bIsM3u8) return -1;
+      if (!aIsM3u8 && bIsM3u8) return 1;
+      // Resolvable domains next
+      if (aResolvable && !bResolvable) return -1;
+      if (!aResolvable && bResolvable) return 1;
+      // Unresolvable domains last
+      if (!aUnresolvable && bUnresolvable) return -1;
+      if (aUnresolvable && !bUnresolvable) return 1;
+      return 0;
+    });
 
     // Determine primary source
     let primarySource = 'kora-api';

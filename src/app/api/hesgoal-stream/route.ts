@@ -216,17 +216,16 @@ export async function GET(request: NextRequest) {
     const result = await deepResolve(streamPageUrl);
 
     if (!result) {
-      // If we can't resolve the m3u8, provide the proxy URL as fallback
-      // The proxy-stream endpoint will handle the iframe chain resolution at play time
-      const proxyUrl = `/api/proxy-stream?url=${btoa(streamPageUrl)}`;
-
-      console.log(`[HesGoal Stream] Could not resolve m3u8, using proxy fallback for match ${matchId}`);
+      // If we can't resolve the m3u8, return the ORIGINAL stream page URL.
+      // The video-player component will handle proxying internally via its
+      // getProxiedUrl() function and try resolve-stream to extract the m3u8.
+      console.log(`[HesGoal Stream] Could not resolve m3u8, returning original URL for match ${matchId}`);
 
       return NextResponse.json({
-        url: proxyUrl,
+        url: streamPageUrl,
         type: 'iframe',
         matchId,
-        note: 'Stream resolved to embed - will be proxied at play time',
+        note: 'Stream resolved to embed - video-player will proxy and resolve',
       });
     }
 

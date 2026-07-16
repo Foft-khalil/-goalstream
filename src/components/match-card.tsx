@@ -2,11 +2,11 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Play, Tv, Clock, Loader2, Radio, Heart, Activity, Share, Film, Zap } from 'lucide-react';
+import { Play, Tv, Clock, Radio, Heart, Activity, Share, Film, Zap } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import LiveMatchClock from '@/components/live-match-clock';
 import MatchTracker from '@/components/match-tracker';
 import StreamOptions from '@/components/stream-options';
@@ -36,12 +36,11 @@ interface MatchCardProps {
 }
 
 export default function MatchCard({ match }: MatchCardProps) {
-  const { openPlayer, language, hesgoalMatches } = useAppStore();
+  const { openPlayer, language } = useAppStore();
   const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
   const [showTracker, setShowTracker] = useState(false);
   const [showStreamOptions, setShowStreamOptions] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
-  const [watchLoading, setWatchLoading] = useState(false);
 
   const isLive = match.status === 'live';
   const isFinished = match.status === 'finished';
@@ -54,28 +53,6 @@ export default function MatchCard({ match }: MatchCardProps) {
   const isTomorrow = matchDate ? new Date(Date.now() + 86400000).toDateString() === matchDate.toDateString() : false;
   const homeFav = isTeamFavorite(match.homeTeam);
   const awayFav = isTeamFavorite(match.awayTeam);
-
-  // Auto-detect HesGoal stream for live football matches
-  const hesgoalMatchId = useMemo(() => {
-    if (!isLive) return null;
-    if (match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba')) return null;
-
-    const homeLower = match.homeTeam.toLowerCase();
-    const awayLower = match.awayTeam.toLowerCase();
-
-    const found = hesgoalMatches.find((hm) => {
-      if (!hm.hasStream) return false;
-      const mHome = hm.homeTeam.toLowerCase();
-      const mAway = hm.awayTeam.toLowerCase();
-      const homeWords = homeLower.split(/\s+/).filter((w: string) => w.length > 3);
-      const awayWords = awayLower.split(/\s+/).filter((w: string) => w.length > 3);
-      const homeMatch = homeWords.some((w: string) => mHome.includes(w)) || mHome.includes(homeLower) || homeLower.includes(mHome);
-      const awayMatch = awayWords.some((w: string) => mAway.includes(w)) || mAway.includes(awayLower) || awayLower.includes(mAway);
-      return homeMatch && awayMatch;
-    });
-
-    return found ? found.id : null;
-  }, [isLive, match.homeTeam, match.awayTeam, match.competition, hesgoalMatches]);
 
   // Determine if match is about to start (within 30 min of kickoff)
   const isAboutToStart = (() => {
@@ -92,44 +69,26 @@ export default function MatchCard({ match }: MatchCardProps) {
   const sportType = isBasketballSport ? 'basketball' : 'football';
 
   /**
-   * Unified "Watch Live" handler:
-   * 1. If direct m3u8 stream available → play directly
-   * 2. If HesGoal stream found → resolve and play in-app
-   * 3. If no stream found → open stream options panel (which auto-fetches)
+   * "Watch Live" handler:
+   * 1. If direct m3u8 stream available → play directly in-app (IPTV channels)
+   * 2. Otherwise → open stream options panel which fetches free streams from API
    */
-  const handleWatchLive = async () => {
-    if (watchLoading) return;
-
-    // If we already have a direct m3u8 stream URL, play it
+  const handleWatchLive = () => {
+    // If we already have a direct m3u8 stream URL, play it in-app
     if (match.streamUrl && (match.streamUrl.includes('.m3u8') || match.streamUrl.includes('m3u8'))) {
       openPlayer(match.streamUrl, match.channelName || `${match.homeTeam} vs ${match.awayTeam}`, match.channelLogo || undefined);
       return;
     }
 
-    // Try HesGoal resolution first (in-app)
-    if (hesgoalMatchId) {
-      setWatchLoading(true);
-      try {
-        const res = await fetch(`/api/hesgoal-stream?id=${hesgoalMatchId}`, {
-          signal: AbortSignal.timeout(12000),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.url) {
-            const streamName = `HesGoal — ${match.homeTeam} vs ${match.awayTeam}`;
-            openPlayer(data.url, streamName);
-            return;
-          }
-        }
-      } catch(_e) {
-        // Fall through to stream options
-      } finally {
-        setWatchLoading(false);
-      }
-    }
-
-    // Fallback: open stream options panel
+    // Open stream options panel - it will fetch free streams from /api/streams
     setShowStreamOptions(true);
+  };
+
+  /** Open YouTube live search for this match */
+  const handleYoutubeLive = () => {
+    const year = matchDate ? matchDate.getFullYear() : new Date().getFullYear();
+    const query = encodeURIComponent(`${match.homeTeam} vs ${match.awayTeam} ${match.competition || ''} live ${year}`);
+    window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank', 'noopener,noreferrer');
   };
 
   const handleShare = async () => {
@@ -298,30 +257,38 @@ export default function MatchCard({ match }: MatchCardProps) {
           {/* Action buttons */}
           <div className="mt-4 pt-3 border-t border-border/20 dark:border-white/[0.03] flex gap-2">
             {canWatchLive ? (
-              <Button
-                size="sm"
-                onClick={handleWatchLive}
-                disabled={watchLoading}
-                className={`flex-1 h-9 gap-2 text-xs font-bold rounded-xl transition-all duration-200 ${
-                  isLive
-                    ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20'
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20'
-                }`}
-              >
-                {watchLoading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : isLive ? (
-                  <>
-                    <Radio className="h-3.5 w-3.5 fill-current" />
-                    {t(language, 'match.watchLive')}
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-3.5 w-3.5 fill-current" />
-                    {t(language, 'match.watch')}
-                  </>
-                )}
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  onClick={handleWatchLive}
+                  className={`flex-1 h-9 gap-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+                    isLive
+                      ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20'
+                  }`}
+                >
+                  {isLive ? (
+                    <>
+                      <Radio className="h-3.5 w-3.5 fill-current" />
+                      {t(language, 'match.watchLive')}
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-3.5 w-3.5 fill-current" />
+                      {t(language, 'match.watch')}
+                    </>
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleYoutubeLive}
+                  className="h-9 px-3 gap-1.5 text-xs font-semibold rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20"
+                  title="YouTube Live"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                  <span className="hidden sm:inline">YT</span>
+                </Button>
+              </>
             ) : isFinished ? (
               <Button
                 size="sm"
@@ -332,14 +299,24 @@ export default function MatchCard({ match }: MatchCardProps) {
                 {t(language, 'match.seeSummary')}
               </Button>
             ) : (
-              <Button
-                size="sm"
-                onClick={() => setShowTracker(true)}
-                className="flex-1 h-9 gap-2 text-xs font-semibold rounded-xl bg-secondary/30 dark:bg-white/[0.02] hover:bg-secondary/50 dark:hover:bg-white/[0.05] text-muted-foreground border border-border/30 dark:border-white/[0.03]"
-              >
-                <Activity className="h-3.5 w-3.5" />
-                {t(language, 'match.followMatch')}
-              </Button>
+              <div className="flex gap-2 flex-1">
+                <Button
+                  size="sm"
+                  onClick={() => setShowStreamOptions(true)}
+                  className="flex-1 h-9 gap-2 text-xs font-semibold rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 dark:border-emerald-500/10"
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  {t(language, 'match.watch')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowTracker(true)}
+                  className="h-9 px-3 rounded-xl border-border/30 dark:border-white/[0.04] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1 text-muted-foreground"
+                >
+                  <Activity className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             )}
             {/* Match Tracker button */}
             <Button
@@ -397,7 +374,7 @@ export default function MatchCard({ match }: MatchCardProps) {
         awayTeam={match.awayTeam}
         competition={match.competition}
         sport={sportType}
-        hesgoalMatchId={hesgoalMatchId}
+        matchId={match.id}
       />
     </>
   );

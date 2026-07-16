@@ -1,0 +1,688 @@
+     1→     1→'use client';
+     2→     2→
+     3→     3→import Hls from 'hls.js';
+     4→     4→import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+     5→     5→import { X, Volume2, VolumeX, Maximize, Minimize, Play, Pause, Loader2, RefreshCw, Tv, SkipForward, Globe, Wifi } from 'lucide-react';
+     6→     6→import { useAppStore } from '@/lib/store';
+     7→     7→import { t } from '@/lib/i18n';
+     8→     8→import { Button } from '@/components/ui/button';
+     9→     9→
+    10→    10→type StreamStatus = 'loading' | 'ready' | 'error';
+    11→    11→
+    12→    12→/**
+    13→    13→ * Determine if a URL is an HLS stream (can be played with video element + hls.js)
+    14→    14→ * vs an iframe embed URL (needs to be shown in an iframe)
+    15→    15→ */
+    16→    16→function isHlsUrl(url: string): boolean {
+    17→    17→  return url.includes('.m3u8') || url.includes('m3u8');
+    18→    18→}
+    19→    19→
+    20→    20→/**
+    21→    21→ * Determine if a URL needs to go through our server-side proxy.
+    22→    22→ * ALL non-HLS URLs (anything that isn't an m3u8 stream) need proxying
+    23→    23→ * because they are web pages that will be blocked by X-Frame-Options
+    24→    24→ * or Content-Security-Policy frame-ancestors when loaded directly in an iframe.
+    25→    25→ *
+    26→    26→ * The proxy fetches the page server-side, strips blocking headers,
+    27→    27→ * rewrites nested iframes to also go through the proxy, and serves
+    28→    28→ * the content from our own domain.
+    29→    29→ */
+    30→    30→function needsProxy(url: string): boolean {
+    31→    31→  // HLS streams don't need proxying — they play natively in the video element
+    32→    32→  if (isHlsUrl(url)) return false;
+    33→    33→  // Our own proxy URLs don't need re-proxying
+    34→    34→  if (url.includes('/api/proxy-stream')) return false;
+    35→    35→  // Any other URL (web page / embed) needs proxying to bypass iframe restrictions
+    36→    36→  return true;
+    37→    37→}
+    38→    38→
+    39→    39→/**
+    40→    40→ * Convert a stream URL to our proxy URL.
+    41→    41→ * For HLS (.m3u8) streams, returns the URL as-is (plays in video element).
+    42→    42→ * For web page / embed URLs, routes through our server-side proxy
+    43→    43→ * to bypass X-Frame-Options and frame-ancestors restrictions.
+    44→    44→ */
+    45→    45→function getProxiedUrl(url: string): string {
+    46→    46→  if (!needsProxy(url)) return url;
+    47→    47→  try {
+    48→    48→    const encoded = btoa(url);
+    49→    49→    return `/api/proxy-stream?url=${encodeURIComponent(encoded)}`;
+    50→    50→  } catch(_e) {
+    51→    51→    return url;
+    52→    52→  }
+    53→    53→}
+    54→    54→
+    55→    55→export default function VideoPlayer() {
+    56→    56→  const { playerVisible, playerStreamUrl, playerChannelName, playerChannelLogo, playerAlternatives, closePlayer, openPlayer, language } =
+    57→    57→    useAppStore();
+    58→    58→  const videoRef = useRef<HTMLVideoElement>(null);
+    59→    59→  const hlsRef = useRef<Hls | null>(null);
+    60→    60→  const containerRef = useRef<HTMLDivElement>(null);
+    61→    61→  const [isPlaying, setIsPlaying] = useState(false);
+    62→    62→  const [isMuted, setIsMuted] = useState(false);
+    63→    63→  const [isFullscreen, setIsFullscreen] = useState(false);
+    64→    64→  const [showControls, setShowControls] = useState(true);
+    65→    65→  const retryCountRef = useRef(0);
+    66→    66→  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+    67→    67→  const currentAltIndexRef = useRef(0);
+    68→    68→
+    69→    69→  // Track ready/error state with associated URL so they auto-reset when URL changes
+    70→    70→  const [readyUrl, setReadyUrl] = useState<string>('');
+    71→    71→  const [errorInfo, setErrorInfo] = useState<{ url: string; msg: string } | null>(null);
+    72→    72→
+    73→    73→  // Resolve-stream state: tracks whether we resolved an iframe URL to m3u8
+    74→    74→  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+    75→    75→  const [isResolving, setIsResolving] = useState(false);
+    76→    76→
+    77→    77→  // Iframe error/timeout state
+    78→    78→  const [iframeError, setIframeError] = useState(false);
+    79→    79→  const [iframeTimedOut, setIframeTimedOut] = useState(false);
+    80→    80→  const iframeTimerRef = useRef<NodeJS.Timeout>();
+    81→    81→
+    82→    82→  // The effective URL to play (resolved m3u8 takes priority over original URL)
+    83→    83→  const effectiveUrl = resolvedUrl || playerStreamUrl;
+    84→    84→
+    85→    85→  // Determine stream type based on the effective URL
+    86→    86→  const isHls = effectiveUrl ? isHlsUrl(effectiveUrl) : true;
+    87→    87→  const isIframe = effectiveUrl ? !isHlsUrl(effectiveUrl) : false;
+    88→    88→
+    89→    89→  // For iframe streams, compute the actual URL to use (proxied if needed)
+    90→    90→  const iframeSrc = useMemo(() => {
+    91→    91→    if (!isIframe || !effectiveUrl) return '';
+    92→    92→    return getProxiedUrl(effectiveUrl);
+    93→    93→  }, [isIframe, effectiveUrl]);
+    94→    94→
+    95→    95→  // For iframe streams, compute ready state directly instead of using an effect
+    96→    96→  const iframeReady = isIframe && !!effectiveUrl;
+    97→    97→
+    98→    98→  // Compute derived state - auto-reset when URL changes
+    99→    99→  const streamReady = (isIframe ? iframeReady : (readyUrl === effectiveUrl && !!effectiveUrl));
+   100→   100→  const streamError = errorInfo?.url === effectiveUrl ? errorInfo.msg : null;
+   101→   101→  const isLoading = isHls && playerVisible && !!effectiveUrl && !streamReady && !streamError;
+   102→   102→
+   103→   103→  // Reset resolve/iframe state when the original URL changes
+   104→   104→  useEffect(() => {
+   105→   105→    setResolvedUrl(null);
+   106→   106→    setIsResolving(false);
+   107→   107→    setIframeError(false);
+   108→   108→    setIframeTimedOut(false);
+   109→   109→  }, [playerStreamUrl]);
+   110→   110→
+   111→   111→  // Resolve-stream: try to resolve iframe URLs to direct m3u8 in the background
+   112→   112→  useEffect(() => {
+   113→   113→    if (!playerVisible || !playerStreamUrl) return;
+   114→   114→    // Only try resolving if it's an iframe URL (not already HLS)
+   115→   115→    if (isHlsUrl(playerStreamUrl)) return;
+   116→   116→    // Don't re-resolve if we already have a resolved URL for this stream
+   117→   117→    if (resolvedUrl) return;
+   118→   118→
+   119→   119→    let cancelled = false;
+   120→   120→    setIsResolving(true);
+   121→   121→
+   122→   122→    const resolveStream = async () => {
+   123→   123→      try {
+   124→   124→        const res = await fetch('/api/resolve-stream', {
+   125→   125→          method: 'POST',
+   126→   126→          headers: { 'Content-Type': 'application/json' },
+   127→   127→          body: JSON.stringify({ url: playerStreamUrl }),
+   128→   128→        });
+   129→   129→
+   130→   130→        if (!res.ok) {
+   131→   131→          console.warn('[VideoPlayer] resolve-stream returned non-OK:', res.status);
+   132→   132→          return;
+   133→   133→        }
+   134→   134→
+   135→   135→        const data = await res.json();
+   136→   136→        if (cancelled) return;
+   137→   137→
+   138→   138→        if (data.resolved && data.type === 'hls' && data.resolvedUrl) {
+   139→   139→          console.log('[VideoPlayer] Resolved to m3u8:', data.resolvedUrl);
+   140→   140→          setResolvedUrl(data.resolvedUrl);
+   141→   141→        } else {
+   142→   142→          console.log('[VideoPlayer] Could not resolve to m3u8, falling back to iframe');
+   143→   143→        }
+   144→   144→      } catch (err) {
+   145→   145→        if (cancelled) return;
+   146→   146→        console.warn('[VideoPlayer] resolve-stream error:', err);
+   147→   147→      } finally {
+   148→   148→        if (!cancelled) setIsResolving(false);
+   149→   149→      }
+   150→   150→    };
+   151→   151→
+   152→   152→    resolveStream();
+   153→   153→    return () => { cancelled = true; };
+   154→   154→  }, [playerVisible, playerStreamUrl]);
+   155→   155→
+   156→   156→  // Iframe timeout: show warning if iframe hasn't loaded after 15 seconds
+   157→   157→  useEffect(() => {
+   158→   158→    if (!isIframe || !playerVisible || !effectiveUrl) return;
+   159→   159→
+   160→   160→    setIframeError(false);
+   161→   161→    setIframeTimedOut(false);
+   162→   162→
+   163→   163→    iframeTimerRef.current = setTimeout(() => {
+   164→   164→      setIframeTimedOut(true);
+   165→   165→    }, 15000);
+   166→   166→
+   167→   167→    return () => {
+   168→   168→      if (iframeTimerRef.current) {
+   169→   169→        clearTimeout(iframeTimerRef.current);
+   170→   170→      }
+   171→   171→    };
+   172→   172→  }, [isIframe, playerVisible, effectiveUrl]);
+   173→   173→
+   174→   174→  const hideControlsAfterDelay = useCallback(() => {
+   175→   175→    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+   176→   176→    setShowControls(true);
+   177→   177→    if (isPlaying) {
+   178→   178→      controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
+   179→   179→    }
+   180→   180→  }, [isPlaying]);
+   181→   181→
+   182→   182→  // Auto-switch to next alternative channel
+   183→   183→  const tryNextChannel = useCallback(() => {
+   184→   184→    const alternatives = playerAlternatives;
+   185→   185→    if (!alternatives || alternatives.length === 0) return false;
+   186→   186→
+   187→   187→    if (currentAltIndexRef.current < alternatives.length) {
+   188→   188→      const next = alternatives[currentAltIndexRef.current];
+   189→   189→      currentAltIndexRef.current += 1;
+   190→   190→      console.log(`[VideoPlayer] Auto-switching to: ${next.name}`);
+   191→   191→      retryCountRef.current = 0;
+   192→   192→      openPlayer(next.url, next.name, next.logo || undefined, alternatives.filter((a) => a.url !== next.url));
+   193→   193→      return true;
+   194→   194→    }
+   195→   195→    return false;
+   196→   196→  }, [playerAlternatives, openPlayer]);
+   197→   197→
+   198→   198→  // Setup HLS player (only for HLS URLs, including resolved m3u8)
+   199→   199→  useEffect(() => {
+   200→   200→    if (!playerVisible || !videoRef.current || !effectiveUrl || !isHls) return;
+   201→   201→
+   202→   202→    const video = videoRef.current;
+   203→   203→    const currentUrl = effectiveUrl;
+   204→   204→
+   205→   205→    // State auto-resets when URL changes (via derived computation above)
+   206→   206→    retryCountRef.current = 0;
+   207→   207→
+   208→   208→    // Destroy previous HLS instance
+   209→   209→    if (hlsRef.current) {
+   210→   210→      hlsRef.current.destroy();
+   211→   211→      hlsRef.current = null;
+   212→   212→    }
+   213→   213→
+   214→   214→    if (Hls.isSupported()) {
+   215→   215→      const hls = new Hls({
+   216→   216→        enableWorker: true,
+   217→   217→        lowLatencyMode: true,
+   218→   218→        maxBufferLength: 30,
+   219→   219→        maxMaxBufferLength: 60,
+   220→   220→        startLevel: -1,
+   221→   221→        manifestLoadingTimeOut: 10000,
+   222→   222→        manifestLoadingMaxRetry: 1,
+   223→   223→        levelLoadingTimeOut: 10000,
+   224→   224→        levelLoadingMaxRetry: 1,
+   225→   225→        fragLoadingTimeOut: 10000,
+   226→   226→        fragLoadingMaxRetry: 1,
+   227→   227→      });
+   228→   228→
+   229→   229→      hls.loadSource(currentUrl);
+   230→   230→      hls.attachMedia(video);
+   231→   231→
+   232→   232→      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+   233→   233→        setReadyUrl(currentUrl);
+   234→   234→        video.play().then(() => setIsPlaying(true)).catch(() => {});
+   235→   235→      });
+   236→   236→
+   237→   237→      hls.on(Hls.Events.ERROR, (_event, data) => {
+   238→   238→        if (data.fatal) {
+   239→   239→          switch (data.type) {
+   240→   240→            case Hls.ErrorTypes.NETWORK_ERROR:
+   241→   241→              if (retryCountRef.current < 1) {
+   242→   242→                retryCountRef.current += 1;
+   243→   243→                hls.startLoad();
+   244→   244→              } else {
+   245→   245→                if (tryNextChannel()) return;
+   246→   246→                setErrorInfo({ url: currentUrl, msg: t(language, 'player.streamUnavailable') });
+   247→   247→                hls.destroy();
+   248→   248→              }
+   249→   249→              break;
+   250→   250→            case Hls.ErrorTypes.MEDIA_ERROR:
+   251→   251→              hls.recoverMediaError();
+   252→   252→              break;
+   253→   253→            default:
+   254→   254→              if (tryNextChannel()) return;
+   255→   255→              setErrorInfo({ url: currentUrl, msg: t(language, 'player.playbackError') });
+   256→   256→              hls.destroy();
+   257→   257→              break;
+   258→   258→          }
+   259→   259→        }
+   260→   260→      });
+   261→   261→
+   262→   262→      hlsRef.current = hls;
+   263→   263→    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+   264→   264→      video.src = currentUrl;
+   265→   265→      const onLoaded = () => {
+   266→   266→        setReadyUrl(currentUrl);
+   267→   267→        video.play().then(() => setIsPlaying(true)).catch(() => {});
+   268→   268→      };
+   269→   269→      const onError = () => {
+   270→   270→        if (tryNextChannel()) return;
+   271→   271→        setErrorInfo({ url: currentUrl, msg: t(language, 'player.streamUnavailableShort') });
+   272→   272→      };
+   273→   273→      video.addEventListener('loadedmetadata', onLoaded);
+   274→   274→      video.addEventListener('error', onError);
+   275→   275→    } else {
+   276→   276→      if (!tryNextChannel()) {
+   277→   277→        queueMicrotask(() => {
+   278→   278→          setErrorInfo({ url: currentUrl, msg: t(language, 'player.hlsNotSupported') });
+   279→   279→        });
+   280→   280→      }
+   281→   281→    }
+   282→   282→
+   283→   283→    return () => {
+   284→   284→      if (hlsRef.current) {
+   285→   285→        hlsRef.current.destroy();
+   286→   286→        hlsRef.current = null;
+   287→   287→      }
+   288→   288→    };
+   289→   289→  }, [playerVisible, effectiveUrl, isHls, tryNextChannel, language]);
+   290→   290→
+   291→   291→  // Lock body scroll when player is open
+   292→   292→  useEffect(() => {
+   293→   293→    if (playerVisible) {
+   294→   294→      document.body.style.overflow = 'hidden';
+   295→   295→      currentAltIndexRef.current = 0;
+   296→   296→    } else {
+   297→   297→      document.body.style.overflow = '';
+   298→   298→    }
+   299→   299→    return () => {
+   300→   300→      document.body.style.overflow = '';
+   301→   301→    };
+   302→   302→  }, [playerVisible]);
+   303→   303→
+   304→   304→  const togglePlay = () => {
+   305→   305→    if (!videoRef.current) return;
+   306→   306→    if (isPlaying) {
+   307→   307→      videoRef.current.pause();
+   308→   308→      setIsPlaying(false);
+   309→   309→    } else {
+   310→   310→      videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+   311→   311→    }
+   312→   312→  };
+   313→   313→
+   314→   314→  const toggleMute = () => {
+   315→   315→    if (!videoRef.current) return;
+   316→   316→    videoRef.current.muted = !isMuted;
+   317→   317→    setIsMuted(!isMuted);
+   318→   318→  };
+   319→   319→
+   320→   320→  const toggleFullscreen = async () => {
+   321→   321→    if (!containerRef.current) return;
+   322→   322→    if (!isFullscreen) {
+   323→   323→      await containerRef.current.requestFullscreen();
+   324→   324→      setIsFullscreen(true);
+   325→   325→    } else {
+   326→   326→      await document.exitFullscreen();
+   327→   327→      setIsFullscreen(false);
+   328→   328→    }
+   329→   329→  };
+   330→   330→
+   331→   331→  const handleRetry = () => {
+   332→   332→    retryCountRef.current = 0;
+   333→   333→    setReadyUrl('');
+   334→   334→    setErrorInfo(null);
+   335→   335→    setResolvedUrl(null);
+   336→   336→    setIframeError(false);
+   337→   337→    setIframeTimedOut(false);
+   338→   338→  };
+   339→   339→
+   340→   340→  const handleSwitchChannel = (channel: { url: string; name: string; logo?: string }) => {
+   341→   341→    retryCountRef.current = 0;
+   342→   342→    openPlayer(channel.url, channel.name, channel.logo || undefined);
+   343→   343→  };
+   344→   344→
+   345→   345→  /** Manually try to resolve the current iframe URL to a direct m3u8 stream */
+   346→   346→  const handleTryResolve = async () => {
+   347→   347→    if (!playerStreamUrl || isResolving) return;
+   348→   348→    setIframeError(false);
+   349→   349→    setIframeTimedOut(false);
+   350→   350→    setIsResolving(true);
+   351→   351→    try {
+   352→   352→      const res = await fetch('/api/resolve-stream', {
+   353→   353→        method: 'POST',
+   354→   354→        headers: { 'Content-Type': 'application/json' },
+   355→   355→        body: JSON.stringify({ url: playerStreamUrl }),
+   356→   356→      });
+   357→   357→      const data = await res.json();
+   358→   358→      if (data.resolved && data.type === 'hls' && data.resolvedUrl) {
+   359→   359→        setResolvedUrl(data.resolvedUrl);
+   360→   360→      }
+   361→   361→    } catch(_e) {
+   362→   362→      // Silently fail
+   363→   363→    } finally {
+   364→   364→      setIsResolving(false);
+   365→   365→    }
+   366→   366→  };
+   367→   367→
+   368→   368→  if (!playerVisible) return null;
+   369→   369→
+   370→   370→  const hasAlternatives = playerAlternatives && playerAlternatives.length > 0;
+   371→   371→
+   372→   372→  return (
+   373→   373→    <div className="fixed inset-0 z-50 bg-black flex flex-col animate-fade-in">
+   374→   374→      {/* Header */}
+   375→   375→      <div
+   376→   376→        className={`absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/90 via-black/50 to-transparent p-4 pb-8 transition-opacity duration-300 ${showControls || isIframe ? 'opacity-100' : 'opacity-0'}`}
+   377→   377→        onMouseMove={hideControlsAfterDelay}
+   378→   378→      >
+   379→   379→        <div className="flex items-center gap-3">
+   380→   380→          <Button
+   381→   381→            variant="ghost"
+   382→   382→            size="icon"
+   383→   383→            onClick={closePlayer}
+   384→   384→            className="text-white/90 hover:bg-white/15 h-9 w-9 rounded-xl"
+   385→   385→          >
+   386→   386→            <X className="h-5 w-5" />
+   387→   387→          </Button>
+   388→   388→          {playerChannelLogo && (
+   389→   389→            <img
+   390→   390→              src={playerChannelLogo}
+   391→   391→              alt=""
+   392→   392→              className="w-8 h-8 rounded-lg object-contain bg-white/10 p-0.5"
+   393→   393→              onError={(e) => {
+   394→   394→                (e.target as HTMLImageElement).style.display = 'none';
+   395→   395→              }}
+   396→   396→            />
+   397→   397→          )}
+   398→   398→          <div className="flex-1 min-w-0">
+   399→   399→            <h2 className="text-white font-bold text-sm truncate">{playerChannelName}</h2>
+   400→   400→            {isResolving && (
+   401→   401→              <span className="text-amber-400/70 text-[10px] flex items-center gap-1">
+   402→   402→                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+   403→   403→                {t(language, 'player.resolvingStream')}
+   404→   404→              </span>
+   405→   405→            )}
+   406→   406→            {!isResolving && isIframe && (
+   407→   407→              <span className="text-emerald-400/60 text-[10px] flex items-center gap-1">
+   408→   408→                <Wifi className="h-2.5 w-2.5" />
+   409→   409→                {t(language, 'player.live')}
+   410→   410→              </span>
+   411→   411→            )}
+   412→   412→          </div>
+   413→   413→          {hasAlternatives && (
+   414→   414→            <span className="text-white/30 text-[10px] font-medium">
+   415→   415→              +{playerAlternatives.length} {t(language, 'player.otherChannels', playerAlternatives.length)}
+   416→   416→            </span>
+   417→   417→          )}
+   418→   418→        </div>
+   419→   419→      </div>
+   420→   420→
+   421→   421→      {/* Video / Iframe content */}
+   422→   422→      <div
+   423→   423→        ref={containerRef}
+   424→   424→        className="flex-1 flex items-center justify-center relative"
+   425→   425→        onMouseMove={hideControlsAfterDelay}
+   426→   426→        onClick={isHls ? togglePlay : undefined}
+   427→   427→      >
+   428→   428→        {isIframe ? (
+   429→   429→          /* Iframe-based stream (e.g. from kora-api via proxy) */
+   430→   430→          <iframe
+   431→   431→            src={iframeSrc}
+   432→   432→            className="w-full h-full border-0"
+   433→   433→            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+   434→   434→            allowFullScreen
+   435→   435→            title={`${t(language, 'player.liveStream')}: ${playerChannelName}`}
+   436→   436→            referrerPolicy="no-referrer"
+   437→   437→            onError={() => {
+   438→   438→              console.warn('[VideoPlayer] iframe onError triggered');
+   439→   439→              setIframeError(true);
+   440→   440→            }}
+   441→   441→          />
+   442→   442→        ) : (
+   443→   443→          /* HLS video element */
+   444→   444→          <video
+   445→   445→            ref={videoRef}
+   446→   446→            className="w-full h-full object-contain"
+   447→   447→            playsInline
+   448→   448→            onClick={(e) => e.stopPropagation()}
+   449→   449→          />
+   450→   450→        )}
+   451→   451→
+   452→   452→        {/* Loading Overlay - only for HLS */}
+   453→   453→        {isLoading && (
+   454→   454→          <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+   455→   455→            <div className="flex flex-col items-center gap-4">
+   456→   456→              <div className="relative">
+   457→   457→                <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
+   458→   458→                  <Loader2 className="h-8 w-8 text-white/80 animate-spin" />
+   459→   459→                </div>
+   460→   460→                <div className="absolute inset-0 rounded-2xl bg-emerald-500/10 animate-ping opacity-20" />
+   461→   461→              </div>
+   462→   462→              <div className="text-center">
+   463→   463→                <p className="text-white/80 text-sm font-medium">{t(language, 'player.loadingStream')}</p>
+   464→   464→                <p className="text-white/30 text-xs mt-1">{t(language, 'player.autoNextChannel')}</p>
+   465→   465→              </div>
+   466→   466→            </div>
+   467→   467→          </div>
+   468→   468→        )}
+   469→   469→
+   470→   470→        {/* Error Overlay (HLS & general errors) */}
+   471→   471→        {streamError && (
+   472→   472→          <div className="absolute inset-0 flex items-center justify-center bg-black/85 p-4">
+   473→   473→            <div className="flex flex-col items-center gap-5 text-center max-w-md">
+   474→   474→              <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center">
+   475→   475→                <Tv className="h-8 w-8 text-red-400/80" />
+   476→   476→              </div>
+   477→   477→              <div>
+   478→   478→                <p className="text-white font-bold text-base mb-1">{t(language, 'player.channelUnavailable')}</p>
+   479→   479→                <p className="text-white/50 text-sm">{streamError}</p>
+   480→   480→                <p className="text-white/25 text-xs mt-2">
+   481→   481→                  {t(language, 'player.iptvUnstable')}
+   482→   482→                </p>
+   483→   483→              </div>
+   484→   484→
+   485→   485→              {/* Action buttons */}
+   486→   486→              <div className="flex flex-col gap-2 w-full max-w-xs">
+   487→   487→                <Button onClick={handleRetry} className="bg-white/8 hover:bg-white/15 text-white gap-2 rounded-xl h-10">
+   488→   488→                  <RefreshCw className="h-4 w-4" />
+   489→   489→                  {t(language, 'player.retry')}
+   490→   490→                </Button>
+   491→   491→
+   492→   492→                {hasAlternatives && (
+   493→   493→                  <div className="mt-2">
+   494→   494→                    <p className="text-white/40 text-xs mb-2 font-medium">{t(language, 'player.otherChannelsLabel')}</p>
+   495→   495→                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+   496→   496→                      {playerAlternatives.map((ch, idx) => (
+   497→   497→                        <button
+   498→   498→                          key={`${ch.url}-${idx}`}
+   499→   499→                          onClick={() => handleSwitchChannel(ch)}
+   500→   500→                          className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-left"
+   501→   501→                        >
+   502→   502→                          {ch.logo ? (
+   503→   503→                            <img
+   504→   504→                              src={ch.logo}
+   505→   505→                              alt=""
+   506→   506→                              className="w-7 h-7 rounded-lg object-contain shrink-0 bg-white/5"
+   507→   507→                              onError={(e) => {
+   508→   508→                                (e.target as HTMLImageElement).style.display = 'none';
+   509→   509→                              }}
+   510→   510→                            />
+   511→   511→                          ) : (
+   512→   512→                            <div className="w-7 h-7 rounded-lg bg-white/8 flex items-center justify-center shrink-0">
+   513→   513→                              <Tv className="h-3.5 w-3.5 text-white/40" />
+   514→   514→                            </div>
+   515→   515→                          )}
+   516→   516→                          <span className="text-white text-sm truncate flex-1">{ch.name}</span>
+   517→   517→                          <SkipForward className="h-3.5 w-3.5 text-white/30 shrink-0" />
+   518→   518→                        </button>
+   519→   519→                      ))}
+   520→   520→                    </div>
+   521→   521→                  </div>
+   522→   522→                )}
+   523→   523→
+   524→   524→                <Button variant="outline" onClick={closePlayer} className="mt-1 border-white/10 text-white/60 hover:bg-white/5 rounded-xl h-10">
+   525→   525→                  {t(language, 'player.back')}
+   526→   526→                </Button>
+   527→   527→              </div>
+   528→   528→            </div>
+   529→   529→          </div>
+   530→   530→        )}
+   531→   531→
+   532→   532→        {/* Iframe Error Overlay */}
+   533→   533→        {iframeError && !streamError && (
+   534→   534→          <div className="absolute inset-0 flex items-center justify-center bg-black/85 p-4">
+   535→   535→            <div className="flex flex-col items-center gap-5 text-center max-w-md">
+   536→   536→              <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center">
+   537→   537→                <Tv className="h-8 w-8 text-red-400/80" />
+   538→   538→              </div>
+   539→   539→              <div>
+   540→   540→                <p className="text-white font-bold text-base mb-1">{t(language, 'player.channelUnavailable')}</p>
+   541→   541→                <p className="text-white/50 text-sm">{t(language, 'player.iframeError')}</p>
+   542→   542→              </div>
+   543→   543→
+   544→   544→              <div className="flex flex-col gap-2 w-full max-w-xs">
+   545→   545→                <Button onClick={handleRetry} className="bg-white/8 hover:bg-white/15 text-white gap-2 rounded-xl h-10">
+   546→   546→                  <RefreshCw className="h-4 w-4" />
+   547→   547→                  {t(language, 'player.retry')}
+   548→   548→                </Button>
+   549→   549→
+   550→   550→                <Button
+   551→   551→                  onClick={handleTryResolve}
+   552→   552→                  disabled={isResolving}
+   553→   553→                  className="bg-white/8 hover:bg-white/15 text-white gap-2 rounded-xl h-10"
+   554→   554→                >
+   555→   555→                  {isResolving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+   556→   556→                  {t(language, 'player.tryDirectStream')}
+   557→   557→                </Button>
+   558→   558→
+   559→   559→                {hasAlternatives && (
+   560→   560→                  <div className="mt-2">
+   561→   561→                    <p className="text-white/40 text-xs mb-2 font-medium">{t(language, 'player.otherChannelsLabel')}</p>
+   562→   562→                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
+   563→   563→                      {playerAlternatives.map((ch, idx) => (
+   564→   564→                        <button
+   565→   565→                          key={`err-${ch.url}-${idx}`}
+   566→   566→                          onClick={() => handleSwitchChannel(ch)}
+   567→   567→                          className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-left"
+   568→   568→                        >
+   569→   569→                          {ch.logo ? (
+   570→   570→                            <img
+   571→   571→                              src={ch.logo}
+   572→   572→                              alt=""
+   573→   573→                              className="w-7 h-7 rounded-lg object-contain shrink-0 bg-white/5"
+   574→   574→                              onError={(e) => {
+   575→   575→                                (e.target as HTMLImageElement).style.display = 'none';
+   576→   576→                              }}
+   577→   577→                            />
+   578→   578→                          ) : (
+   579→   579→                            <div className="w-7 h-7 rounded-lg bg-white/8 flex items-center justify-center shrink-0">
+   580→   580→                              <Tv className="h-3.5 w-3.5 text-white/40" />
+   581→   581→                            </div>
+   582→   582→                          )}
+   583→   583→                          <span className="text-white text-sm truncate flex-1">{ch.name}</span>
+   584→   584→                          <SkipForward className="h-3.5 w-3.5 text-white/30 shrink-0" />
+   585→   585→                        </button>
+   586→   586→                      ))}
+   587→   587→                    </div>
+   588→   588→                  </div>
+   589→   589→                )}
+   590→   590→
+   591→   591→                <Button variant="outline" onClick={closePlayer} className="mt-1 border-white/10 text-white/60 hover:bg-white/5 rounded-xl h-10">
+   592→   592→                  {t(language, 'player.back')}
+   593→   593→                </Button>
+   594→   594→              </div>
+   595→   595→            </div>
+   596→   596→          </div>
+   597→   597→        )}
+   598→   598→
+   599→   599→        {/* Iframe Timeout Warning (non-blocking, appears at bottom) */}
+   600→   600→        {iframeTimedOut && !iframeError && !streamError && isIframe && (
+   601→   601→          <div className="absolute bottom-16 left-4 right-4 z-20 max-w-md mx-auto animate-fade-in">
+   602→   602→            <div className="bg-amber-900/60 backdrop-blur-xl border border-amber-500/20 rounded-xl p-3">
+   603→   603→              <p className="text-amber-200 text-xs font-medium mb-2.5">
+   604→   604→                {t(language, 'player.iframeLoadTimeout')}
+   605→   605→              </p>
+   606→   606→              <div className="flex flex-wrap gap-2">
+   607→   607→                <Button
+   608→   608→                  size="sm"
+   609→   609→                  onClick={handleTryResolve}
+   610→   610→                  disabled={isResolving}
+   611→   611→                  className="bg-amber-700/40 hover:bg-amber-600/40 text-amber-100 gap-1.5 text-xs h-8 rounded-lg"
+   612→   612→                >
+   613→   613→                  {isResolving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Globe className="h-3 w-3" />}
+   614→   614→                  {t(language, 'player.tryDirectStream')}
+   615→   615→                </Button>
+   616→   616→                <Button
+   617→   617→                  size="sm"
+   618→   618→                  onClick={handleRetry}
+   619→   619→                  className="bg-white/5 hover:bg-white/10 text-white/60 gap-1.5 text-xs h-8 rounded-lg"
+   620→   620→                >
+   621→   621→                  <RefreshCw className="h-3 w-3" />
+   622→   622→                  {t(language, 'player.retry')}
+   623→   623→                </Button>
+   624→   624→              </div>
+   625→   625→            </div>
+   626→   626→          </div>
+   627→   627→        )}
+   628→   628→
+   629→   629→        {/* Play/Pause Center Overlay - only for HLS */}
+   630→   630→        {!isIframe && !isLoading && !streamError && (
+   631→   631→          <div
+   632→   632→            className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+   633→   633→            onClick={(e) => e.stopPropagation()}
+   634→   634→          >
+   635→   635→            <Button
+   636→   636→              variant="ghost"
+   637→   637→              size="icon"
+   638→   638→              onClick={togglePlay}
+   639→   639→              className="text-white hover:bg-white/15 h-16 w-16 rounded-2xl"
+   640→   640→            >
+   641→   641→              {isPlaying ? <Pause className="h-10 w-10" /> : <Play className="h-10 w-10" />}
+   642→   642→            </Button>
+   643→   643→          </div>
+   644→   644→        )}
+   645→   645→      </div>
+   646→   646→
+   647→   647→      {/* Bottom Controls - only for HLS streams */}
+   648→   648→      {isHls && (
+   649→   649→        <div
+   650→   650→          className={`absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 pt-8 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+   651→   651→          onMouseMove={hideControlsAfterDelay}
+   652→   652→          onClick={(e) => e.stopPropagation()}
+   653→   653→        >
+   654→   654→          <div className="flex items-center justify-between">
+   655→   655→            <div className="flex items-center gap-1.5">
+   656→   656→              <Button
+   657→   657→                variant="ghost"
+   658→   658→                size="icon"
+   659→   659→                onClick={togglePlay}
+   660→   660→                className="text-white/90 hover:bg-white/15 h-9 w-9 rounded-xl"
+   661→   661→              >
+   662→   662→                {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+   663→   663→              </Button>
+   664→   664→              <Button
+   665→   665→                variant="ghost"
+   666→   666→                size="icon"
+   667→   667→                onClick={toggleMute}
+   668→   668→                className="text-white/90 hover:bg-white/15 h-9 w-9 rounded-xl"
+   669→   669→              >
+   670→   670→                {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+   671→   671→              </Button>
+   672→   672→              <span className="text-white/40 text-xs ml-2 font-medium truncate max-w-[200px]">{playerChannelName}</span>
+   673→   673→            </div>
+   674→   674→            <Button
+   675→   675→              variant="ghost"
+   676→   676→              size="icon"
+   677→   677→              onClick={toggleFullscreen}
+   678→   678→              className="text-white/90 hover:bg-white/15 h-9 w-9 rounded-xl"
+   679→   679→            >
+   680→   680→              {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+   681→   681→            </Button>
+   682→   682→          </div>
+   683→   683→        </div>
+   684→   684→      )}
+   685→   685→    </div>
+   686→   686→  );
+   687→   687→}
+   688→   688→

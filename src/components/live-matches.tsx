@@ -40,7 +40,7 @@ function getDateLabel(ymd: string, language: Language): string {
   const tomorrow = formatDateYMD(new Date(Date.now() + 86400000));
   const yesterday = formatDateYMD(new Date(Date.now() - 86400000));
 
-  if (ymd === today) return t(language, 'common.Today');
+  if (ymd === today) return t(language, 'common.today');
   if (ymd === tomorrow) return t(language, 'common.tomorrow');
   if (ymd === yesterday) {
     const d = new Date(Date.now() - 86400000);
