@@ -992,3 +992,33 @@ Stage Summary:
 - Embed streams are proxied through /api/proxy-stream and displayed in iframe
 - HesGoal stream resolution available for football matches
 - YouTube Live and official broadcasters still available as fallbacks
+---
+Task ID: 2
+Agent: main
+Task: Restore old free streaming API - integrate DaddyLive as primary free stream source
+
+Work Log:
+- Researched free sports streaming APIs using web search
+- Found DaddyLive (dlhd.st) has a public API with schedule + channels
+- Discovered nightah/daddylive GitHub repo with channels-data.json containing direct m3u8 stream URLs
+- Built /api/daddylive route that:
+  - Fetches schedule from dlhd.st/schedule/schedule-generated.json
+  - Fetches channels data from GitHub nightah/daddylive repo
+  - Maps events to channel IDs and resolves m3u8 stream URLs
+  - Returns streams with logos, groups, and event info
+- Built /api/stream-proxy route for m3u8 streams that need specific Origin/Referer headers
+- Updated StreamOptions component to:
+  - Fetch from BOTH DaddyLive AND kora-api/rojadirecta in parallel
+  - Show DaddyLive streams as "FLUX GRATUITS EN DIRECT" (primary)
+  - Show kora-api/rojadirecta streams as "AUTRES FLUX DISPONIBLES" (secondary)
+  - Handle m3u8 streams via stream-proxy
+  - Handle DaddyLive embed URLs by opening in new tab
+- Tested with Agent Browser: 4 free streams found for basketball, 2 for football
+- Lint passes clean
+
+Stage Summary:
+- DaddyLive API integrated as primary free stream source
+- Provides direct m3u8 stream URLs for hundreds of sports channels worldwide
+- beIN Sports, ESPN, TNT Sports, Sky Sports, Canal+ etc. all available
+- Schedule-based matching finds streams for any football/basketball match
+- Old kora-api and rojadirecta still available as backup sources

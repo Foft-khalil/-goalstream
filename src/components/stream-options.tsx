@@ -19,20 +19,14 @@ interface StreamOptionsProps {
 interface StreamResult {
   name: string;
   url: string;
-  lang: string;
-  langFlag: string;
+  lang?: string;
+  langFlag?: string;
   source: string;
-}
-
-interface StreamsApiResponse {
-  streams: StreamResult[];
-  matchId: number | null;
-  matchName: string | null;
-  isLive: boolean;
-  isExactMatch?: boolean;
-  isCompetitionMatch?: boolean;
-  source: string;
-  error?: string;
+  type?: 'm3u8' | 'embed';
+  channelLogo?: string;
+  group?: string;
+  eventTime?: string;
+  eventName?: string;
 }
 
 /**
@@ -49,37 +43,17 @@ function getOfficialBroadcasters(competition: string | null, sport: 'football' |
     }
     if (comp.includes('champions') || comp.includes('ucl')) {
       broadcasters.push({ name: 'Canal+ (UCL)', url: 'https://www.canalplus.com/', icon: '📺' });
-      broadcasters.push({ name: 'Paramount+', url: 'https://www.paramountplus.com/', icon: '📺' });
     }
     if (comp.includes('premier') || comp.includes('eng.1')) {
       broadcasters.push({ name: 'Sky Sports', url: 'https://www.skysports.com/', icon: '📺' });
-      broadcasters.push({ name: 'Peacock (NBC)', url: 'https://www.peacocktv.com/', icon: '📺' });
-    }
-    if (comp.includes('la liga') || comp.includes('esp.1')) {
-      broadcasters.push({ name: 'ESPN+', url: 'https://www.espn.com/espnplus/', icon: '📺' });
-      broadcasters.push({ name: 'beIN Sports', url: 'https://www.beinsports.com/fr/', icon: '📺' });
-    }
-    if (comp.includes('serie a') || comp.includes('ita.1')) {
-      broadcasters.push({ name: 'DAZN (Serie A)', url: 'https://www.dazn.com/', icon: '📺' });
-    }
-    if (comp.includes('bundesliga') || comp.includes('ger.1')) {
-      broadcasters.push({ name: 'ESPN+', url: 'https://www.espn.com/espnplus/', icon: '📺' });
-    }
-    if (comp.includes('mls') || comp.includes('usa.1')) {
-      broadcasters.push({ name: 'MLS Season Pass (Apple TV)', url: 'https://tv.apple.com/channel/mls', icon: '📺' });
     }
     if (broadcasters.length === 0) {
       broadcasters.push({ name: 'DAZN', url: 'https://www.dazn.com/', icon: '📺' });
       broadcasters.push({ name: 'beIN Sports', url: 'https://www.beinsports.com/', icon: '📺' });
-      broadcasters.push({ name: 'ESPN+', url: 'https://www.espn.com/espnplus/', icon: '📺' });
     }
   } else {
     if (comp.includes('nba')) {
       broadcasters.push({ name: 'NBA League Pass', url: 'https://www.nba.com/watch/league-pass', icon: '🏀' });
-      broadcasters.push({ name: 'NBA TV', url: 'https://www.nba.com/watch/nba-tv', icon: '🏀' });
-    }
-    if (comp.includes('euroleague') || comp.includes('euroleague')) {
-      broadcasters.push({ name: 'EuroLeague TV', url: 'https://www.euroleaguebasketball.net/euroleague/watch/', icon: '🏀' });
     }
     if (broadcasters.length === 0) {
       broadcasters.push({ name: 'NBA League Pass', url: 'https://www.nba.com/watch/league-pass', icon: '🏀' });
@@ -97,6 +71,15 @@ function isM3u8Url(url: string): boolean {
   return url.includes('.m3u8') || url.includes('m3u8');
 }
 
+/**
+ * Get a proxied m3u8 URL that adds the proper Origin/Referer headers
+ */
+function getProxiedM3u8(url: string): string {
+  if (!isM3u8Url(url)) return url;
+  // Route through our stream-proxy which adds proper headers
+  return `/api/stream-proxy?url=${encodeURIComponent(url)}`;
+}
+
 export default function StreamOptions({
   isOpen,
   onClose,
@@ -108,61 +91,60 @@ export default function StreamOptions({
 }: StreamOptionsProps) {
   const { openPlayer, language } = useAppStore();
   const [loading, setLoading] = useState(false);
-  const [streams, setStreams] = useState<StreamResult[]>([]);
+  const [daddyliveStreams, setDaddyliveStreams] = useState<StreamResult[]>([]);
+  const [koraStreams, setKoraStreams] = useState<StreamResult[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [matchInfo, setMatchInfo] = useState<{ name: string | null; isExactMatch: boolean; isLive: boolean }>({
-    name: null,
-    isExactMatch: false,
-    isLive: false,
-  });
 
   const fetchStreams = useCallback(async () => {
     if (!isOpen) return;
 
     setLoading(true);
     setApiError(null);
-    setStreams([]);
+    setDaddyliveStreams([]);
+    setKoraStreams([]);
 
-    try {
-      const res = await fetch('/api/streams', {
+    // Fetch from BOTH sources in parallel
+    const [daddyliveResult, koraResult] = await Promise.allSettled([
+      // Source 1: DaddyLive (PRIMARY - has direct m3u8 streams)
+      fetch(`/api/daddylive?homeTeam=${encodeURIComponent(homeTeam)}&awayTeam=${encodeURIComponent(awayTeam)}&sport=${sport}`)
+        .then(r => r.json())
+        .then(data => (data.streams || []) as StreamResult[])
+        .catch(() => [] as StreamResult[]),
+
+      // Source 2: kora-api + rojadirecta (SECONDARY)
+      fetch('/api/streams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          homeTeam,
-          awayTeam,
-          competition: competition || '',
-          sport,
-        }),
-      });
+        body: JSON.stringify({ homeTeam, awayTeam, competition: competition || '', sport }),
+      })
+        .then(r => r.json())
+        .then(data => (data.streams || []) as StreamResult[])
+        .catch(() => [] as StreamResult[]),
+    ]);
 
-      if (!res.ok) {
-        throw new Error(`Server error: ${res.status}`);
-      }
-
-      const data: StreamsApiResponse = await res.json();
-
-      if (data.error) {
-        setApiError(data.error);
-      }
-
-      setStreams(data.streams || []);
-      setMatchInfo({
-        name: data.matchName,
-        isExactMatch: data.isExactMatch || false,
-        isLive: data.isLive || false,
-      });
-    } catch (err: any) {
-      console.error('[StreamOptions] Error fetching streams:', err);
-      setApiError(err.message || 'Failed to fetch streams');
-      setStreams([]);
-    } finally {
-      setLoading(false);
+    if (daddyliveResult.status === 'fulfilled') {
+      setDaddyliveStreams(daddyliveResult.value);
     }
+    if (koraResult.status === 'fulfilled') {
+      setKoraStreams(koraResult.value);
+    }
+
+    if (daddyliveResult.status === 'rejected' && koraResult.status === 'rejected') {
+      setApiError('Impossible de charger les flux');
+    }
+
+    setLoading(false);
   }, [isOpen, homeTeam, awayTeam, competition, sport]);
 
   useEffect(() => {
     if (isOpen) {
-      fetchStreams();
+      let cancelled = false;
+      const doFetch = async () => {
+        if (cancelled) return;
+        await fetchStreams();
+      };
+      doFetch();
+      return () => { cancelled = true; };
     }
   }, [isOpen, fetchStreams]);
 
@@ -175,57 +157,44 @@ export default function StreamOptions({
   const youtubeLiveQuery = encodeURIComponent(`${homeTeam} vs ${awayTeam} ${competition || ''} live ${year}`);
   const youtubeLiveUrl = `https://www.youtube.com/results?search_query=${youtubeLiveQuery}`;
 
+  // Merge all streams, DaddyLive first
+  const allM3u8Streams = [
+    ...daddyliveStreams.filter(s => s.type === 'm3u8' || isM3u8Url(s.url)),
+    ...koraStreams.filter(s => isM3u8Url(s.url)),
+  ];
+  const allEmbedStreams = [
+    ...daddyliveStreams.filter(s => s.type === 'embed' && !isM3u8Url(s.url)),
+    ...koraStreams.filter(s => !isM3u8Url(s.url)),
+  ];
+  const hasAnyStreams = allM3u8Streams.length > 0 || allEmbedStreams.length > 0;
+
   /**
-   * Play a stream - either in-app video player (m3u8) or via proxy (embed)
-   * The VideoPlayer component handles proxying internally via getProxiedUrl()
+   * Play a stream
    */
   const handlePlayStream = (stream: StreamResult) => {
     const url = stream.url;
 
     if (isM3u8Url(url)) {
-      // Direct m3u8 stream - play in-app
-      openPlayer(url, stream.name, undefined);
+      // DaddyLive m3u8 streams are behind Cloudflare and need proper Origin/Referer
+      // Try stream-proxy first, but if it fails, open via dlhd embed page
+      // Route through our stream-proxy which adds the required headers
+      const proxiedUrl = getProxiedM3u8(url);
+      openPlayer(proxiedUrl, stream.name, stream.channelLogo || undefined);
+    } else if (url.includes('dlhd.click') || url.includes('dlhd.st')) {
+      // DaddyLive embed page — open in new tab (their player handles the stream)
+      window.open(url, '_blank', 'noopener,noreferrer');
     } else {
-      // Embed URL - pass directly to video player; it will:
-      // 1. Try resolve-stream to find m3u8 behind the embed
-      // 2. Fall back to iframe with proxy if m3u8 can't be resolved
-      // For unknown domains, open in new tab instead
-      const knownStreamDomains = ['streams.center', 'streamcenter.pro', 'fltvhd.com', 'go4score.app', 'smartagro.mov', 'goalz.zip', 'futbolonlinehd.com', 'kora-api'];
+      // Other embed URLs — try in video player for known domains
+      const knownStreamDomains = ['streams.center', 'streamcenter.pro', 'fltvhd.com', 'go4score.app', 'smartagro.mov'];
       const isKnownDomain = knownStreamDomains.some(d => url.includes(d));
 
       if (isKnownDomain) {
-        // Pass original URL - VideoPlayer handles proxying internally
-        openPlayer(url, stream.name, undefined);
+        openPlayer(url, stream.name, stream.channelLogo || undefined);
       } else {
-        // Open in new tab
         window.open(url, '_blank', 'noopener,noreferrer');
       }
     }
   };
-
-  /**
-   * Try to resolve a HesGoal stream for the match
-   */
-  const handleHesGoalStream = async () => {
-    if (!matchId) return;
-
-    try {
-      const res = await fetch(`/api/hesgoal-stream?id=${matchId}`);
-      if (!res.ok) throw new Error('Failed to resolve stream');
-      const data = await res.json();
-
-      if (data.url) {
-        // Pass URL directly to video player - it handles proxying internally
-        openPlayer(data.url, `HesGoal - ${homeTeam} vs ${awayTeam}`, undefined);
-      }
-    } catch (err) {
-      console.error('[StreamOptions] Error resolving HesGoal stream:', err);
-    }
-  };
-
-  // Separate streams by type for display ordering
-  const m3u8Streams = streams.filter(s => isM3u8Url(s.url));
-  const embedStreams = streams.filter(s => !isM3u8Url(s.url));
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center animate-fade-in">
@@ -252,26 +221,29 @@ export default function StreamOptions({
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          {/* Free Streams from kora-api / rojadirecta — TOP PRIORITY */}
-          {!loading && streams.length > 0 && (
+          {/* Free m3u8 Streams — TOP PRIORITY (DaddyLive + others) */}
+          {!loading && allM3u8Streams.length > 0 && (
             <div>
               <h3 className="text-[10px] font-bold text-emerald-500/70 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
                 <Zap className="h-3 w-3" />
                 Flux gratuits en direct
-                {matchInfo.isExactMatch && (
-                  <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[8px] font-bold">MATCH EXACT</span>
-                )}
+                <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[8px] font-bold">
+                  {allM3u8Streams.length} FLUX
+                </span>
               </h3>
-              <div className="space-y-1.5">
-                {/* M3U8 streams first (playable in-app) */}
-                {m3u8Streams.map((stream, idx) => (
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {allM3u8Streams.map((stream, idx) => (
                   <button
                     key={`m3u8-${idx}`}
                     onClick={() => handlePlayStream(stream)}
                     className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl bg-emerald-500/8 hover:bg-emerald-500/15 border border-emerald-500/20 transition-all duration-200 active:scale-[0.98]"
                   >
                     <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                      <Play className="h-5 w-5 text-emerald-500 fill-emerald-500" />
+                      {stream.channelLogo ? (
+                        <img src={stream.channelLogo} alt="" className="w-7 h-7 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      ) : (
+                        <Play className="h-5 w-5 text-emerald-500 fill-emerald-500" />
+                      )}
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <div className="flex items-center gap-2">
@@ -282,34 +254,45 @@ export default function StreamOptions({
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-muted-foreground/40">{stream.langFlag} {stream.lang}</span>
-                        <span className="text-[10px] text-emerald-500/50">• Lecture directe</span>
+                        {stream.group && <span className="text-[10px] text-muted-foreground/30">{stream.group}</span>}
+                        <span className="text-[10px] text-emerald-500/50">• via {stream.source}</span>
+                        {stream.eventTime && <span className="text-[10px] text-muted-foreground/30">• {stream.eventTime}</span>}
                       </div>
                     </div>
                     <Play className="h-4 w-4 text-emerald-500/40 shrink-0" />
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
 
-                {/* Embed streams (open via proxy or new tab) */}
-                {embedStreams.map((stream, idx) => (
+          {/* Embed streams (secondary — from kora-api / rojadirecta) */}
+          {!loading && allEmbedStreams.length > 0 && (
+            <div>
+              <h3 className="text-[10px] font-bold text-blue-500/70 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                <Globe className="h-3 w-3" />
+                Autres flux disponibles
+              </h3>
+              <div className="space-y-1.5">
+                {allEmbedStreams.map((stream, idx) => (
                   <button
                     key={`embed-${idx}`}
                     onClick={() => handlePlayStream(stream)}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-emerald-500/8 border border-emerald-500/10 transition-all duration-200 active:scale-[0.98]"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-blue-500/8 border border-blue-500/10 transition-all duration-200 active:scale-[0.98]"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                      <Tv className="h-4 w-4 text-emerald-500" />
+                    <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                      <Tv className="h-4 w-4 text-blue-500" />
                     </div>
                     <div className="flex-1 text-left min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-emerald-400">{stream.name}</span>
+                        <span className="text-sm font-semibold text-blue-400">{stream.name}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-muted-foreground/40">{stream.langFlag} {stream.lang}</span>
-                        <span className="text-[10px] text-emerald-500/30">• via {stream.source}</span>
+                        {stream.langFlag && <span className="text-[10px] text-muted-foreground/40">{stream.langFlag} {stream.lang}</span>}
+                        <span className="text-[10px] text-blue-500/30">• via {stream.source}</span>
                       </div>
                     </div>
-                    <ExternalLink className="h-3.5 w-3.5 text-emerald-500/20 shrink-0" />
+                    <ExternalLink className="h-3.5 w-3.5 text-blue-500/20 shrink-0" />
                   </button>
                 ))}
               </div>
@@ -320,12 +303,12 @@ export default function StreamOptions({
           {loading && (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-emerald-500/40" />
-              <p className="text-xs text-muted-foreground/40">Recherche de flux en cours...</p>
+              <p className="text-xs text-muted-foreground/40">Recherche de flux gratuits...</p>
             </div>
           )}
 
           {/* No streams found */}
-          {!loading && streams.length === 0 && !apiError && (
+          {!loading && !hasAnyStreams && !apiError && (
             <div className="flex flex-col items-center justify-center py-6 gap-2">
               <AlertCircle className="h-6 w-6 text-muted-foreground/20" />
               <p className="text-xs text-muted-foreground/40 text-center">Aucun flux gratuit trouvé pour ce match</p>
@@ -337,29 +320,6 @@ export default function StreamOptions({
             <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-red-500/5 border border-red-500/10">
               <AlertCircle className="h-3.5 w-3.5 text-red-500/70 shrink-0 mt-0.5" />
               <p className="text-[10px] text-red-500/60 leading-relaxed">{apiError}</p>
-            </div>
-          )}
-
-          {/* HesGoal direct link (for football matches with matchId) */}
-          {sport === 'football' && matchId && (
-            <div>
-              <h3 className="text-[10px] font-bold text-blue-500/70 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                <Globe className="h-3 w-3" />
-                HesGoal
-              </h3>
-              <button
-                onClick={handleHesGoalStream}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-blue-500/8 border border-blue-500/10 transition-all duration-200 active:scale-[0.98]"
-              >
-                <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                  <Globe className="h-4 w-4 text-blue-500" />
-                </div>
-                <div className="flex-1 text-left min-w-0">
-                  <span className="text-sm font-semibold text-blue-400">Regarder sur HesGoal</span>
-                  <p className="text-[10px] text-muted-foreground/30 truncate">Résolution automatique du flux</p>
-                </div>
-                <Play className="h-3.5 w-3.5 text-blue-500/20 shrink-0" />
-              </button>
             </div>
           )}
 
@@ -410,9 +370,7 @@ export default function StreamOptions({
                   </div>
                   <div className="flex-1 text-left min-w-0">
                     <span className="text-sm font-medium text-muted-foreground/70">{b.name}</span>
-                    <p className="text-[10px] text-muted-foreground/25 truncate">
-                      Diffusion officielle
-                    </p>
+                    <p className="text-[10px] text-muted-foreground/25 truncate">Diffusion officielle</p>
                   </div>
                   <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/15 shrink-0" />
                 </button>
@@ -424,7 +382,7 @@ export default function StreamOptions({
           <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10">
             <Shield className="h-3.5 w-3.5 text-amber-500/70 shrink-0 mt-0.5" />
             <p className="text-[10px] text-amber-500/60 leading-relaxed">
-              {t(language, 'stream.disclaimer') || 'Les flux peuvent ne pas être disponibles dans toutes les régions. Utilisez des sources officielles pour la meilleure qualité.'}
+              {t(language, 'stream.disclaimer') || 'Les flux peuvent ne pas être disponibles dans toutes les régions.'}
             </p>
           </div>
 
