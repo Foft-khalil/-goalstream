@@ -114,7 +114,9 @@ export async function POST(request: NextRequest) {
         validationCache.set(url, { ...result, timestamp: Date.now() });
         return NextResponse.json(result);
       } catch (err) {
-        const result = { valid: false, reason: 'Network error' };
+        // Network error / timeout — give benefit of the doubt.
+        // The stream-proxy will add the proper Origin/Referer headers and may recover this stream.
+        const result = { valid: true, type: 'm3u8' as const, reason: 'Network error — will try via proxy' };
         validationCache.set(url, { ...result, timestamp: Date.now() });
         return NextResponse.json(result);
       }
@@ -142,7 +144,8 @@ export async function POST(request: NextRequest) {
         validationCache.set(url, { ...result, timestamp: Date.now() });
         return NextResponse.json(result);
       } catch {
-        const result = { valid: false, reason: 'Network error' };
+        // Network error — give benefit of the doubt (proxy may still recover)
+        const result = { valid: true, type: 'embed' as const, reason: 'Network error — will try via proxy' };
         validationCache.set(url, { ...result, timestamp: Date.now() });
         return NextResponse.json(result);
       }

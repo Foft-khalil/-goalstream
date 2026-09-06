@@ -90,7 +90,7 @@ export default function MatchCard({ match }: MatchCardProps) {
       setAutoSearching(true);
       setAutoSearchError(null);
       try {
-        const res = await fetch(`/api/find-stream?homeTeam=${encodeURIComponent(match.homeTeam)}&awayTeam=${encodeURIComponent(match.awayTeam)}&sport=${sportType}`);
+        const res = await fetch(`/api/find-stream?homeTeam=${encodeURIComponent(match.homeTeam)}&awayTeam=${encodeURIComponent(match.awayTeam)}&sport=${sportType}&competition=${encodeURIComponent(match.competition || '')}`);
         const data = await res.json();
 
         if (data.found && data.stream) {

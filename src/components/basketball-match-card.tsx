@@ -50,7 +50,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
     if (isLive || isAboutToStart) {
       setAutoSearching(true);
       try {
-        const res = await fetch(`/api/find-stream?homeTeam=${encodeURIComponent(match.homeTeam)}&awayTeam=${encodeURIComponent(match.awayTeam)}&sport=basketball`);
+        const res = await fetch(`/api/find-stream?homeTeam=${encodeURIComponent(match.homeTeam)}&awayTeam=${encodeURIComponent(match.awayTeam)}&sport=basketball&competition=${encodeURIComponent(match.competition || '')}`);
         const data = await res.json();
 
         if (data.found && data.stream) {

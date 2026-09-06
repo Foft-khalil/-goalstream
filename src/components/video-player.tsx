@@ -65,6 +65,7 @@ export default function VideoPlayer() {
   const retryCountRef = useRef(0);
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
   const currentAltIndexRef = useRef(0);
+  const watchdogRef = useRef<NodeJS.Timeout | null>(null);
 
   // Track ready/error state with associated URL so they auto-reset when URL changes
   const [readyUrl, setReadyUrl] = useState<string>('');
@@ -218,10 +219,10 @@ export default function VideoPlayer() {
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         startLevel: -1,
-        manifestLoadingTimeOut: 10000,
-        manifestLoadingMaxRetry: 1,
-        levelLoadingTimeOut: 10000,
-        levelLoadingMaxRetry: 1,
+        manifestLoadingTimeOut: 8000,
+        manifestLoadingMaxRetry: 0,  // Don't retry — fall back to next channel immediately
+        levelLoadingTimeOut: 8000,
+        levelLoadingMaxRetry: 0,
         fragLoadingTimeOut: 10000,
         fragLoadingMaxRetry: 1,
       });
@@ -229,7 +230,19 @@ export default function VideoPlayer() {
       hls.loadSource(currentUrl);
       hls.attachMedia(video);
 
+      // Watchdog: if manifest not parsed within 9s, force-try next channel (faster cycling)
+      let manifestParsed = false;
+      const watchdog = setTimeout(() => {
+        if (!manifestParsed && hlsRef.current) {
+          console.log('[VideoPlayer] Watchdog: manifest not loaded in 9s, trying next channel');
+          if (tryNextChannel()) return;
+        }
+      }, 9000);
+      watchdogRef.current = watchdog;
+
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        manifestParsed = true;
+        if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
         setReadyUrl(currentUrl);
         video.play().then(() => setIsPlaying(true)).catch(() => {});
       });
@@ -281,6 +294,7 @@ export default function VideoPlayer() {
     }
 
     return () => {
+      if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;

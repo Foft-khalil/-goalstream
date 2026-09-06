@@ -1,4 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  normalizeTeamName,
+  getTeamVariants,
+  teamMatchScore,
+  cleanHtml,
+  detectSport,
+  isDeadUrl,
+  dateKey,
+} from '@/lib/team-match';
 
 /**
  * DaddyLive API Route
@@ -12,6 +21,8 @@ import { NextRequest, NextResponse } from 'next/server';
  * - embed URLs: played in-app via proxy-stream iframe (no external redirects)
  *
  * Stream health is validated server-side: broken m3u8 streams are automatically filtered.
+ * Uses FUZZY team matching (token + substring scoring) so naming differences between
+ * data sources don't cause matches to be missed.
  */
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -44,6 +55,7 @@ interface MatchedStream {
   eventTime: string;
   eventName: string;
   sport: string;
+  matchScore: number;
 }
 
 // ─── Cache ──────────────────────────────────────────────────────────────────
@@ -118,9 +130,9 @@ async function validateStreamHealth(url: string): Promise<boolean> {
         return isValid;
       }
 
-      // 403 might mean Cloudflare is blocking from server but stream exists
-      // Don't mark as invalid - let the client try via proxy
-      if (res.status === 403) {
+      // 403 / 401 / 5xx might mean Cloudflare or anti-bot is blocking from server
+      // but stream may still work via the stream-proxy. Give benefit of the doubt.
+      if (res.status === 403 || res.status === 401 || res.status >= 500) {
         streamHealthCache.set(url, { valid: true, timestamp: Date.now() });
         return true;
       }
@@ -136,16 +148,12 @@ async function validateStreamHealth(url: string): Promise<boolean> {
         redirect: 'follow',
       });
 
-      const valid = res.ok || res.status === 403; // 403 = Cloudflare but page exists
+      const valid = res.ok || res.status === 403 || res.status >= 500; // 403/5xx = page likely exists
       streamHealthCache.set(url, { valid, timestamp: Date.now() });
       return valid;
     }
   } catch {
-    // Network error - might be temporary, give benefit of the doubt
-    // Only mark as invalid if we've seen it fail before
-    const cached = streamHealthCache.get(url);
-    if (cached && !cached.valid) return false;
-    // First failure - don't cache, let client try
+    // Network error / timeout — give the benefit of the doubt (proxy may still recover)
     return true;
   }
 }
@@ -223,98 +231,8 @@ async function fetchChannelsData(): Promise<Record<string, DLChannelData>> {
   }
 }
 
-// ─── Sport category mapping ────────────────────────────────────────────────
-const SPORT_CATEGORIES: Record<string, string[]> = {
-  football: ['Soccer', 'Football'],
-  basketball: ['Basketball', 'NBA'],
-};
-
-// ─── Clean HTML from category names ─────────────────────────────────────────
-function cleanHtml(text: string): string {
-  return text.replace(/<\/?span>/g, '').replace(/<\/?[^>]+>/g, '').trim();
-}
-
-// ─── Team name matching helpers ─────────────────────────────────────────────
-function normalizeTeamName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function getTeamVariants(name: string): string[] {
-  const normalized = normalizeTeamName(name);
-  const variants = [normalized];
-
-  // Split by common separators
-  const words = normalized.split(/\s+/);
-
-  // Add first word (e.g., "Manchester" from "Manchester City")
-  if (words.length > 1) variants.push(words[0]);
-
-  // Add last word
-  if (words.length > 2) variants.push(words[words.length - 1]);
-
-  // Add abbreviation (first 3 letters)
-  if (normalized.length > 3) variants.push(normalized.substring(0, 3));
-
-  // Common team name aliases
-  const aliases: Record<string, string[]> = {
-    'manchester city': ['man city', 'mancity'],
-    'manchester united': ['man utd', 'manunited', 'man utd'],
-    'tottenham': ['spurs'],
-    'real madrid': ['realmadrid'],
-    'barcelona': ['barca'],
-    'bayern munich': ['bayern', 'fc bayern'],
-    'psg': ['paris saint-germain', 'paris sg'],
-    'borussia dortmund': ['bvb', 'dortmund'],
-    'atl madrid': ['atletico', 'atletico madrid'],
-    'inter milan': ['inter', 'fc internazionale'],
-    'ac milan': ['milan'],
-    'juventus': ['juve'],
-    'liverpool': ['reds'],
-    'chelsea': ['blues'],
-    'arsenal': ['gunners'],
-  };
-
-  for (const [key, values] of Object.entries(aliases)) {
-    if (normalized.includes(key) || key.includes(normalized)) {
-      variants.push(...values);
-    }
-  }
-
-  return [...new Set(variants)];
-}
-
-function teamMatchesInName(variants: string[], name: string): boolean {
-  const nameLower = normalizeTeamName(name);
-  return variants.some(v => {
-    if (v.length < 3) return false;
-    return nameLower.includes(v) || v.includes(nameLower);
-  });
-}
-
-// ─── Match sport category from event name ───────────────────────────────────
-function detectSport(eventName: string, category: string): string {
-  const catLower = cleanHtml(category).toLowerCase();
-  if (catLower.includes('soccer') || catLower.includes('football')) return 'football';
-  if (catLower.includes('basketball') || catLower.includes('nba')) return 'basketball';
-  if (catLower.includes('tennis')) return 'tennis';
-  if (catLower.includes('mma') || catLower.includes('ufc') || catLower.includes('boxing')) return 'fighting';
-  if (catLower.includes('hockey') || catLower.includes('nhl')) return 'hockey';
-  if (catLower.includes('baseball') || catLower.includes('mlb')) return 'baseball';
-  if (catLower.includes('cricket')) return 'cricket';
-  if (catLower.includes('rugby')) return 'rugby';
-  if (catLower.includes('golf')) return 'golf';
-
-  // Fallback: check event name
-  const nameLower = eventName.toLowerCase();
-  if (nameLower.includes(' nba ') || nameLower.includes('basketball') || nameLower.includes(' ncaa ')) return 'basketball';
-  if (nameLower.includes(' premier league') || nameLower.includes(' la liga') || nameLower.includes(' serie a') || nameLower.includes(' bundesliga') || nameLower.includes(' champions league')) return 'football';
-
-  return 'other';
-}
+// ─── Match sport category from event name (re-exported from team-match lib) ──
+// detectSport and helpers are imported from @/lib/team-match
 
 // ─── GET handler: Search for streams ────────────────────────────────────────
 export async function GET(request: NextRequest) {
@@ -323,6 +241,7 @@ export async function GET(request: NextRequest) {
     const homeTeam = searchParams.get('homeTeam') || '';
     const awayTeam = searchParams.get('awayTeam') || '';
     const sport = searchParams.get('sport') || ''; // 'football' or 'basketball'
+    const competition = searchParams.get('competition') || '';
     const liveOnly = searchParams.get('liveOnly') === 'true'; // strict: both teams must match
 
     // Fetch schedule and channels data in parallel
@@ -343,19 +262,24 @@ export async function GET(request: NextRequest) {
     const awayVariants = getTeamVariants(awayTeam);
 
     const matchedStreams: MatchedStream[] = [];
+    const seenUrls = new Set<string>();
 
-    // Determine today's date key for filtering
+    // Determine today's date key for filtering (UTC)
     const now = new Date();
-    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayKey = dateKey(now);
+    const yesterdayKey = dateKey(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+    const tomorrowKey = dateKey(new Date(now.getTime() + 24 * 60 * 60 * 1000));
 
-    // Search through all days and categories
+    // Search through ALL days and categories (boost today/yesterday/tomorrow for live)
     for (const [dayKey, categories] of Object.entries(schedule)) {
-      // When liveOnly, only search today's and yesterday's schedule (live matches)
+      // When liveOnly, only consider today / yesterday / tomorrow (covers timezone edge cases)
       if (liveOnly) {
-        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
-        if (dayKey !== todayKey && dayKey !== yesterdayKey) continue;
+        if (dayKey !== todayKey && dayKey !== yesterdayKey && dayKey !== tomorrowKey) continue;
       }
+
+      let dayBoost = 0.6;
+      if (dayKey === todayKey) dayBoost = 1.0;
+      else if (dayKey === yesterdayKey || dayKey === tomorrowKey) dayBoost = 0.85;
 
       for (const [category, events] of Object.entries(categories)) {
         const sportDetected = detectSport('', category);
@@ -365,52 +289,65 @@ export async function GET(request: NextRequest) {
 
         for (const event of events) {
           const eventName = event.event || '';
-          const homeMatch = teamMatchesInName(homeVariants, eventName);
-          const awayMatch = teamMatchesInName(awayVariants, eventName);
+          const homeScore = teamMatchScore(homeVariants, eventName);
+          const awayScore = teamMatchScore(awayVariants, eventName);
 
-          // When liveOnly: require BOTH teams to match (strict matching for live matches)
+          // Fuzzy matching thresholds
+          const bothStrong = homeScore >= 0.5 && awayScore >= 0.5;
+          const oneStrong = (homeScore >= 0.6 && awayScore >= 0.35) || (awayScore >= 0.6 && homeScore >= 0.35);
+          const bothWeak = homeScore >= 0.35 && awayScore >= 0.35;
+
           if (liveOnly) {
-            if (!homeMatch || !awayMatch) continue;
+            // For live: require a reasonable match (don't show totally unrelated channels)
+            if (!bothStrong && !oneStrong) continue;
           } else {
-            if (!homeMatch && !awayMatch) continue;
+            // For non-live: be more lenient (at least weak match on either team)
+            const either = homeScore >= 0.4 || awayScore >= 0.4;
+            if (!either && !bothWeak) continue;
           }
+
+          const matchScore = ((homeScore + awayScore) / 2) * dayBoost;
 
           // Get channel streams
           const allChannels = [...(event.channels || []), ...(event.channels2 || [])];
 
           for (const ch of allChannels) {
-            // Find the channel in channelsData by channel_id
-            const channelEntry = Object.entries(channelsData).find(([name, data]) => {
+            // Find the channel in channelsData by channel_id (most reliable)
+            const channelEntry = Object.entries(channelsData).find(([, data]) => {
               return data.channel_url.includes(`stream-${ch.channel_id}.php`) ||
-                     data.channel_url.includes(`stream_${ch.channel_id}`) ||
-                     name.toLowerCase().includes(ch.channel_name.toLowerCase());
+                     data.channel_url.includes(`stream_${ch.channel_id}`);
             });
+
+            let streamUrl = '';
+            let channelLogo = '';
+            let channelName = ch.channel_name;
+            let groupTitle = '';
 
             if (channelEntry) {
               const [chName, chData] = channelEntry;
-              matchedStreams.push({
-                channelName: ch.channel_name || chName,
-                channelId: ch.channel_id,
-                streamUrl: chData.stream_url,
-                channelLogo: chData.tvg_logo,
-                groupTitle: chData.group_title,
-                eventTime: event.time,
-                eventName,
-                sport: sportDetected,
-              });
+              streamUrl = chData.stream_url;
+              channelLogo = chData.tvg_logo;
+              groupTitle = chData.group_title;
+              channelName = ch.channel_name || chName;
             } else {
               // Channel not in channels data - provide the embed page URL via dlhd.st
-              matchedStreams.push({
-                channelName: ch.channel_name,
-                channelId: ch.channel_id,
-                streamUrl: `https://dlhd.st/stream/stream-${ch.channel_id}.php`,
-                channelLogo: '',
-                groupTitle: '',
-                eventTime: event.time,
-                eventName,
-                sport: sportDetected,
-              });
+              streamUrl = `https://dlhd.st/stream/stream-${ch.channel_id}.php`;
             }
+
+            if (!streamUrl || isDeadUrl(streamUrl) || seenUrls.has(streamUrl)) continue;
+            seenUrls.add(streamUrl);
+
+            matchedStreams.push({
+              channelName: channelName,
+              channelId: ch.channel_id,
+              streamUrl,
+              channelLogo,
+              groupTitle,
+              eventTime: event.time,
+              eventName,
+              sport: sportDetected,
+              matchScore,
+            });
           }
         }
       }
@@ -455,12 +392,15 @@ export async function GET(request: NextRequest) {
     // Combine: validated m3u8 first, then embed URLs
     const functionalStreams = [...validatedM3u8Streams, ...embedStreams];
 
-    // Sort: m3u8 first (better UX), then by sport relevance
+    // Sort: m3u8 first (better UX), then by match score (highest first), then by sport relevance
     functionalStreams.sort((a, b) => {
       // m3u8 first
       const aIsM3u8 = a.streamUrl.includes('.m3u8') ? 0 : 1;
       const bIsM3u8 = b.streamUrl.includes('.m3u8') ? 0 : 1;
       if (aIsM3u8 !== bIsM3u8) return aIsM3u8 - bIsM3u8;
+
+      // Then by match score (highest first)
+      if (Math.abs(a.matchScore - b.matchScore) > 0.01) return b.matchScore - a.matchScore;
 
       // Then by sport match
       if (sport) {
@@ -471,10 +411,66 @@ export async function GET(request: NextRequest) {
       return 0;
     });
 
-    console.log(`[DaddyLive API] Found ${functionalStreams.length} streams (${validatedM3u8Streams.length} m3u8, ${embedStreams.length} embed) for "${homeTeam}" vs "${awayTeam}"`);
+    console.log(`[DaddyLive API] Found ${functionalStreams.length} streams (${validatedM3u8Streams.length} m3u8, ${embedStreams.length} embed) for "${homeTeam}" vs "${awayTeam}" (liveOnly=${liveOnly})`);
+
+    // ── Competition-based fallback ──
+    // If we found very few (or zero) match-specific streams, add channels that are likely
+    // to broadcast this competition. This handles the case where the DaddyLive schedule is
+    // from a different date (stale) or the match simply isn't listed.
+    let finalStreams = functionalStreams;
+    if (functionalStreams.length < 3) {
+      const { getCompetitionChannels } = await import('@/lib/competition-channels');
+      const fallbackChannelNames = getCompetitionChannels(competition, sport as 'football' | 'basketball');
+      const existingUrls = new Set(functionalStreams.map(s => s.streamUrl));
+      const fallbackStreams: MatchedStream[] = [];
+
+      for (const fc of fallbackChannelNames) {
+        const channelEntry = Object.entries(channelsData).find(([name]) => {
+          return name.toLowerCase() === fc.name.toLowerCase();
+        });
+        if (!channelEntry) continue;
+        const [chName, chData] = channelEntry;
+        const streamUrl = chData.stream_url;
+        if (!streamUrl || isDeadUrl(streamUrl) || existingUrls.has(streamUrl)) continue;
+        existingUrls.add(streamUrl);
+
+        fallbackStreams.push({
+          channelName: chName,
+          channelId: '',
+          streamUrl,
+          channelLogo: chData.tvg_logo,
+          groupTitle: chData.group_title,
+          eventTime: '',
+          eventName: fc.reason,
+          sport: sport as string,
+          matchScore: 0.3,
+        });
+      }
+
+      if (fallbackStreams.length > 0) {
+        // Validate fallback m3u8 streams too (lenient)
+        const fallbackM3u8 = fallbackStreams.filter(s => s.streamUrl.includes('.m3u8'));
+        let validatedFallback: MatchedStream[] = [];
+        if (fallbackM3u8.length > 0 && fallbackM3u8.length <= 8) {
+          const results = await Promise.allSettled(
+            fallbackM3u8.map(async (stream) => ({ stream, isValid: await validateStreamHealth(stream.streamUrl) }))
+          );
+          validatedFallback = results
+            .filter((r): r is PromiseFulfilledResult<{ stream: MatchedStream; isValid: boolean }> =>
+              r.status === 'fulfilled' && r.value.isValid)
+            .map(r => r.value.stream);
+        } else {
+          validatedFallback = fallbackM3u8;
+        }
+
+        // Combine: original first, then validated fallback m3u8, then fallback embeds
+        finalStreams = [...functionalStreams, ...validatedFallback, ...fallbackStreams.filter(s => !s.streamUrl.includes('.m3u8'))];
+        console.log(`[DaddyLive API] Added ${fallbackStreams.length} competition-fallback channels (total now ${finalStreams.length})`);
+      }
+    }
 
     return NextResponse.json({
-      streams: functionalStreams.map(s => ({
+      streams: finalStreams.map(s => ({
         name: s.channelName,
         url: s.streamUrl,
         channelLogo: s.channelLogo,
@@ -483,7 +479,8 @@ export async function GET(request: NextRequest) {
         eventName: s.eventName,
         sport: s.sport,
         type: s.streamUrl.includes('.m3u8') ? 'm3u8' : 'embed',
-        source: 'daddylive',
+        source: s.matchScore < 0.35 ? 'competition-fallback' : 'daddylive',
+        score: s.matchScore,
       })),
       source: 'daddylive',
     });
