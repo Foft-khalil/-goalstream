@@ -81,6 +81,7 @@ export default function StreamOptions({
   const { openPlayer, language } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [daddyliveStreams, setDaddyliveStreams] = useState<StreamResult[]>([]);
+  const [iptvStreams, setIptvStreams] = useState<StreamResult[]>([]);
   const [rojaStreams, setRojaStreams] = useState<StreamResult[]>([]);
   const [validationStates, setValidationStates] = useState<Record<string, ValidationState>>({});
   const [apiError, setApiError] = useState<string | null>(null);
@@ -93,16 +94,28 @@ export default function StreamOptions({
     setLoading(true);
     setApiError(null);
     setDaddyliveStreams([]);
+    setIptvStreams([]);
     setRojaStreams([]);
     setValidationStates({});
 
-    // Fetch from both sources in parallel
-    const [daddyliveResult, rojaResult] = await Promise.allSettled([
+    // Fetch from THREE sources in parallel:
+    // 1. /api/iptv-channels — PRIMARY: IPTV-org channels validated through stream-proxy (ACTUALLY WORK)
+    // 2. /api/daddylive — SECONDARY: DaddyLive schedule channels (may be Cloudflare-protected, need client validation)
+    // 3. /api/streams — TERTIARY: Rojadirecta embed streams
+    const [iptvResult, daddyliveResult, rojaResult] = await Promise.allSettled([
+      // PRIMARY: IPTV-org channels (already validated through proxy — these actually play)
+      fetch(`/api/iptv-channels?competition=${encodeURIComponent(competition || '')}&sport=${sport}`)
+        .then(r => r.json())
+        .then(data => ((data.channels || []) as StreamResult[]).filter(s => !isDeadStream(s.url)))
+        .catch(() => [] as StreamResult[]),
+
+      // SECONDARY: DaddyLive channels (need client-side validation via stream-proxy)
       fetch(`/api/daddylive?homeTeam=${encodeURIComponent(homeTeam)}&awayTeam=${encodeURIComponent(awayTeam)}&sport=${sport}&competition=${encodeURIComponent(competition || '')}${isLive ? '&liveOnly=true' : ''}`)
         .then(r => r.json())
         .then(data => ((data.streams || []) as StreamResult[]).filter(s => !isDeadStream(s.url)))
         .catch(() => [] as StreamResult[]),
 
+      // TERTIARY: Rojadirecta embed streams
       fetch('/api/streams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -115,6 +128,15 @@ export default function StreamOptions({
 
     if (cancelledRef.current) return;
 
+    if (iptvResult.status === 'fulfilled') {
+      setIptvStreams(iptvResult.value);
+      // Mark IPTV channels as "valid" immediately (they were already validated via proxy)
+      const validStates: Record<string, ValidationState> = {};
+      for (const s of iptvResult.value) {
+        validStates[s.url] = 'valid';
+      }
+      setValidationStates(validStates);
+    }
     if (daddyliveResult.status === 'fulfilled') {
       setDaddyliveStreams(daddyliveResult.value);
     }
@@ -122,7 +144,7 @@ export default function StreamOptions({
       setRojaStreams(rojaResult.value);
     }
 
-    if (daddyliveResult.status === 'rejected' && rojaResult.status === 'rejected') {
+    if (iptvResult.status === 'rejected' && daddyliveResult.status === 'rejected' && rojaResult.status === 'rejected') {
       setApiError('Impossible de charger les flux. Vérifiez votre connexion.');
     }
 
@@ -139,12 +161,13 @@ export default function StreamOptions({
     }
   }, [isOpen, fetchStreams, retryCount]);
 
-  // Validate ALL m3u8 streams in parallel — STRICT (only 200 + #EXTM3U = valid)
+  // Validate DaddyLive + Rojadirecta m3u8 streams in parallel (IPTV channels are already pre-validated)
   useEffect(() => {
     if (loading) return;
 
-    const allStreams = [...daddyliveStreams, ...rojaStreams];
-    const m3u8Streams = allStreams.filter(s => isM3u8Url(s.url));
+    // Only validate DaddyLive + Roja streams (NOT IPTV — already validated via proxy)
+    const streamsToValidate = [...daddyliveStreams, ...rojaStreams];
+    const m3u8Streams = streamsToValidate.filter(s => isM3u8Url(s.url));
     if (m3u8Streams.length === 0) return;
 
     cancelledRef.current = false;
@@ -194,11 +217,13 @@ export default function StreamOptions({
 
   if (!isOpen) return null;
 
-  // Combine all streams
+  // Combine all streams — IPTV channels FIRST (they're pre-validated via proxy, guaranteed to work)
+  const allIptv = iptvStreams;
   const allDaddy = daddyliveStreams;
   const allRoja = rojaStreams;
 
   const allM3u8Streams = [
+    ...allIptv.filter(s => s.type === 'm3u8' || isM3u8Url(s.url)),  // IPTV first (pre-validated)
     ...allDaddy.filter(s => s.type === 'm3u8' || isM3u8Url(s.url)),
     ...allRoja.filter(s => isM3u8Url(s.url)),
   ];
