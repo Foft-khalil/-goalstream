@@ -11,6 +11,21 @@ import LiveMatchClock from '@/components/live-match-clock';
 import MatchTracker from '@/components/match-tracker';
 import StreamOptions from '@/components/stream-options';
 
+// Fetch with timeout — rejects if the request takes longer than `ms` milliseconds.
+// This prevents the UI from hanging if find-stream is slow (e.g., DaddyLive schedule fetch timeout).
+async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    return res;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
 interface MatchCardProps {
   match: {
     id: string;
@@ -85,16 +100,21 @@ export default function MatchCard({ match }: MatchCardProps) {
       return;
     }
 
-    // For live matches, try to auto-find a working stream
+    // For live matches, try to auto-find a working stream (find-stream is now INSTANT ~50-200ms)
     if (isLive || isAboutToStart) {
       setAutoSearching(true);
       setAutoSearchError(null);
       try {
-        const res = await fetch(`/api/find-stream?homeTeam=${encodeURIComponent(match.homeTeam)}&awayTeam=${encodeURIComponent(match.awayTeam)}&sport=${sportType}&competition=${encodeURIComponent(match.competition || '')}`);
+        // Race find-stream against a 5s timeout — handles cold cache on first page load
+        // (schedule fetch takes ~2-3s on cold cache, ~20ms when warm)
+        const res = await fetchWithTimeout(
+          `/api/find-stream?homeTeam=${encodeURIComponent(match.homeTeam)}&awayTeam=${encodeURIComponent(match.awayTeam)}&sport=${sportType}&competition=${encodeURIComponent(match.competition || '')}`,
+          5000
+        );
         const data = await res.json();
 
         if (data.found && data.stream) {
-          // Found a working stream! Play it immediately
+          // Found a candidate stream! Play it immediately (validation happens in the player)
           const alternatives = (data.alternatives || []).map((a: any) => ({
             name: a.name,
             url: a.url,
@@ -110,17 +130,17 @@ export default function MatchCard({ match }: MatchCardProps) {
           return;
         }
 
-        // No working stream found — show stream options as fallback
+        // No candidate found — show stream options panel (which fetches from daddylive + streams APIs)
         setAutoSearching(false);
         setShowStreamOptions(true);
       } catch {
-        // Auto-search failed — fall back to stream options
+        // Auto-search failed/timed out — fall back to stream options panel immediately
         setAutoSearching(false);
         setAutoSearchError('Recherche automatique échouée');
         setShowStreamOptions(true);
       }
     } else {
-      // Non-live match → show stream options panel
+      // Non-live match → show stream options panel directly
       setShowStreamOptions(true);
     }
   };

@@ -422,6 +422,13 @@ export default function Home() {
     }
   }, [setTheme, setLanguage]);
 
+  // Pre-warm the DaddyLive schedule + channels cache so the first "Watch Live"
+  // click is instant (no 9s wait for the schedule fetch on first call).
+  useEffect(() => {
+    // Fire and forget — we don't care about the result, just want to populate the cache.
+    fetch('/api/warmup').catch(() => {});
+  }, []);
+
   useEffect(() => {
     // Initial fetch: today's matches first (fast), then near future in background
     const timer = setTimeout(() => {

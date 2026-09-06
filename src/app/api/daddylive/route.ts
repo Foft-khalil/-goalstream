@@ -8,6 +8,7 @@ import {
   isDeadUrl,
   dateKey,
 } from '@/lib/team-match';
+import { fetchSchedule, fetchChannelsData } from '@/lib/daddylive-cache';
 
 /**
  * DaddyLive API Route
@@ -58,24 +59,15 @@ interface MatchedStream {
   matchScore: number;
 }
 
-// ─── Cache ──────────────────────────────────────────────────────────────────
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-}
-
-const SCHEDULE_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
-const CHANNELS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes (channels change less often)
-
-const scheduleCache = new Map<string, CacheEntry<Record<string, Record<string, DLEvent[]>>>>();
-const channelsCache = new Map<string, CacheEntry<Record<string, DLChannelData>>>();
-
-// Stream health cache: URL → { valid, timestamp }
+// Stream health cache: URL → { valid, timestamp } (local to this route)
+// Use globalThis to survive HMR in dev mode.
 interface HealthEntry {
   valid: boolean;
   timestamp: number;
 }
-const streamHealthCache = new Map<string, HealthEntry>();
+const _g = globalThis as unknown as { __dlHealthCache?: Map<string, HealthEntry> };
+if (!_g.__dlHealthCache) _g.__dlHealthCache = new Map();
+const streamHealthCache = _g.__dlHealthCache;
 const HEALTH_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 
 const COMMON_HEADERS: Record<string, string> = {
@@ -158,78 +150,8 @@ async function validateStreamHealth(url: string): Promise<boolean> {
   }
 }
 
-// ─── Fetch schedule from dlhd.st ────────────────────────────────────────────
-async function fetchSchedule(): Promise<Record<string, Record<string, DLEvent[]>>> {
-  const cacheKey = 'schedule';
-  const cached = scheduleCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < SCHEDULE_CACHE_TTL) {
-    return cached.data;
-  }
-
-  try {
-    console.log('[DaddyLive API] Fetching schedule...');
-    const res = await fetch('https://dlhd.st/schedule/schedule-generated.json', {
-      headers: COMMON_HEADERS,
-      signal: AbortSignal.timeout(15000),
-    });
-
-    if (!res.ok) {
-      console.warn(`[DaddyLive API] Schedule returned HTTP ${res.status}`);
-      return cached?.data || {};
-    }
-
-    const data = await res.json();
-    scheduleCache.set(cacheKey, { data, timestamp: Date.now() });
-    console.log(`[DaddyLive API] Fetched schedule with ${Object.keys(data).length} days`);
-    return data;
-  } catch (err) {
-    console.warn('[DaddyLive API] Error fetching schedule:', err);
-    return cached?.data || {};
-  }
-}
-
-// ─── Fetch channels data from GitHub ────────────────────────────────────────
-async function fetchChannelsData(): Promise<Record<string, DLChannelData>> {
-  const cacheKey = 'channels';
-  const cached = channelsCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CHANNELS_CACHE_TTL) {
-    return cached.data;
-  }
-
-  try {
-    console.log('[DaddyLive API] Fetching channels data...');
-    const res = await fetch(
-      'https://raw.githubusercontent.com/nightah/daddylive/main/daddylive-channels-data.json',
-      {
-        headers: COMMON_HEADERS,
-        signal: AbortSignal.timeout(15000),
-      }
-    );
-
-    if (!res.ok) {
-      console.warn(`[DaddyLive API] Channels data returned HTTP ${res.status}`);
-      return cached?.data || {};
-    }
-
-    const data = await res.json();
-
-    // Remove GLOBAL_OPTIONS key as it's not a channel
-    const channels: Record<string, DLChannelData> = {};
-    for (const [key, value] of Object.entries(data)) {
-      if (key === 'GLOBAL_OPTIONS') continue;
-      if (typeof value === 'object' && value !== null && 'stream_url' in (value as any)) {
-        channels[key] = value as DLChannelData;
-      }
-    }
-
-    channelsCache.set(cacheKey, { data: channels, timestamp: Date.now() });
-    console.log(`[DaddyLive API] Fetched ${Object.keys(channels).length} channels`);
-    return channels;
-  } catch (err) {
-    console.warn('[DaddyLive API] Error fetching channels data:', err);
-    return cached?.data || {};
-  }
-}
+// ─── Fetch schedule + channels data: now imported from @/lib/daddylive-cache (shared module) ──
+// This ensures find-stream, daddylive, and warmup routes share the SAME cache instance.
 
 // ─── Match sport category from event name (re-exported from team-match lib) ──
 // detectSport and helpers are imported from @/lib/team-match
@@ -256,6 +178,17 @@ export async function GET(request: NextRequest) {
         source: 'daddylive',
         error: 'Could not fetch DaddyLive data',
       });
+    }
+
+    // Build O(1) lookup maps for channels (was O(n) per channel with Object.entries().find())
+    const channelsById = new Map<string, { name: string; data: DLChannelData }>();
+    const channelsByName = new Map<string, { name: string; data: DLChannelData }>();
+    for (const [name, data] of Object.entries(channelsData)) {
+      const match1 = data.channel_url.match(/stream-(\d+)\.php/);
+      const match2 = data.channel_url.match(/stream_(\d+)/);
+      const id = match1?.[1] || match2?.[1];
+      if (id) channelsById.set(id, { name, data });
+      channelsByName.set(name.toLowerCase(), { name, data });
     }
 
     const homeVariants = getTeamVariants(homeTeam);
@@ -312,11 +245,8 @@ export async function GET(request: NextRequest) {
           const allChannels = [...(event.channels || []), ...(event.channels2 || [])];
 
           for (const ch of allChannels) {
-            // Find the channel in channelsData by channel_id (most reliable)
-            const channelEntry = Object.entries(channelsData).find(([, data]) => {
-              return data.channel_url.includes(`stream-${ch.channel_id}.php`) ||
-                     data.channel_url.includes(`stream_${ch.channel_id}`);
-            });
+            // O(1) lookup by channel_id (was O(n) with Object.entries().find())
+            const channelEntry = channelsById.get(ch.channel_id);
 
             let streamUrl = '';
             let channelLogo = '';
@@ -324,7 +254,7 @@ export async function GET(request: NextRequest) {
             let groupTitle = '';
 
             if (channelEntry) {
-              const [chName, chData] = channelEntry;
+              const { name: chName, data: chData } = channelEntry;
               streamUrl = chData.stream_url;
               channelLogo = chData.tvg_logo;
               groupTitle = chData.group_title;
@@ -425,11 +355,10 @@ export async function GET(request: NextRequest) {
       const fallbackStreams: MatchedStream[] = [];
 
       for (const fc of fallbackChannelNames) {
-        const channelEntry = Object.entries(channelsData).find(([name]) => {
-          return name.toLowerCase() === fc.name.toLowerCase();
-        });
+        // O(1) lookup by name (was O(n) with Object.entries().find())
+        const channelEntry = channelsByName.get(fc.name.toLowerCase());
         if (!channelEntry) continue;
-        const [chName, chData] = channelEntry;
+        const { name: chName, data: chData } = channelEntry;
         const streamUrl = chData.stream_url;
         if (!streamUrl || isDeadUrl(streamUrl) || existingUrls.has(streamUrl)) continue;
         existingUrls.add(streamUrl);

@@ -12,13 +12,16 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 
 // Cache for validation results (3 min TTL)
+// Use globalThis to survive HMR in dev mode.
 interface ValidationEntry {
   valid: boolean;
   type?: string;
   reason?: string;
   timestamp: number;
 }
-const validationCache = new Map<string, ValidationEntry>();
+const _g = globalThis as unknown as { __streamValCache?: Map<string, ValidationEntry> };
+if (!_g.__streamValCache) _g.__streamValCache = new Map();
+const validationCache = _g.__streamValCache;
 const CACHE_TTL = 3 * 60 * 1000; // 3 minutes
 
 const COMMON_HEADERS: Record<string, string> = {

@@ -11,6 +11,20 @@ import { BasketballLiveClock } from '@/components/live-match-clock';
 import BasketballMatchTracker from '@/components/basketball-match-tracker';
 import StreamOptions from '@/components/stream-options';
 
+// Fetch with timeout — rejects if the request takes longer than `ms` milliseconds.
+async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    return res;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
 interface BasketballMatchCardProps {
   match: BasketballMatch;
 }
@@ -46,11 +60,15 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
   const canWatchLive = isLive || isAboutToStart;
 
   const handleWatchLive = async () => {
-    // For live basketball matches, auto-find a working stream
+    // For live basketball matches, auto-find a working stream (find-stream is now INSTANT ~50-200ms)
     if (isLive || isAboutToStart) {
       setAutoSearching(true);
       try {
-        const res = await fetch(`/api/find-stream?homeTeam=${encodeURIComponent(match.homeTeam)}&awayTeam=${encodeURIComponent(match.awayTeam)}&sport=basketball&competition=${encodeURIComponent(match.competition || '')}`);
+        // Race find-stream against a 5s timeout — handles cold cache on first page load
+        const res = await fetchWithTimeout(
+          `/api/find-stream?homeTeam=${encodeURIComponent(match.homeTeam)}&awayTeam=${encodeURIComponent(match.awayTeam)}&sport=basketball&competition=${encodeURIComponent(match.competition || '')}`,
+          5000
+        );
         const data = await res.json();
 
         if (data.found && data.stream) {

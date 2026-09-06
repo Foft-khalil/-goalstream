@@ -196,6 +196,80 @@ export default function VideoPlayer() {
     return false;
   }, [playerAlternatives, openPlayer]);
 
+  // ── Background validation of alternatives ──
+  // While the current channel is loading, validate all alternatives in parallel.
+  // If a confirmed-VALID alternative is found AND the current channel hasn't started
+  // playing yet, switch to the valid one immediately (skip the watchdog wait).
+  const validAltUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!playerVisible || !playerAlternatives || playerAlternatives.length === 0) {
+      validAltUrlRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+    validAltUrlRef.current = null;
+
+    // Only validate alternatives that are m3u8 (proxied URLs)
+    const m3u8Alts = playerAlternatives.filter(a => a.url && a.url.includes('stream-proxy'));
+    if (m3u8Alts.length === 0) return;
+
+    // Extract the original m3u8 URL from the proxied URL for validation
+    const extractOrigUrl = (proxied: string): string => {
+      try {
+        const u = new URL(proxied, window.location.origin);
+        return u.searchParams.get('url') || proxied;
+      } catch { return proxied; }
+    };
+
+    console.log(`[VideoPlayer] Background-validating ${m3u8Alts.length} alternatives`);
+
+    // Validate all alternatives in parallel
+    Promise.allSettled(
+      m3u8Alts.map(async (alt) => {
+        const origUrl = extractOrigUrl(alt.url);
+        try {
+          const res = await fetch('/api/stream-validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: origUrl }),
+            signal: AbortSignal.timeout(8000),
+          });
+          const data = await res.json();
+          return { alt, valid: data.valid === true, reason: data.reason };
+        } catch {
+          // Network error — benefit of the doubt
+          return { alt, valid: true, reason: 'network error (benefit of doubt)' };
+        }
+      })
+    ).then((results) => {
+      if (cancelled) return;
+
+      // Find the FIRST confirmed-valid alternative (in original order)
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value.valid) {
+          validAltUrlRef.current = r.value.alt.url;
+          console.log(`[VideoPlayer] ✓ Validated alternative: ${r.value.alt.name} (${r.value.reason})`);
+          break;
+        }
+      }
+
+      // If we found a valid alternative and the current channel hasn't started playing,
+      // switch to it immediately (don't wait for the 5s watchdog)
+      if (validAltUrlRef.current && !readyUrl) {
+        const validAlt = m3u8Alts.find(a => a.url === validAltUrlRef.current);
+        if (validAlt) {
+          console.log(`[VideoPlayer] ⚡ Switching to pre-validated channel: ${validAlt.name}`);
+          const remaining = playerAlternatives!.filter(a => a.url !== validAlt.url);
+          openPlayer(validAlt.url, validAlt.name, validAlt.logo || undefined, remaining);
+        }
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [playerVisible, playerAlternatives, openPlayer, readyUrl]);
+
   // Setup HLS player (only for HLS URLs, including resolved m3u8)
   useEffect(() => {
     if (!playerVisible || !videoRef.current || !effectiveUrl || !isHls) return;
@@ -219,25 +293,26 @@ export default function VideoPlayer() {
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         startLevel: -1,
-        manifestLoadingTimeOut: 8000,
-        manifestLoadingMaxRetry: 0,  // Don't retry — fall back to next channel immediately
-        levelLoadingTimeOut: 8000,
+        manifestLoadingTimeOut: 5000,    // faster timeout (was 8s)
+        manifestLoadingMaxRetry: 0,
+        levelLoadingTimeOut: 5000,       // faster timeout
         levelLoadingMaxRetry: 0,
-        fragLoadingTimeOut: 10000,
+        fragLoadingTimeOut: 8000,
         fragLoadingMaxRetry: 1,
       });
 
       hls.loadSource(currentUrl);
       hls.attachMedia(video);
 
-      // Watchdog: if manifest not parsed within 9s, force-try next channel (faster cycling)
+      // Watchdog: if manifest not parsed within 5s, force-try next channel (was 9s)
       let manifestParsed = false;
+      let hlsDestroyed = false;
       const watchdog = setTimeout(() => {
-        if (!manifestParsed && hlsRef.current) {
-          console.log('[VideoPlayer] Watchdog: manifest not loaded in 9s, trying next channel');
+        if (!manifestParsed && !hlsDestroyed) {
+          console.log('[VideoPlayer] Watchdog: 5s timeout, trying next channel');
           if (tryNextChannel()) return;
         }
-      }, 9000);
+      }, 5000);
       watchdogRef.current = watchdog;
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -249,23 +324,33 @@ export default function VideoPlayer() {
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
+          // Don't retry network errors — the stream-proxy returns 502 immediately for 403/Cloudflare,
+          // and retrying just wastes time. Fall back to next channel instantly.
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              if (retryCountRef.current < 1) {
-                retryCountRef.current += 1;
-                hls.startLoad();
-              } else {
-                if (tryNextChannel()) return;
-                setErrorInfo({ url: currentUrl, msg: t(language, 'player.streamUnavailable') });
-                hls.destroy();
-              }
+              console.log('[VideoPlayer] Fatal network error, falling back (no retry)');
+              if (watchdogRef.current) { clearTimeout(watchdogRef.current); watchdogRef.current = null; }
+              if (tryNextChannel()) return;
+              setErrorInfo({ url: currentUrl, msg: t(language, 'player.streamUnavailable') });
+              hlsDestroyed = true;
+              hls.destroy();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              hls.recoverMediaError();
+              // Recover media error once
+              if (retryCountRef.current < 1) {
+                retryCountRef.current += 1;
+                hls.recoverMediaError();
+              } else {
+                if (tryNextChannel()) return;
+                setErrorInfo({ url: currentUrl, msg: t(language, 'player.playbackError') });
+                hlsDestroyed = true;
+                hls.destroy();
+              }
               break;
             default:
               if (tryNextChannel()) return;
               setErrorInfo({ url: currentUrl, msg: t(language, 'player.playbackError') });
+              hlsDestroyed = true;
               hls.destroy();
               break;
           }
@@ -474,8 +559,14 @@ export default function VideoPlayer() {
                 <div className="absolute inset-0 rounded-2xl bg-emerald-500/10 animate-ping opacity-20" />
               </div>
               <div className="text-center">
-                <p className="text-white/80 text-sm font-medium">{t(language, 'player.loadingStream')}</p>
-                <p className="text-white/30 text-xs mt-1">{t(language, 'player.autoNextChannel')}</p>
+                <p className="text-white text-sm font-semibold">{t(language, 'player.loadingStream')}</p>
+                <p className="text-white/50 text-xs mt-1">{playerChannelName}</p>
+                <p className="text-white/30 text-[10px] mt-2">{t(language, 'player.autoNextChannel')}</p>
+                {playerAlternatives && playerAlternatives.length > 0 && (
+                  <p className="text-emerald-400/60 text-[10px] mt-1">
+                    Test de {playerAlternatives.length} autre{playerAlternatives.length > 1 ? 's' : ''} chaîne{playerAlternatives.length > 1 ? 's' : ''} en arrière-plan…
+                  </p>
+                )}
               </div>
             </div>
           </div>

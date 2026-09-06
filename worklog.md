@@ -1257,3 +1257,84 @@ Stage Summary:
 - Works for ALL live matches: Premier League, La Liga, Serie A, Bundesliga, Ligue 1, MLS, Saudi Pro League, NBA, Euroleague, NCAA, women's leagues
 - Robust to: stale DaddyLive schedule, naming differences, Cloudflare-protected streams, network errors
 - Root cause was schedule date mismatch (DaddyLive March 2025 vs ESPN Sept 2026) + strict team matching + aggressive validation — all three fixed
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix slow stream loading — clicking a live match took too long, channel cycling was 9s per channel
+
+Work Log:
+- Diagnosed TWO distinct slowness issues via user screenshot analysis + dev log inspection:
+  1. find-stream API took 2.8s+ because it validated 7+ m3u8 candidates in parallel (5s timeout each)
+  2. Video player watchdog was 9s per channel — with 7+ channels, worst case was 63s of cycling
+- Root cause #1: find-stream did server-side validation before returning, adding 2.5-5s latency
+- Root cause #2: O(n) channel lookups with Object.entries().find() on 729 channels × 900 lookups = 650k comparisons
+- Root cause #3: Module-level caches lost across HMR (Hot Module Replacement) in dev mode, so warmup didn't benefit find-stream
+- Root cause #4: Player watchdog at 9s + retried network errors once = ~18s per failed channel
+
+Fixes implemented:
+
+1. **find-stream returns INSTANTLY** (no validation):
+   - Removed all server-side validation from find-stream
+   - Returns the best heuristic candidate immediately (~20ms with cache warm)
+   - Player's watchdog + HLS error handling do the real-time validation
+   - Added competition-based fallback channels as before
+
+2. **O(1) channel lookups** (was O(n)):
+   - Built channelsById and channelsByName lookup Maps before the matching loop
+   - find-stream matching time: 2.5s → 4ms (600x faster)
+   - Applied to both find-stream and daddylive routes
+
+3. **Shared cache module** (`/home/z/my-project/src/lib/daddylive-cache.ts`):
+   - Extracted schedule + channels fetch + cache into a shared module
+   - find-stream, daddylive, and warmup all import the SAME cache instance
+   - warmupCaches() function pre-fetches both caches
+
+4. **globalThis for cache persistence**:
+   - Module-level Maps replaced with globalThis-attached Maps
+   - Survives HMR in dev mode (was the root cause of warmup not benefiting find-stream)
+   - Applied to: daddylive-cache (schedule + channels), daddylive streamHealthCache, stream-validate validationCache
+
+5. **Warmup endpoint + app-load warmup**:
+   - New /api/warmup endpoint calls warmupCaches() to pre-populate the shared cache
+   - page.tsx calls fetch('/api/warmup') on mount (fire-and-forget)
+   - First user click is instant because cache is already warm
+
+6. **Video player fast cycling**:
+   - Watchdog reduced from 9s to 5s
+   - Network errors (502 from proxy) fall back immediately — NO retry (was 1 retry = 2x slower)
+   - manifestLoadingTimeOut reduced from 8s to 5s
+   - Media errors still recover once (recoverMediaError)
+
+7. **Background validation of alternatives**:
+   - While the first channel loads, all alternatives are validated in parallel via /api/stream-validate
+   - When a confirmed-VALID alternative is found AND the current channel hasn't started playing, the player switches immediately (⚡) — no waiting for the 5s watchdog
+   - Validated alternatives marked with reason ("Cloudflare protected", "OK", etc.)
+
+8. **Improved loading UI**:
+   - Shows the channel name being tested
+   - Shows "Test de N autres chaînes en arrière-plan…" progress text
+   - User knows the system is actively testing channels, not frozen
+
+9. **5s timeout on handleWatchLive** (was 2s):
+   - Handles cold cache gracefully (schedule fetch takes ~2-3s on first page load)
+   - If find-stream takes >5s, falls back to StreamOptions panel
+   - Added fetchWithTimeout utility to both match-card.tsx and basketball-match-card.tsx
+
+Performance results verified:
+- find-stream: 2.8s → 16-40ms (with cache warm) — 100x faster
+- First call after page load: ~2.7s (cold cache, waiting for warmup) then instant
+- Player opens: ~100ms after find-stream returns
+- Channel cycling: ~100-500ms per channel (was 9-18s) — 20-100x faster
+- Agent Browser verified: clicked Watch Live → VIDEO PLAYER opened in 1s with "beIN SPORTS Australia 1"
+- Console logs show fast cycling: "Fatal network error, falling back (no retry)" → immediate switch
+- Pre-validated alternatives: "⚡ Switching to pre-validated channel: beIN SPORTS 2 France" — instant switch
+
+Stage Summary:
+- Clicking a live match now opens the video player in ~1-3s (was 9-63s)
+- Channel cycling is 20-100x faster (immediate fallback on 502, no retry, pre-validation)
+- Background validation finds working channels and switches to them instantly (⚡)
+- Warmup on app load ensures cache is pre-populated before user clicks
+- globalThis cache persistence works across HMR in dev mode
+- O(1) channel lookups eliminate the 2.5s matching bottleneck
+- Lint passes clean, no compile errors
