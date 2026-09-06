@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchSportsChannels, isSportsChannel, type ParsedChannel } from '@/lib/iptv';
 
 /**
- * IPTV Channel Search API
+ * IPTV Channel Search API — DEEP VALIDATION
  *
- * Searches the IPTV-org playlists for channels matching a competition's broadcasters.
- * Each channel is validated through the stream-proxy (the actual playback path) —
- * only channels that return 200 + #EXTM3U are returned as "available".
+ * Searches IPTV-org playlists for channels matching a competition's broadcasters.
+ * Each channel is validated through the stream-proxy with a DEEP check:
+ *  - For master playlists: follows sub-playlist, then fetches first segment
+ *  - For media playlists: fetches first segment directly
+ *  - Only channels where BOTH playlist AND first segment return 200 are returned.
  *
- * This is the DEFINITIVE way to find channels that ACTUALLY play, because we test
- * through the same proxy that the video player uses.
+ * This ensures "DISPONIBLE" really means the channel will play end-to-end.
  *
  * GET /api/iptv-channels?competition=Premier League&sport=football
  */
@@ -17,7 +18,7 @@ import { fetchSportsChannels, isSportsChannel, type ParsedChannel } from '@/lib/
 // ─── Competition → channel name keywords mapping ──────────────────────────
 const COMPETITION_KEYWORDS: Record<string, { keywords: string[]; excludeKeywords?: string[] }> = {
   'premier league': {
-    keywords: ['sky sports', 'tnt sport', 'premier sport', 'talksport'],
+    keywords: ['sky sports', 'tnt sport', 'premier sport', 'talksport', 'btsport'],
     excludeKeywords: ['news', 'racing', 'golf', 'tennis', 'cricket', 'darts'],
   },
   'la liga': {
@@ -25,19 +26,19 @@ const COMPETITION_KEYWORDS: Record<string, { keywords: string[]; excludeKeywords
     excludeKeywords: ['news', 'nba', 'nfl'],
   },
   'serie a': {
-    keywords: ['dazn', 'sky sport', 'tnt sport', 'premium', 'mediaset', 'rai sport'],
+    keywords: ['dazn', 'sky sport', 'tnt sport', 'premium', 'mediaset', 'rai sport', 'arena sport'],
     excludeKeywords: ['news', 'bundesliga'],
   },
   'bundesliga': {
-    keywords: ['dazn', 'sky sport', 'euro sport', 'sport 1'],
+    keywords: ['dazn', 'sky sport', 'euro sport', 'sport 1', 'arena sport', 'digi sport', 'go3'],
     excludeKeywords: ['news'],
   },
   'ligue 1': {
     keywords: ['canal+', 'canal +', 'bein sport', "l'equipe", 'equipe tv', 'rmc sport', 'prime video'],
-    excludeKeywords: ['news', 'moto', 'rugby'],
+    excludeKeywords: ['news', 'moto', 'rugby', 'cinema'],
   },
   'mls': {
-    keywords: ['fox sport', 'espn', 'apple tv', 'mls'],
+    keywords: ['fox sport', 'espn', 'apple tv', 'mls', 'tsn', 'sportsnet'],
     excludeKeywords: ['news'],
   },
   'saudi pro league': {
@@ -53,7 +54,7 @@ const COMPETITION_KEYWORDS: Record<string, { keywords: string[]; excludeKeywords
     excludeKeywords: ['news'],
   },
   'nba': {
-    keywords: ['nba tv', 'espn', 'tnt', 'nba league pass'],
+    keywords: ['nba tv', 'espn', 'tnt', 'nba league pass', 'fox sport'],
     excludeKeywords: ['news', 'golf'],
   },
   'euroleague': {
@@ -61,7 +62,7 @@ const COMPETITION_KEYWORDS: Record<string, { keywords: string[]; excludeKeywords
     excludeKeywords: ['news'],
   },
   'ncaa': {
-    keywords: ['espn', 'fox sport', 'cbssn', 'cbs sports'],
+    keywords: ['espn', 'fox sport', 'cbssn', 'cbs sports', 'sec network'],
     excludeKeywords: ['news'],
   },
   'nws': {
@@ -89,29 +90,89 @@ function getCompetitionKeywords(competition: string, sport: string): { keywords:
   return { keywords: ['espn', 'bein sport', 'sky sport', 'fox sport'], excludeKeywords: ['news'] };
 }
 
-// ─── Validate a channel through the stream-proxy (real playback test) ──────
-async function validateChannelViaProxy(url: string): Promise<boolean> {
+// ─── Deep validation through the stream-proxy ─────────────────────────────
+// Returns true only if:
+//   1. The playlist (master or media) returns 200 + #EXTM3U
+//   2. For master playlists: the first sub-playlist also returns 200 + #EXTM3U
+//   3. A .ts segment is reachable and returns 200 with video content
+async function validateChannelDeep(url: string): Promise<boolean> {
   try {
-    // Test through the stream-proxy — the SAME path the video player uses.
-    // If this returns 200 + #EXTM3U, the channel will actually play when clicked.
+    // Step 1: Fetch the top-level playlist via stream-proxy
     const proxyUrl = `http://localhost:3000/api/stream-proxy?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxyUrl, {
-      signal: AbortSignal.timeout(6000),
+    const r1 = await fetch(proxyUrl, {
+      signal: AbortSignal.timeout(4000),
       headers: { 'User-Agent': 'Mozilla/5.0' },
     });
-    if (!res.ok) return false;
-    const text = await res.text();
-    return text.includes('#EXTM3U') || text.includes('#EXTINF');
+    if (!r1.ok) return false;
+    const p1 = await r1.text();
+    if (!p1.includes('#EXTM3U')) return false;
+
+    // Find the first URL line (could be a sub-playlist OR a segment)
+    const lines = p1.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+    if (lines.length === 0) return false;
+
+    const firstLine = lines[0];
+    // Resolve relative/rewritten URL to absolute through the proxy
+    const resolveUrl = (line: string): string => {
+      if (line.startsWith('/api/stream-proxy')) return `http://localhost:3000${line}`;
+      if (line.startsWith('http')) return `http://localhost:3000/api/stream-proxy?url=${encodeURIComponent(line)}`;
+      return ''; // relative URL not rewritten by proxy — skip
+    };
+
+    const firstUrl = resolveUrl(firstLine);
+    if (!firstUrl) return false;
+
+    // Step 2: Fetch the first URL. If it's a sub-playlist (.m3u8), follow it. If it's a segment (.ts), verify it.
+    const isSubPlaylist = firstLine.includes('.m3u8') || !firstLine.includes('.ts');
+    if (isSubPlaylist) {
+      // Follow sub-playlist
+      const r2 = await fetch(firstUrl, {
+        signal: AbortSignal.timeout(4000),
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      });
+      if (!r2.ok) return false;
+      const p2 = await r2.text();
+      if (!p2.includes('#EXTM3U')) return false;
+
+      // Find first segment in sub-playlist
+      const segLines = p2.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+      for (const seg of segLines.slice(0, 3)) {
+        if (seg.includes('.ts')) {
+          const segUrl = resolveUrl(seg);
+          if (!segUrl) continue;
+          const sr = await fetch(segUrl, {
+            signal: AbortSignal.timeout(4000),
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+          });
+          if (sr.ok) {
+            const ct = sr.headers.get('content-type') || '';
+            const buf = await sr.arrayBuffer();
+            return buf.byteLength > 1000 && (ct.includes('mp2t') || ct.includes('video') || ct.includes('octet-stream') || ct === '');
+          }
+        }
+      }
+      return false;
+    } else {
+      // Direct segment — verify it
+      const sr = await fetch(firstUrl, {
+        signal: AbortSignal.timeout(4000),
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      });
+      if (!sr.ok) return false;
+      const ct = sr.headers.get('content-type') || '';
+      const buf = await sr.arrayBuffer();
+      return buf.byteLength > 1000 && (ct.includes('mp2t') || ct.includes('video') || ct.includes('octet-stream') || ct === '');
+    }
   } catch {
     return false;
   }
 }
 
-// ─── Cache ─────────────────────────────────────────────────────────────────
+// ─── Cache (globalThis for HMR persistence) ────────────────────────────────
 const _g = globalThis as unknown as { __iptvChannelsCache?: Map<string, { data: any; timestamp: number }> };
 if (!_g.__iptvChannelsCache) _g.__iptvChannelsCache = new Map();
 const cache = _g.__iptvChannelsCache;
-const CACHE_TTL = 2 * 60 * 1000;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes (deep validation is expensive, cache longer)
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -159,20 +220,29 @@ export async function GET(request: NextRequest) {
 
     console.log(`[IPTV Channels] Found ${deduped.length} candidate channels (keywords: ${keywords.join(', ')})`);
 
-    // Validate each channel through the stream-proxy — only return channels that ACTUALLY work
-    const validationResults = await Promise.allSettled(
-      deduped.slice(0, 20).map(async (ch) => {
-        const works = await validateChannelViaProxy(ch.url);
-        return { channel: ch, works };
-      })
-    );
+    // DEEP validation: playlist + first segment. Only channels that fully play are returned.
+    // Validate in parallel with high concurrency (10 at a time) for speed.
+    const channelsToValidate = deduped.slice(0, 30);
+    const workingChannels: ParsedChannel[] = [];
+    const batchSize = 10;
+    for (let i = 0; i < channelsToValidate.length; i += batchSize) {
+      const batch = channelsToValidate.slice(i, i + batchSize);
+      const results = await Promise.allSettled(
+        batch.map(async (ch) => {
+          const works = await validateChannelDeep(ch.url);
+          return { channel: ch, works };
+        })
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value.works) {
+          workingChannels.push(r.value.channel);
+        }
+      }
+      // Early exit if we have enough working channels (5+)
+      if (workingChannels.length >= 5) break;
+    }
 
-    const workingChannels = validationResults
-      .filter((r): r is PromiseFulfilledResult<{ channel: ParsedChannel; works: boolean }> =>
-        r.status === 'fulfilled' && r.value.works)
-      .map(r => r.value.channel);
-
-    console.log(`[IPTV Channels] ${workingChannels.length}/${validationResults.length} channels confirmed working via proxy`);
+    console.log(`[IPTV Channels] ${workingChannels.length} channels CONFIRMED FULLY PLAYABLE (playlist + segment)`);
 
     const result = {
       channels: workingChannels.map(ch => ({
@@ -184,7 +254,7 @@ export async function GET(request: NextRequest) {
         type: 'm3u8',
       })),
       total: workingChannels.length,
-      tested: validationResults.length,
+      tested: channelsToValidate.length,
     };
 
     cache.set(cacheKey, { data: result, timestamp: Date.now() });
