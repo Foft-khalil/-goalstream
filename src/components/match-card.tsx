@@ -2,7 +2,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Play, Tv, Clock, Radio, Heart, Activity, Share, Film, Zap, Loader2 } from 'lucide-react';
+import { Play, Tv, Clock, Radio, Heart, Activity, Share, Zap } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
@@ -10,21 +10,6 @@ import { useState } from 'react';
 import LiveMatchClock from '@/components/live-match-clock';
 import MatchTracker from '@/components/match-tracker';
 import StreamOptions from '@/components/stream-options';
-
-// Fetch with timeout — rejects if the request takes longer than `ms` milliseconds.
-// This prevents the UI from hanging if find-stream is slow (e.g., DaddyLive schedule fetch timeout).
-async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), ms);
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    return res;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
-}
 
 interface MatchCardProps {
   match: {
@@ -56,8 +41,6 @@ export default function MatchCard({ match }: MatchCardProps) {
   const [showTracker, setShowTracker] = useState(false);
   const [showStreamOptions, setShowStreamOptions] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
-  const [autoSearching, setAutoSearching] = useState(false);
-  const [autoSearchError, setAutoSearchError] = useState<string | null>(null);
 
   const isLive = match.status === 'live';
   const isFinished = match.status === 'finished';
@@ -86,63 +69,20 @@ export default function MatchCard({ match }: MatchCardProps) {
   const sportType = isBasketballSport ? 'basketball' : 'football';
 
   /**
-   * "Watch Live" handler — Smart Auto-Play:
-   * 1. If direct m3u8 stream available → play directly in-app
-   * 2. For live matches → auto-search for a working stream via /api/find-stream
-   *    - If found → play directly (one-click watch!)
-   *    - If not found → show stream options panel as fallback
-   * 3. For non-live → open stream options panel
+   * "Watch Live" handler — Opens the channel selection panel.
+   * The user picks the channel they want to watch from the list of verified-working channels.
+   * No auto-play — the user is in control.
    */
   const handleWatchLive = async () => {
-    // If we already have a direct m3u8 URL, play it immediately
+    // If we already have a direct m3u8 URL from a verified source, play it immediately
+    // (this is the case when the match itself has an attached stream from HesGoal/IPTV)
     if (match.streamUrl && (match.streamUrl.includes('.m3u8') || match.streamUrl.includes('m3u8'))) {
       openPlayer(match.streamUrl, match.channelName || `${match.homeTeam} vs ${match.awayTeam}`, match.channelLogo || undefined);
       return;
     }
 
-    // For live matches, try to auto-find a working stream (find-stream is now INSTANT ~50-200ms)
-    if (isLive || isAboutToStart) {
-      setAutoSearching(true);
-      setAutoSearchError(null);
-      try {
-        // Race find-stream against a 5s timeout — handles cold cache on first page load
-        // (schedule fetch takes ~2-3s on cold cache, ~20ms when warm)
-        const res = await fetchWithTimeout(
-          `/api/find-stream?homeTeam=${encodeURIComponent(match.homeTeam)}&awayTeam=${encodeURIComponent(match.awayTeam)}&sport=${sportType}&competition=${encodeURIComponent(match.competition || '')}`,
-          5000
-        );
-        const data = await res.json();
-
-        if (data.found && data.stream) {
-          // Found a candidate stream! Play it immediately (validation happens in the player)
-          const alternatives = (data.alternatives || []).map((a: any) => ({
-            name: a.name,
-            url: a.url,
-            logo: a.logo,
-          }));
-          openPlayer(
-            data.stream.url,
-            data.stream.name || `${match.homeTeam} vs ${match.awayTeam}`,
-            data.stream.logo || undefined,
-            alternatives
-          );
-          setAutoSearching(false);
-          return;
-        }
-
-        // No candidate found — show stream options panel (which fetches from daddylive + streams APIs)
-        setAutoSearching(false);
-        setShowStreamOptions(true);
-      } catch {
-        // Auto-search failed/timed out — fall back to stream options panel immediately
-        setAutoSearching(false);
-        setAutoSearchError('Recherche automatique échouée');
-        setShowStreamOptions(true);
-      }
-    } else {
-      // Non-live match → show stream options panel directly
-      setShowStreamOptions(true);
-    }
+    // Open the channel selection panel — user chooses which channel to watch
+    setShowStreamOptions(true);
   };
 
   const handleShare = async () => {
@@ -315,21 +255,13 @@ export default function MatchCard({ match }: MatchCardProps) {
                 <Button
                   size="sm"
                   onClick={handleWatchLive}
-                  disabled={autoSearching}
                   className={`flex-1 h-9 gap-2 text-xs font-bold rounded-xl transition-all duration-200 ${
-                    autoSearching
-                      ? 'bg-muted text-muted-foreground'
-                      : isLive
+                    isLive
                       ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20'
                       : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20'
                   }`}
                 >
-                  {autoSearching ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Recherche...
-                    </>
-                  ) : isLive ? (
+                  {isLive ? (
                     <>
                       <Radio className="h-3.5 w-3.5 fill-current" />
                       {t(language, 'match.watchLive')}

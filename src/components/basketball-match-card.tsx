@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Play, Clock, Radio, Heart, Activity, Film, Loader2 } from 'lucide-react';
+import { Play, Clock, Radio, Heart, Activity } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
@@ -11,30 +11,15 @@ import { BasketballLiveClock } from '@/components/live-match-clock';
 import BasketballMatchTracker from '@/components/basketball-match-tracker';
 import StreamOptions from '@/components/stream-options';
 
-// Fetch with timeout — rejects if the request takes longer than `ms` milliseconds.
-async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), ms);
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    return res;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
-}
-
 interface BasketballMatchCardProps {
   match: BasketballMatch;
 }
 
 export default function BasketballMatchCard({ match }: BasketballMatchCardProps) {
-  const { openPlayer, language } = useAppStore();
+  const { language } = useAppStore();
   const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
   const [showTracker, setShowTracker] = useState(false);
   const [showStreamOptions, setShowStreamOptions] = useState(false);
-  const [autoSearching, setAutoSearching] = useState(false);
 
   const isLive = match.status === 'live';
   const isFinished = match.status === 'finished';
@@ -60,43 +45,8 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
   const canWatchLive = isLive || isAboutToStart;
 
   const handleWatchLive = async () => {
-    // For live basketball matches, auto-find a working stream (find-stream is now INSTANT ~50-200ms)
-    if (isLive || isAboutToStart) {
-      setAutoSearching(true);
-      try {
-        // Race find-stream against a 5s timeout — handles cold cache on first page load
-        const res = await fetchWithTimeout(
-          `/api/find-stream?homeTeam=${encodeURIComponent(match.homeTeam)}&awayTeam=${encodeURIComponent(match.awayTeam)}&sport=basketball&competition=${encodeURIComponent(match.competition || '')}`,
-          5000
-        );
-        const data = await res.json();
-
-        if (data.found && data.stream) {
-          const alternatives = (data.alternatives || []).map((a: any) => ({
-            name: a.name,
-            url: a.url,
-            logo: a.logo,
-          }));
-          openPlayer(
-            data.stream.url,
-            data.stream.name || `${match.homeTeam} vs ${match.awayTeam}`,
-            data.stream.logo || undefined,
-            alternatives
-          );
-          setAutoSearching(false);
-          return;
-        }
-
-        // No working stream found — show stream options as fallback
-        setAutoSearching(false);
-        setShowStreamOptions(true);
-      } catch {
-        setAutoSearching(false);
-        setShowStreamOptions(true);
-      }
-    } else {
-      setShowStreamOptions(true);
-    }
+    // Open the channel selection panel — user chooses which channel to watch
+    setShowStreamOptions(true);
   };
 
   return (
@@ -235,21 +185,13 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
                 <Button
                   size="sm"
                   onClick={handleWatchLive}
-                  disabled={autoSearching}
                   className={`flex-1 h-9 gap-2 text-xs font-bold rounded-xl transition-all duration-200 ${
-                    autoSearching
-                      ? 'bg-muted text-muted-foreground'
-                      : isLive
+                    isLive
                       ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-600/20'
                       : 'bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/20'
                   }`}
                 >
-                  {autoSearching ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Recherche...
-                    </>
-                  ) : isLive ? (
+                  {isLive ? (
                     <>
                       <Radio className="h-3.5 w-3.5 fill-current" />
                       {t(language, 'match.watchLive')}

@@ -75,7 +75,7 @@ const COMMON_HEADERS: Record<string, string> = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
 };
 
-// ─── Validate m3u8 stream health ─────────────────────────────────────────────
+// ─── Validate m3u8 stream health — STRICT mode (only 200 + #EXTM3U is valid) ──
 async function validateStreamHealth(url: string): Promise<boolean> {
   // Check cache first
   const cached = streamHealthCache.get(url);
@@ -84,7 +84,6 @@ async function validateStreamHealth(url: string): Promise<boolean> {
   }
 
   try {
-    // For m3u8 URLs, try a HEAD request first, then GET if needed
     const isM3u8 = url.includes('.m3u8');
 
     if (isM3u8) {
@@ -106,13 +105,14 @@ async function validateStreamHealth(url: string): Promise<boolean> {
       };
 
       const res = await fetch(url, {
-        method: 'GET', // Some servers don't support HEAD
+        method: 'GET',
         headers,
         signal: AbortSignal.timeout(6000),
         redirect: 'follow',
       });
 
-      // Valid if we get 200 and it's an m3u8 or similar content
+      // STRICT: only 200 + valid HLS playlist is valid.
+      // 403/5xx = Cloudflare/anti-bot blocks it → invalid (stream-proxy uses same Origin detection).
       if (res.ok) {
         const contentType = res.headers.get('content-type') || '';
         const text = await res.text();
@@ -122,17 +122,10 @@ async function validateStreamHealth(url: string): Promise<boolean> {
         return isValid;
       }
 
-      // 403 / 401 / 5xx might mean Cloudflare or anti-bot is blocking from server
-      // but stream may still work via the stream-proxy. Give benefit of the doubt.
-      if (res.status === 403 || res.status === 401 || res.status >= 500) {
-        streamHealthCache.set(url, { valid: true, timestamp: Date.now() });
-        return true;
-      }
-
       streamHealthCache.set(url, { valid: false, timestamp: Date.now() });
       return false;
     } else {
-      // For embed URLs, just check if the page is reachable
+      // For embed URLs — STRICT: only 200 is valid
       const res = await fetch(url, {
         method: 'HEAD',
         headers: COMMON_HEADERS,
@@ -140,13 +133,14 @@ async function validateStreamHealth(url: string): Promise<boolean> {
         redirect: 'follow',
       });
 
-      const valid = res.ok || res.status === 403 || res.status >= 500; // 403/5xx = page likely exists
+      const valid = res.ok;
       streamHealthCache.set(url, { valid, timestamp: Date.now() });
       return valid;
     }
   } catch {
-    // Network error / timeout — give the benefit of the doubt (proxy may still recover)
-    return true;
+    // Network error / timeout — STRICT: invalid (don't show broken channels)
+    streamHealthCache.set(url, { valid: false, timestamp: Date.now() });
+    return false;
   }
 }
 
@@ -377,24 +371,12 @@ export async function GET(request: NextRequest) {
       }
 
       if (fallbackStreams.length > 0) {
-        // Validate fallback m3u8 streams too (lenient)
-        const fallbackM3u8 = fallbackStreams.filter(s => s.streamUrl.includes('.m3u8'));
-        let validatedFallback: MatchedStream[] = [];
-        if (fallbackM3u8.length > 0 && fallbackM3u8.length <= 8) {
-          const results = await Promise.allSettled(
-            fallbackM3u8.map(async (stream) => ({ stream, isValid: await validateStreamHealth(stream.streamUrl) }))
-          );
-          validatedFallback = results
-            .filter((r): r is PromiseFulfilledResult<{ stream: MatchedStream; isValid: boolean }> =>
-              r.status === 'fulfilled' && r.value.isValid)
-            .map(r => r.value.stream);
-        } else {
-          validatedFallback = fallbackM3u8;
-        }
-
-        // Combine: original first, then validated fallback m3u8, then fallback embeds
-        finalStreams = [...functionalStreams, ...validatedFallback, ...fallbackStreams.filter(s => !s.streamUrl.includes('.m3u8'))];
-        console.log(`[DaddyLive API] Added ${fallbackStreams.length} competition-fallback channels (total now ${finalStreams.length})`);
+        // Don't validate fallback channels server-side — they're often Cloudflare-protected (403)
+        // and server-side validation can't access them. The client-side validation (stream-validate
+        // called from StreamOptions) will handle filtering. This way the user sees all candidate
+        // channels immediately and can try them.
+        finalStreams = [...functionalStreams, ...fallbackStreams];
+        console.log(`[DaddyLive API] Added ${fallbackStreams.length} competition-fallback channels (total now ${finalStreams.length}) — client-side validation will filter broken ones`);
       }
     }
 

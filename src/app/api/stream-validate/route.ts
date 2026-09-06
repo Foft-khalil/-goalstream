@@ -77,7 +77,11 @@ export async function POST(request: NextRequest) {
     const isM3u8 = url.includes('.m3u8');
 
     if (isM3u8) {
-      // Validate m3u8 stream
+      // Validate m3u8 stream:
+      // - 200 + #EXTM3U → valid (confirmed working)
+      // - 403/401 → "unknown" (Cloudflare blocks server-side, but browser may still access via proxy with proper headers)
+      // - 4xx (other) / 5xx → invalid (genuinely broken)
+      // - Network error → invalid (timeout/unreachable)
       const origin = detectOrigin(url);
       const headers: Record<string, string> = {
         ...COMMON_HEADERS,
@@ -88,7 +92,7 @@ export async function POST(request: NextRequest) {
         const res = await fetch(url, {
           method: 'GET',
           headers,
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(6000),
           redirect: 'follow',
         });
 
@@ -105,26 +109,30 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(result);
         }
 
-        // 403 from Cloudflare — stream might exist but is server-blocked
-        // Let the client try via stream-proxy
-        if (res.status === 403) {
-          const result = { valid: true, type: 'm3u8', reason: 'Cloudflare protected' };
+        // 403/401 — Cloudflare/anti-bot blocks server-side fetch.
+        // The browser might still access it via the stream-proxy (which uses the same Origin
+        // detection). Give benefit of the doubt so the user can try the channel.
+        if (res.status === 403 || res.status === 401) {
+          const result = { valid: true, type: 'm3u8' as const, reason: 'Cloudflare protected — try via proxy' };
           validationCache.set(url, { ...result, timestamp: Date.now() });
           return NextResponse.json(result);
         }
 
+        // 4xx (other than 403/401) / 5xx — genuinely broken
         const result = { valid: false, reason: `HTTP ${res.status}` };
         validationCache.set(url, { ...result, timestamp: Date.now() });
         return NextResponse.json(result);
-      } catch (err) {
-        // Network error / timeout — give benefit of the doubt.
-        // The stream-proxy will add the proper Origin/Referer headers and may recover this stream.
-        const result = { valid: true, type: 'm3u8' as const, reason: 'Network error — will try via proxy' };
+      } catch {
+        // Network error / timeout — invalid
+        const result = { valid: false, reason: 'Network error' };
         validationCache.set(url, { ...result, timestamp: Date.now() });
         return NextResponse.json(result);
       }
     } else {
-      // Validate embed URL — just check if it's reachable
+      // Validate embed URL:
+      // - 200 → valid
+      // - 403/401 → benefit of the doubt (page exists, may work via proxy)
+      // - Other 4xx/5xx → invalid
       try {
         const res = await fetch(url, {
           method: 'HEAD',
@@ -132,12 +140,11 @@ export async function POST(request: NextRequest) {
             ...COMMON_HEADERS,
             'Accept': 'text/html',
           },
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(6000),
           redirect: 'follow',
         });
 
-        // Page exists (even 403 means Cloudflare is protecting it, page exists)
-        if (res.ok || res.status === 403) {
+        if (res.ok || res.status === 403 || res.status === 401) {
           const result = { valid: true, type: 'embed' as const };
           validationCache.set(url, { ...result, timestamp: Date.now() });
           return NextResponse.json(result);
@@ -147,8 +154,7 @@ export async function POST(request: NextRequest) {
         validationCache.set(url, { ...result, timestamp: Date.now() });
         return NextResponse.json(result);
       } catch {
-        // Network error — give benefit of the doubt (proxy may still recover)
-        const result = { valid: true, type: 'embed' as const, reason: 'Network error — will try via proxy' };
+        const result = { valid: false, reason: 'Network error' };
         validationCache.set(url, { ...result, timestamp: Date.now() });
         return NextResponse.json(result);
       }

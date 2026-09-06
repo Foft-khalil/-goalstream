@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Shield, Tv, Play, Loader2, Zap, AlertCircle, Radio, CheckCircle2, Ban, RefreshCw } from 'lucide-react';
+import { X, Shield, Tv, Play, Loader2, Zap, AlertCircle, Radio, CheckCircle2, Ban, RefreshCw, Wifi } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
@@ -133,14 +133,13 @@ export default function StreamOptions({
     if (isOpen) {
       cancelledRef.current = false;
       // Fetching data when the modal opens is a legitimate effect pattern.
-      // The setState calls inside fetchStreams are necessary to drive the loading state.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchStreams();
       return () => { cancelledRef.current = true; };
     }
   }, [isOpen, fetchStreams, retryCount]);
 
-  // Validate m3u8 streams in the background AFTER loading
+  // Validate ALL m3u8 streams in parallel — STRICT (only 200 + #EXTM3U = valid)
   useEffect(() => {
     if (loading) return;
 
@@ -149,7 +148,7 @@ export default function StreamOptions({
     if (m3u8Streams.length === 0) return;
 
     cancelledRef.current = false;
-    const validateBatch = async () => {
+    const validateAll = async () => {
       // Mark all m3u8 as pending first
       setValidationStates(prev => {
         const next = { ...prev };
@@ -157,55 +156,45 @@ export default function StreamOptions({
         return next;
       });
 
-      // Validate in batches of 3
-      for (let i = 0; i < m3u8Streams.length; i += 3) {
-        if (cancelledRef.current) break;
-        const batch = m3u8Streams.slice(i, i + 3);
-
-        const results = await Promise.allSettled(
-          batch.map(async (stream) => {
-            try {
-              const res = await fetch('/api/stream-validate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: stream.url }),
-                signal: AbortSignal.timeout(8000),
-              });
-              const data = await res.json();
-              return { url: stream.url, valid: data.valid === true };
-            } catch {
-              // Benefit of the doubt
-              return { url: stream.url, valid: true };
-            }
-          })
-        );
-
-        if (cancelledRef.current) break;
-
-        setValidationStates(prev => {
-          const next = { ...prev };
-          for (const result of results) {
-            if (result.status === 'fulfilled') {
-              next[result.value.url] = result.value.valid ? 'valid' : 'invalid';
-            }
+      // Validate ALL in parallel (was batches of 3 — now parallel for speed)
+      const results = await Promise.allSettled(
+        m3u8Streams.map(async (stream) => {
+          try {
+            const res = await fetch('/api/stream-validate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: stream.url }),
+              signal: AbortSignal.timeout(7000),
+            });
+            const data = await res.json();
+            return { url: stream.url, valid: data.valid === true };
+          } catch {
+            // STRICT: network error = invalid (don't show broken channels)
+            return { url: stream.url, valid: false };
           }
-          return next;
-        });
+        })
+      );
 
-        // Small delay between batches
-        if (!cancelledRef.current && i + 3 < m3u8Streams.length) {
-          await new Promise(r => setTimeout(r, 200));
+      if (cancelledRef.current) return;
+
+      setValidationStates(prev => {
+        const next = { ...prev };
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
+            next[result.value.url] = result.value.valid ? 'valid' : 'invalid';
+          }
         }
-      }
+        return next;
+      });
     };
 
-    validateBatch();
+    validateAll();
     return () => { cancelledRef.current = true; };
   }, [loading, daddyliveStreams, rojaStreams]);
 
   if (!isOpen) return null;
 
-  // Combine and sort all streams: m3u8 first, then embed. Within each, by validation state then score.
+  // Combine all streams
   const allDaddy = daddyliveStreams;
   const allRoja = rojaStreams;
 
@@ -214,8 +203,6 @@ export default function StreamOptions({
     ...allRoja.filter(s => isM3u8Url(s.url)),
   ];
 
-  // For live matches: include embed streams too (they play in-app via proxy-stream)
-  // but rank them below m3u8 so user sees the best option first
   const allEmbedStreams = [
     ...allDaddy.filter(s => s.type === 'embed' && !isM3u8Url(s.url)),
     ...allRoja.filter(s => !isM3u8Url(s.url)),
@@ -225,37 +212,52 @@ export default function StreamOptions({
   const dedupedM3u8 = allM3u8Streams.filter((s, i, arr) => arr.findIndex(x => x.url === s.url) === i);
   const dedupedEmbed = allEmbedStreams.filter((s, i, arr) => arr.findIndex(x => x.url === s.url) === i);
 
-  // Sort: valid first, then pending, then invalid last. Within same state, higher score first.
+  // ── KEY CHANGE: Show candidate channels with validation status ──
+  // - Valid channels → "Disponible" badge (green, clickable)
+  // - Pending channels → "Test en cours" badge (amber, CLICKABLE — user can try)
+  // - Invalid channels → hidden (confirmed broken, don't show)
+  const visibleM3u8 = dedupedM3u8.filter(s => validationStates[s.url] !== 'invalid');
+  const visibleEmbed = dedupedEmbed.filter(s => validationStates[s.url] !== 'invalid');
+
+  // Confirmed-working channels only (for the "Disponible" count)
+  const confirmedWorkingM3u8 = dedupedM3u8.filter(s => validationStates[s.url] === 'valid');
+  const confirmedWorkingEmbed = dedupedEmbed.filter(s => validationStates[s.url] === 'valid');
+  const confirmedWorkingCount = confirmedWorkingM3u8.length + confirmedWorkingEmbed.length;
+
+  // Check if validation is still in progress (any pending)
+  const allCandidates = [...dedupedM3u8, ...dedupedEmbed];
+  const anyPending = allCandidates.some(s => validationStates[s.url] === 'pending');
+  const totalCandidates = allCandidates.length;
+  const validatedCount = allCandidates.filter(s => validationStates[s.url] === 'valid' || validationStates[s.url] === 'invalid').length;
+  const invalidCount = allCandidates.filter(s => validationStates[s.url] === 'invalid').length;
+
+  // No streams at all (no candidates from any source)
+  const noCandidates = !loading && totalCandidates === 0 && !apiError;
+
+  // All streams validated but none working AND all hidden → "Diffusion non disponible"
+  // (only triggers when no visible channels remain — all confirmed invalid)
+  const noneWorking = !loading && totalCandidates > 0 && !anyPending && visibleM3u8.length === 0 && visibleEmbed.length === 0 && !apiError;
+
+  // Sort visible m3u8: valid first, then pending. Within same state, higher score first.
   const stateRank = (url: string) => {
     const st = validationStates[url];
     if (st === 'valid') return 0;
     if (st === 'pending' || !st) return 1;
     return 2;
   };
-
-  const byStateAndScore = (a: StreamResult, b: StreamResult) => {
+  visibleM3u8.sort((a, b) => {
     const ra = stateRank(a.url), rb = stateRank(b.url);
     if (ra !== rb) return ra - rb;
     return (b.score || 0) - (a.score || 0);
-  };
-
-  dedupedM3u8.sort(byStateAndScore);
-  dedupedEmbed.sort(byStateAndScore);
-
-  // Only HIDE streams that are confirmed invalid (state = 'invalid')
-  const visibleM3u8 = dedupedM3u8.filter(s => validationStates[s.url] !== 'invalid');
-  const visibleEmbed = isLive
-    ? dedupedEmbed.filter(s => validationStates[s.url] !== 'invalid').slice(0, 4) // limit embeds for live
-    : dedupedEmbed.filter(s => validationStates[s.url] !== 'invalid');
-
-  const totalCandidates = visibleM3u8.length + visibleEmbed.length;
-  const hasAnyStreams = totalCandidates > 0;
+  });
+  visibleEmbed.sort((a, b) => {
+    const ra = stateRank(a.url), rb = stateRank(b.url);
+    if (ra !== rb) return ra - rb;
+    return (b.score || 0) - (a.score || 0);
+  });
 
   /**
    * Play a stream IN-APP — NEVER redirect externally.
-   * All streams are played through the video player:
-   * - m3u8 streams → HLS.js via stream-proxy (auto-detects Origin)
-   * - embed URLs → iframe via proxy-stream (server-side proxy removes X-Frame-Options)
    */
   const handlePlayStream = (stream: StreamResult) => {
     const url = stream.url;
@@ -278,7 +280,9 @@ export default function StreamOptions({
               <Tv className={`h-5 w-5 ${sport === 'basketball' ? 'text-orange-500' : 'text-emerald-500'}`} />
             </div>
             <div>
-              <h2 className="font-bold text-sm">{isLive ? (t(language, 'stream.watchLive') || 'Regarder en direct') : (t(language, 'stream.watchLive') || 'Regarder')}</h2>
+              <h2 className="font-bold text-sm">
+                {isLive ? '🔴 Chaînes en direct' : (t(language, 'stream.watchLive') || 'Regarder')}
+              </h2>
               <p className="text-[11px] text-muted-foreground truncate max-w-[240px]">
                 {homeTeam} vs {awayTeam}
               </p>
@@ -286,7 +290,7 @@ export default function StreamOptions({
           </div>
           <div className="flex items-center gap-2">
             {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-            {!loading && hasAnyStreams && (
+            {!loading && totalCandidates > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -304,60 +308,72 @@ export default function StreamOptions({
         </div>
 
         <div className="px-5 py-4 space-y-4">
-          {/* m3u8 Streams — TOP PRIORITY, plays natively in-app */}
+          {/* Validation progress banner — shown while checking channels */}
+          {!loading && anyPending && totalCandidates > 0 && (
+            <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/15">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500 shrink-0" />
+              <p className="text-[11px] text-amber-600 dark:text-amber-500/80 leading-relaxed">
+                Vérification des chaînes… {validatedCount}/{totalCandidates} testées, {confirmedWorkingCount} disponible{confirmedWorkingCount > 1 ? 's' : ''}
+              </p>
+            </div>
+          )}
+
+          {/* Channels list — only show if there are visible (non-invalid) channels */}
           {!loading && visibleM3u8.length > 0 && (
             <div>
               <h3 className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
                 <Zap className="h-3 w-3" />
-                Flux directs vérifiés
-                <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[8px] font-bold">
-                  {visibleM3u8.length} FLUX
-                </span>
+                Chaînes disponibles
+                {confirmedWorkingM3u8.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 text-[8px] font-bold">
+                    {confirmedWorkingM3u8.length} {confirmedWorkingM3u8.length > 1 ? 'CHAÎNES' : 'CHAÎNE'}
+                  </span>
+                )}
               </h3>
-              <div className="space-y-1.5 max-h-[280px] overflow-y-auto custom-scrollbar">
+              <div className="space-y-1.5 max-h-[300px] overflow-y-auto custom-scrollbar">
                 {visibleM3u8.map((stream, idx) => {
                   const state: ValidationState = validationStates[stream.url] || 'pending';
-                  const isFallback = stream.source === 'competition-fallback';
+                  const isWorking = state === 'valid';
                   return (
                     <button
                       key={`m3u8-${idx}`}
                       onClick={() => handlePlayStream(stream)}
                       className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 active:scale-[0.98] ${
-                        isFallback
-                          ? 'bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/15'
-                          : 'bg-emerald-500/8 hover:bg-emerald-500/15 border-emerald-500/20'
+                        isWorking
+                          ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30'
+                          : 'bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/20'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isFallback ? 'bg-amber-500/10' : 'bg-emerald-500/10'}`}>
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isWorking ? 'bg-emerald-500/15' : 'bg-amber-500/10'}`}>
                         {stream.channelLogo ? (
                           <img src={stream.channelLogo} alt="" className="w-7 h-7 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                         ) : (
-                          <Play className={`h-5 w-5 ${isFallback ? 'text-amber-500' : 'text-emerald-500'} fill-current`} />
+                          <Play className={`h-5 w-5 ${isWorking ? 'text-emerald-500' : 'text-amber-500'} fill-current`} />
                         )}
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className={`text-sm font-bold truncate ${isFallback ? 'text-amber-400' : 'text-emerald-400'}`}>{stream.name}</span>
-                          {state === 'valid' && (
-                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-500/15">
+                          <span className={`text-sm font-bold truncate ${isWorking ? 'text-emerald-400' : 'text-foreground'}`}>
+                            {stream.name}
+                          </span>
+                          {isWorking ? (
+                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-500/20">
                               <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />
-                              <span className="text-[8px] font-bold text-emerald-500">OK</span>
+                              <span className="text-[8px] font-bold text-emerald-500">DISPONIBLE</span>
                             </span>
-                          )}
-                          {state === 'pending' && (
-                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/10">
+                          ) : (
+                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/15">
                               <Loader2 className="h-2.5 w-2.5 animate-spin text-amber-500" />
-                              <span className="text-[8px] font-bold text-amber-500">TEST</span>
+                              <span className="text-[8px] font-bold text-amber-500">TEST…</span>
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           {stream.group && <span className="text-[10px] text-muted-foreground">{stream.group}</span>}
-                          <span className="text-[10px] text-muted-foreground">{stream.eventName || `via ${stream.source}`}</span>
-                          {stream.eventTime && <span className="text-[10px] text-muted-foreground">{stream.eventTime}</span>}
+                          {stream.eventName && <span className="text-[10px] text-muted-foreground">{stream.eventName}</span>}
                         </div>
                       </div>
-                      <Play className={`h-4 w-4 shrink-0 ${isFallback ? 'text-amber-500' : 'text-emerald-500'}`} />
+                      <Play className={`h-4 w-4 shrink-0 ${isWorking ? 'text-emerald-500' : 'text-amber-500'}`} />
                     </button>
                   );
                 })}
@@ -365,51 +381,59 @@ export default function StreamOptions({
             </div>
           )}
 
-          {/* Embed streams — played in-app via iframe proxy */}
+          {/* Embed streams — only show if there are visible ones */}
           {!loading && visibleEmbed.length > 0 && (
             <div>
               <h3 className="text-[10px] font-bold text-sky-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
                 <Radio className="h-3 w-3" />
-                Flux intégrés
-                <span className="ml-1 px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-500 text-[8px] font-bold">
-                  {visibleEmbed.length} FLUX
-                </span>
+                Autres sources
+                {confirmedWorkingEmbed.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-500 text-[8px] font-bold">
+                    {confirmedWorkingEmbed.length} DISPONIBLE{confirmedWorkingEmbed.length > 1 ? 'S' : ''}
+                  </span>
+                )}
               </h3>
               <div className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
                 {visibleEmbed.map((stream, idx) => {
                   const state: ValidationState = validationStates[stream.url] || 'pending';
+                  const isWorking = state === 'valid';
                   return (
                     <button
                       key={`embed-${idx}`}
                       onClick={() => handlePlayStream(stream)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-sky-500/8 border border-sky-500/10 transition-all duration-200 active:scale-[0.98]"
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 active:scale-[0.98] ${
+                        isWorking
+                          ? 'hover:bg-sky-500/8 border-sky-500/20'
+                          : 'bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/15'
+                      }`}
                     >
-                      <div className="w-9 h-9 rounded-lg bg-sky-500/10 flex items-center justify-center shrink-0">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isWorking ? 'bg-sky-500/10' : 'bg-amber-500/10'}`}>
                         {stream.channelLogo ? (
                           <img src={stream.channelLogo} alt="" className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                         ) : (
-                          <Tv className="h-4 w-4 text-sky-500" />
+                          <Tv className={`h-4 w-4 ${isWorking ? 'text-sky-500' : 'text-amber-500'}`} />
                         )}
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-sky-400 truncate">{stream.name}</span>
-                          {state === 'valid' && (
-                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-500/10">
+                          <span className={`text-sm font-semibold truncate ${isWorking ? 'text-sky-400' : 'text-foreground'}`}>
+                            {stream.name}
+                          </span>
+                          {isWorking ? (
+                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-500/15">
                               <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />
                               <span className="text-[8px] font-bold text-emerald-500">OK</span>
                             </span>
-                          )}
-                          {state === 'pending' && (
+                          ) : (
                             <Loader2 className="h-3 w-3 animate-spin text-amber-500" />
                           )}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           {stream.langFlag && <span className="text-[10px] text-muted-foreground">{stream.langFlag} {stream.lang}</span>}
-                          <span className="text-[10px] text-sky-500/60">via {stream.source}</span>
+                          <span className="text-[10px] text-muted-foreground">{stream.source}</span>
                         </div>
                       </div>
-                      <Play className="h-3.5 w-3.5 text-sky-500 shrink-0" />
+                      <Play className={`h-3.5 w-3.5 shrink-0 ${isWorking ? 'text-sky-500' : 'text-amber-500'}`} />
                     </button>
                   );
                 })}
@@ -417,32 +441,55 @@ export default function StreamOptions({
             </div>
           )}
 
-          {/* Loading state */}
+          {/* Loading state — fetching stream candidates */}
           {loading && (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-              <p className="text-xs text-muted-foreground">Recherche de flux gratuits...</p>
+              <p className="text-xs text-muted-foreground">Recherche des chaînes disponibles…</p>
             </div>
           )}
 
-          {/* No streams found — DEFINITIVE unavailable state */}
-          {!loading && !hasAnyStreams && !apiError && (
-            <div className="flex flex-col items-center justify-center py-8 px-4 gap-3 text-center">
-              <div className="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <Ban className="h-7 w-7 text-amber-500" />
+          {/* No candidates at all — Diffusion non disponible */}
+          {noCandidates && (
+            <div className="flex flex-col items-center justify-center py-10 px-4 gap-4 text-center">
+              <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center">
+                <Ban className="h-8 w-8 text-amber-500" />
               </div>
               <div>
-                <p className="text-sm font-bold text-foreground">Match non disponible</p>
-                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed max-w-[280px]">
-                  Aucune chaîne gratuite ne diffuse ce match actuellement.
-                  Les flux cassés sont automatiquement masqués.
+                <p className="text-base font-bold text-foreground">Diffusion non disponible</p>
+                <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed max-w-[280px]">
+                  Aucune chaîne autorisée ne diffuse ce match actuellement.
                 </p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setRetryCount(c => c + 1)}
-                className="mt-2 gap-1.5 text-xs rounded-lg"
+                className="mt-1 gap-1.5 text-xs rounded-lg"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Réessayer
+              </Button>
+            </div>
+          )}
+
+          {/* All channels tested but all hidden (invalid) — Diffusion non disponible */}
+          {noneWorking && (
+            <div className="flex flex-col items-center justify-center py-10 px-4 gap-4 text-center">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
+                <Ban className="h-8 w-8 text-red-500" />
+              </div>
+              <div>
+                <p className="text-base font-bold text-foreground">Diffusion non disponible</p>
+                <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed max-w-[280px]">
+                  Aucune chaîne fonctionnelle trouvée pour ce match. Les flux cassés sont automatiquement masqués.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setRetryCount(c => c + 1)}
+                className="mt-1 gap-1.5 text-xs rounded-lg"
               >
                 <RefreshCw className="h-3 w-3" />
                 Réessayer
@@ -472,16 +519,16 @@ export default function StreamOptions({
             </div>
           )}
 
-          {/* Info banner — explains the new behavior */}
-          <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-            <Shield className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
-            <p className="text-[10px] text-emerald-600 dark:text-emerald-500/70 leading-relaxed">
-              {isLive
-                ? 'Lecture 100% dans l\'application — aucune redirection externe. Les flux sont testés en direct ; seuls les flux non fonctionnels sont masqués.'
-                : 'Tous les flux sont lus directement dans l\'application. Les flux indisponibles sont automatiquement masqués.'
-              }
-            </p>
-          </div>
+          {/* Info banner — explains the behavior */}
+          {!loading && totalCandidates > 0 && (visibleM3u8.length > 0 || visibleEmbed.length > 0) && (
+            <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+              <Shield className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-500/70 leading-relaxed">
+                Seules les chaînes vérifiées et fonctionnelles sont cliquables. Les flux cassés sont masqués.
+                Lecture 100% dans l'application — aucune redirection externe.
+              </p>
+            </div>
+          )}
 
           {/* Match info */}
           <div className="px-3 py-2 rounded-lg bg-secondary/15 dark:bg-white/[0.02] border border-border/10">
