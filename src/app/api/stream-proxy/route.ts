@@ -149,15 +149,15 @@ export async function GET(request: NextRequest) {
             : `/api/stream-proxy?url=${encodeURIComponent(absoluteUrl)}`;
         }
 
-        // If it's an absolute URL to a different domain, route through proxy
+        // If it's an absolute URL (http:// or https://), ALWAYS route through proxy.
+        // This includes URLs to the same domain — HLS.js in the browser can't load
+        // them directly due to CORS. Everything must go through our proxy.
         try {
           const segmentUrl = new URL(trimmed);
-          const targetDomain = new URL(targetUrl).hostname;
-          if (segmentUrl.hostname !== targetDomain || segmentUrl.hostname.includes('newkso.ru') || segmentUrl.hostname.includes('.m3u8')) {
-            return originUrl
-              ? `/api/stream-proxy?url=${encodeURIComponent(trimmed)}&origin=${encodeURIComponent(originUrl)}`
-              : `/api/stream-proxy?url=${encodeURIComponent(trimmed)}`;
-          }
+          // Route ALL absolute URLs through the proxy (same domain or different)
+          return originUrl
+            ? `/api/stream-proxy?url=${encodeURIComponent(trimmed)}&origin=${encodeURIComponent(originUrl)}`
+            : `/api/stream-proxy?url=${encodeURIComponent(trimmed)}`;
         } catch {
           // Not a valid URL, leave as-is
         }
