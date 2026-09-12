@@ -360,25 +360,29 @@ export default function StreamOptions({
             </div>
           )}
 
-          {/* Channels list — only show if there are visible (non-invalid) channels */}
-          {!loading && visibleM3u8.length > 0 && (
+          {/* ── MATCH-SPECIFIC CHANNELS (DaddyLive) ──
+              These are the REAL broadcasting channels for this match (Sky Sports,
+              beIN SPORTS, ESPN, TNT Sports, etc.) sourced from DaddyLive's schedule.
+              We NO LONGER show generic IPTV channels (ESPN/beIN 24/7 feeds) because
+              they don't actually broadcast the specific match. */}
+          {!loading && visibleEmbed.length > 0 && (
             <div>
               <h3 className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
                 <Zap className="h-3 w-3" />
-                Chaînes disponibles
-                {confirmedWorkingM3u8.length > 0 && (
+                Chaînes du match
+                {confirmedWorkingEmbed.length > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 text-[8px] font-bold">
-                    {confirmedWorkingM3u8.length} {confirmedWorkingM3u8.length > 1 ? 'CHAÎNES' : 'CHAÎNE'}
+                    {confirmedWorkingEmbed.length} DISPONIBLE{confirmedWorkingEmbed.length > 1 ? 'S' : ''}
                   </span>
                 )}
               </h3>
-              <div className="space-y-1.5 max-h-[300px] overflow-y-auto custom-scrollbar">
-                {visibleM3u8.map((stream, idx) => {
+              <div className="space-y-1.5 max-h-[400px] overflow-y-auto custom-scrollbar">
+                {visibleEmbed.map((stream, idx) => {
                   const state: ValidationState = validationStates[stream.url] || 'pending';
                   const isWorking = state === 'valid';
                   return (
                     <button
-                      key={`m3u8-${idx}`}
+                      key={`embed-${idx}`}
                       onClick={() => handlePlayStream(stream)}
                       className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all duration-200 active:scale-[0.98] ${
                         isWorking
@@ -416,66 +420,6 @@ export default function StreamOptions({
                         </div>
                       </div>
                       <Play className={`h-4 w-4 shrink-0 ${isWorking ? 'text-emerald-500' : 'text-amber-500'}`} />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Embed streams — only show if there are visible ones */}
-          {!loading && visibleEmbed.length > 0 && (
-            <div>
-              <h3 className="text-[10px] font-bold text-sky-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                <Radio className="h-3 w-3" />
-                Autres sources
-                {confirmedWorkingEmbed.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-500 text-[8px] font-bold">
-                    {confirmedWorkingEmbed.length} DISPONIBLE{confirmedWorkingEmbed.length > 1 ? 'S' : ''}
-                  </span>
-                )}
-              </h3>
-              <div className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
-                {visibleEmbed.map((stream, idx) => {
-                  const state: ValidationState = validationStates[stream.url] || 'pending';
-                  const isWorking = state === 'valid';
-                  return (
-                    <button
-                      key={`embed-${idx}`}
-                      onClick={() => handlePlayStream(stream)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-200 active:scale-[0.98] ${
-                        isWorking
-                          ? 'hover:bg-sky-500/8 border-sky-500/20'
-                          : 'bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/15'
-                      }`}
-                    >
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isWorking ? 'bg-sky-500/10' : 'bg-amber-500/10'}`}>
-                        {stream.channelLogo ? (
-                          <img src={stream.channelLogo} alt="" className="w-6 h-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                        ) : (
-                          <Tv className={`h-4 w-4 ${isWorking ? 'text-sky-500' : 'text-amber-500'}`} />
-                        )}
-                      </div>
-                      <div className="flex-1 text-left min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-sm font-semibold truncate ${isWorking ? 'text-sky-400' : 'text-foreground'}`}>
-                            {stream.name}
-                          </span>
-                          {isWorking ? (
-                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-500/15">
-                              <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />
-                              <span className="text-[8px] font-bold text-emerald-500">OK</span>
-                            </span>
-                          ) : (
-                            <Loader2 className="h-3 w-3 animate-spin text-amber-500" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {stream.langFlag && <span className="text-[10px] text-muted-foreground">{stream.langFlag} {stream.lang}</span>}
-                          <span className="text-[10px] text-muted-foreground">{stream.source}</span>
-                        </div>
-                      </div>
-                      <Play className={`h-3.5 w-3.5 shrink-0 ${isWorking ? 'text-sky-500' : 'text-amber-500'}`} />
                     </button>
                   );
                 })}
