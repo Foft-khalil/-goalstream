@@ -1691,3 +1691,30 @@ Stage Summary:
 - Restored the "Autres sources" section name
 - Users now see the match-specific DaddyLive channels (Sky Sports, beIN, ESPN, TNT Sports, etc.) immediately
 - Lint clean, no compile errors
+
+---
+Task ID: 19
+Agent: Main Agent
+Task: Fix "Regarder en direct" on live matches — channel list was being skipped (player opened directly)
+
+Work Log:
+- User reported: "quant un match est en directe quant j'appuis sur le regarder en directe la liste des chaine en directe sont enleve toute" (when a match is live and I press Watch Live, the live channels list is all removed)
+- ROOT CAUSE: `handleWatchLive` in match-card.tsx had a shortcut: if `match.streamUrl` contains 'm3u8' (from the HesGoal merge), it called `openPlayer()` DIRECTLY — completely BYPASSING the channel selection panel. The user never saw the channel list; they got a (frequently dead) legacy stream → black screen with no channel choice.
+
+- FIX: src/components/match-card.tsx
+  - Removed the direct-play shortcut in `handleWatchLive`
+  - Now ALWAYS opens the StreamOptions panel (`setShowStreamOptions(true)`) so the user picks the channel
+  - Removed the now-unused `openPlayer` from the destructured store
+
+- VERIFICATION (agent-browser, live match AFC Bournemouth vs Brentford):
+  - Click "Regarder en direct" → panel "🔴 Chaînes en direct" opens (panelVisible: true)
+  - After ~10s: 7 DaddyLive channels with DISPONIBLE badges:
+    * Sky Sports Premier League, TNT Sports 1 UK, TNT Sports 2 UK,
+      USA Network, BeIN SPORTS USA, beIN SPORTS 1 France, Nova Sports Premier League Greece
+  - Lint clean
+
+Stage Summary:
+- FIXED: clicking "Regarder en direct" now ALWAYS opens the channel selection panel
+- No more direct auto-play of dead HesGoal streams — the user chooses the channel
+- 7 match-specific DaddyLive channels show with DISPONIBLE badges within seconds
+- Lint clean, no compile errors

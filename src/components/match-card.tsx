@@ -36,7 +36,7 @@ interface MatchCardProps {
 }
 
 export default function MatchCard({ match }: MatchCardProps) {
-  const { openPlayer, language } = useAppStore();
+  const { language } = useAppStore();
   const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
   const [showTracker, setShowTracker] = useState(false);
   const [showStreamOptions, setShowStreamOptions] = useState(false);
@@ -69,19 +69,16 @@ export default function MatchCard({ match }: MatchCardProps) {
   const sportType = isBasketballSport ? 'basketball' : 'football';
 
   /**
-   * "Watch Live" handler — Opens the channel selection panel.
-   * The user picks the channel they want to watch from the list of verified-working channels.
-   * No auto-play — the user is in control.
+   * "Watch Live" handler — ALWAYS opens the channel selection panel.
+   * The user picks the channel they want to watch from the list of verified-working
+   * channels (DaddyLive match-specific broadcasters: Sky Sports, beIN, ESPN, TNT...).
+   *
+   * We deliberately do NOT auto-play any pre-attached stream URL: those legacy
+   * streams (HesGoal merge) are frequently dead → the user would see a black
+   * screen with no way to pick another channel. Showing the channel list gives
+   * the user control.
    */
   const handleWatchLive = async () => {
-    // If we already have a direct m3u8 URL from a verified source, play it immediately
-    // (this is the case when the match itself has an attached stream from HesGoal/IPTV)
-    if (match.streamUrl && (match.streamUrl.includes('.m3u8') || match.streamUrl.includes('m3u8'))) {
-      openPlayer(match.streamUrl, match.channelName || `${match.homeTeam} vs ${match.awayTeam}`, match.channelLogo || undefined);
-      return;
-    }
-
-    // Open the channel selection panel — user chooses which channel to watch
     setShowStreamOptions(true);
   };
 
