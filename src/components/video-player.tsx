@@ -40,8 +40,9 @@ function needsProxy(url: string): boolean {
   // through our server-side proxy would BREAK it (server can't execute JS,
   // Cloudflare blocks server fetches).
   const directLoadDomains = [
-    'dlive.sx',          // DaddyLive embed pages (tarjetaroja method)
-    'dlhd.st',           // DaddyLive legacy domain (redirects to dlive.sx)
+    'hamis.romponalis.st', // DaddyLive Clappr player (direct embed, no X-Frame-Options)
+    'dlive.sx',          // DaddyLive wrapper page (legacy fallback)
+    'dlhd.st',           // DaddyLive legacy domain
   ];
   if (directLoadDomains.some(d => url.includes(d))) return false;
   // Any other URL (web page / embed) needs proxying to bypass iframe restrictions
@@ -126,6 +127,13 @@ export default function VideoPlayer() {
     if (!playerVisible || !playerStreamUrl) return;
     // Only try resolving if it's an iframe URL (not already HLS)
     if (isHlsUrl(playerStreamUrl)) return;
+    // SKIP DaddyLive (dlive.sx / hamis.romponalis.st) embeds — their m3u8 is
+    // fetched client-side by the Clappr player from a Cloudflare-protected CDN
+    // (xameleon.phantemlis.top) that returns 403 server-side. Server-side
+    // resolution is impossible. The embed resolves the stream CLIENT-SIDE.
+    if (playerStreamUrl.includes('dlive.sx') ||
+        playerStreamUrl.includes('dlhd.st') ||
+        playerStreamUrl.includes('hamis.romponalis.st')) return;
     // Don't re-resolve if we already have a resolved URL for this stream
     if (resolvedUrl) return;
 
@@ -166,7 +174,11 @@ export default function VideoPlayer() {
     return () => { cancelled = true; };
   }, [playerVisible, playerStreamUrl]);
 
-  // Iframe timeout: show warning if iframe hasn't loaded after 15 seconds
+  // Iframe timeout: show warning if iframe hasn't loaded after 45 seconds.
+  // DaddyLive (dlive.sx) embeds use a multi-layered loading chain:
+  //   dlive.sx/stream/stream-XXX.php → nested hamis.romponalis.st iframe →
+  //   Clappr player → m3u8 fetch from CDN. This takes ~20-30s to fully resolve,
+  //   so we use a generous 45s timeout (was 15s, which triggered false errors).
   useEffect(() => {
     if (!isIframe || !playerVisible || !effectiveUrl) return;
 
@@ -175,7 +187,7 @@ export default function VideoPlayer() {
 
     iframeTimerRef.current = setTimeout(() => {
       setIframeTimedOut(true);
-    }, 15000);
+    }, 45000);
 
     return () => {
       if (iframeTimerRef.current) {
@@ -544,7 +556,11 @@ export default function VideoPlayer() {
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             title={`${t(language, 'player.liveStream')}: ${playerChannelName}`}
-            referrerPolicy="no-referrer"
+            // Send our origin as the Referer so DaddyLive (dlive.sx) serves the REAL
+            // player page (which contains the nested Clappr player iframe). With
+            // "no-referrer", dlive.sx returns an "Access Blocked" stub instead of the
+            // real player → black screen. This mirrors how tarjetarojaenvivo.cx embeds it.
+            referrerPolicy="origin"
             onError={() => {
               console.warn('[VideoPlayer] iframe onError triggered');
               setIframeError(true);

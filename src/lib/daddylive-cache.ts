@@ -67,13 +67,19 @@ export async function fetchSchedule(): Promise<Record<string, Record<string, DLE
 /**
  * Build the embeddable player URL for a DaddyLive channel id.
  *
- * DaddyLive serves an obfuscated Clappr-style player page at
- *   https://dlive.sx/stream/stream-{channelId}.php
- * This page handles Cloudflare clearance + m3u8 resolution INTERNALLY when
- * loaded in a browser iframe — that's exactly how aggregator sites like
- * tarjetarojaenvivo.cx embed DaddyLive streams. We MUST use the live embed
- * page (not the raw m3u8 on newkso.ru, which is Cloudflare-blocked when
- * fetched server-side).
+ * We embed dlive.sx/stream/stream-XXX.php (NOT hamis directly) because:
+ *   1. hamis.romponalis.st requires Referer: https://dlive.sx/ — it returns 403
+ *      for any other referer (including our domain and no-referer)
+ *   2. When the browser loads dlive.sx in our iframe (with referrerPolicy="origin"),
+ *      dlive.sx serves the REAL player page which contains a NESTED iframe to
+ *      hamis.romponalis.st. That nested iframe loads with
+ *      Referer: https://dlive.sx/stream/stream-XXX.php — which hamis accepts (200).
+ *   3. The Clappr player inside hamis then fetches the m3u8 from the CDN
+ *      (xameleon.phantemlis.top) CLIENT-SIDE — the browser passes Cloudflare,
+ *      server-side fetches get 403.
+ *
+ * The iframe must use referrerPolicy="origin" (NOT "no-referrer") so dlive.sx
+ * gets a referer and serves the real player instead of the "Access Blocked" stub.
  */
 export function buildEmbedUrl(channelId: string | number): string {
   return `https://dlive.sx/stream/stream-${channelId}.php`;

@@ -286,13 +286,19 @@ export async function GET(request: NextRequest) {
     const functionalStreams = [...matchedStreams];
 
     // Quick GET-validate embed URLs in parallel (fast, 4s timeout each)
+    // hamis.romponalis.st requires Referer: https://dlive.sx/ (returns 403 without it)
     if (functionalStreams.length > 0 && functionalStreams.length <= 12) {
       const results = await Promise.allSettled(
         functionalStreams.map(async (stream) => {
           try {
+            const headers = { ...COMMON_HEADERS };
+            // hamis.romponalis.st blocks requests without a dlive.sx referer
+            if (stream.streamUrl.includes('hamis.romponalis.st')) {
+              headers['Referer'] = 'https://dlive.sx/';
+            }
             const res = await fetch(stream.streamUrl, {
               method: 'GET',
-              headers: COMMON_HEADERS,
+              headers,
               signal: AbortSignal.timeout(4000),
               redirect: 'follow',
             });
