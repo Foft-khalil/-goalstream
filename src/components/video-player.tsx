@@ -33,17 +33,13 @@ function needsProxy(url: string): boolean {
   // Our own proxy URLs don't need re-proxying
   if (url.includes('/api/proxy-stream')) return false;
   // Known embed sites that DON'T set X-Frame-Options → load directly in iframe.
-  // DaddyLive (dlive.sx) embed pages use an obfuscated Clappr-style player that
-  // resolves the m3u8 CLIENT-SIDE. Loading the embed directly in an iframe lets
-  // the browser handle Cloudflare clearance + m3u8 playback — this is the exact
-  // method used by tarjetarojaenvivo.cx and similar aggregators. Routing it
-  // through our server-side proxy would BREAK it (server can't execute JS,
-  // Cloudflare blocks server fetches).
-  const directLoadDomains = [
-    'hamis.romponalis.st', // DaddyLive Clappr player (direct embed, no X-Frame-Options)
-    'dlive.sx',          // DaddyLive wrapper page (legacy fallback)
-    'dlhd.st',           // DaddyLive legacy domain
-  ];
+  // NOTE: DaddyLive (dlive.sx) is NO LONGER in this list — it's too heavy (643KB
+  // + ads + nested iframes) and times out. Instead, dlive.sx URLs go through
+  // /api/proxy-stream which fetches the page server-side (stripping ads/scripts),
+  // rewrites the nested hamis.romponalis.st iframe to also go through the proxy
+  // (with Referer: https://dlive.sx/ so hamis returns 200), and serves a
+  // lightweight page from our own domain.
+  const directLoadDomains: string[] = [];
   if (directLoadDomains.some(d => url.includes(d))) return false;
   // Any other URL (web page / embed) needs proxying to bypass iframe restrictions
   return true;
@@ -556,11 +552,10 @@ export default function VideoPlayer() {
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             title={`${t(language, 'player.liveStream')}: ${playerChannelName}`}
-            // Send our origin as the Referer so DaddyLive (dlive.sx) serves the REAL
-            // player page (which contains the nested Clappr player iframe). With
-            // "no-referrer", dlive.sx returns an "Access Blocked" stub instead of the
-            // real player → black screen. This mirrors how tarjetarojaenvivo.cx embeds it.
-            referrerPolicy="origin"
+            // no-referrer: the proxied page (served from our domain) shouldn't send
+            // our origin as Referer to third-party resources (ads, CDNs). The
+            // proxy-stream handles upstream Referers server-side.
+            referrerPolicy="no-referrer"
             onError={() => {
               console.warn('[VideoPlayer] iframe onError triggered');
               setIframeError(true);

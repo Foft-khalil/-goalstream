@@ -289,15 +289,25 @@ export default function StreamOptions({
   });
 
   /**
-   * Play a stream IN-APP — NEVER redirect externally.
+   * Play a stream — IPTV m3u8 plays IN-APP via HLS.js (reliable).
+   * DaddyLive embed URLs (dlive.sx) open in a NEW BROWSER TAB because the
+   * stream can only be resolved client-side by dlive.sx's own page (Cloudflare
+   * browser fingerprinting blocks server-side m3u8 fetches). This is the same
+   * method tarjetarojaenvivo.cx uses — they link to the source site.
    */
   const handlePlayStream = (stream: StreamResult) => {
     const url = stream.url;
     if (isM3u8Url(url)) {
+      // IPTV m3u8 stream — plays in-app via HLS.js through stream-proxy
       const proxiedUrl = getProxiedM3u8(url);
       openPlayer(proxiedUrl, stream.name, stream.channelLogo || undefined);
+      onClose();
+    } else if (url.includes('dlive.sx') || url.includes('dlhd.st')) {
+      // DaddyLive embed — open in a new browser tab (stream plays natively on dlive.sx)
+      window.open(url, '_blank', 'noopener,noreferrer');
+      onClose();
     } else {
-      // Embed/iframe URL — play in-app via proxy-stream (no external redirect)
+      // Other embed/iframe URL — play in-app via proxy-stream
       openPlayer(url, stream.name, stream.channelLogo || undefined);
     }
   };

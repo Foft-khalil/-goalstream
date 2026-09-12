@@ -49,12 +49,29 @@ export async function GET(request: NextRequest) {
   try {
     console.log(`[Proxy Stream] GET fetching: ${targetUrl}`);
 
+    // Determine the correct Referer for the upstream request.
+    // DaddyLive chain: dlive.sx → hamis.romponalis.st → m3u8 CDN (xameleon.phantemlis.top)
+    // - dlive.sx serves the real player only when Referer is present (any https origin works)
+    // - hamis.romponalis.st REQUIRES Referer: https://dlive.sx/ (returns 403 otherwise)
+    // - xameleon.phantemlis.top (m3u8) is Cloudflare-protected — try Referer: https://dlive.sx/
+    let upstreamReferer = targetUrl;
+    try {
+      const targetOrigin = new URL(targetUrl).origin;
+      if (targetOrigin.includes('hamis.romponalis.st') ||
+          targetOrigin.includes('dlive.sx') ||
+          targetOrigin.includes('dlhd.st') ||
+          targetOrigin.includes('phantemlis.top') ||
+          targetOrigin.includes('xameleon')) {
+        upstreamReferer = 'https://dlive.sx/';
+      }
+    } catch {}
+
     const response = await fetch(targetUrl, {
       headers: {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': targetUrl,
+        'Referer': upstreamReferer,
       },
       signal: AbortSignal.timeout(15000),
       redirect: 'follow',
