@@ -8,7 +8,7 @@ import {
   isDeadUrl,
   dateKey,
 } from '@/lib/team-match';
-import { fetchSchedule, fetchChannelsData } from '@/lib/daddylive-cache';
+import { fetchSchedule, fetchChannelsData, buildEmbedUrl } from '@/lib/daddylive-cache';
 
 /**
  * DaddyLive API Route
@@ -249,14 +249,16 @@ export async function GET(request: NextRequest) {
 
             if (channelEntry) {
               const { name: chName, data: chData } = channelEntry;
-              streamUrl = chData.stream_url;
               channelLogo = chData.tvg_logo;
               groupTitle = chData.group_title;
               channelName = ch.channel_name || chName;
-            } else {
-              // Channel not in channels data - provide the embed page URL via dlhd.st
-              streamUrl = `https://dlhd.st/stream/stream-${ch.channel_id}.php`;
             }
+            // ALWAYS use the embeddable player page on dlive.sx.
+            // The raw m3u8 URLs on newkso.ru are Cloudflare-blocked when fetched
+            // server-side, but the embed page (dlive.sx/stream/stream-XXX.php)
+            // resolves the stream CLIENT-SIDE in the browser — this is exactly
+            // how tarjetarojaenvivo.cx and similar aggregators embed DaddyLive.
+            streamUrl = buildEmbedUrl(ch.channel_id);
 
             if (!streamUrl || isDeadUrl(streamUrl) || seenUrls.has(streamUrl)) continue;
             seenUrls.add(streamUrl);
@@ -277,56 +279,42 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Categorize streams by type
-    const m3u8Streams = matchedStreams.filter(s => s.streamUrl.includes('.m3u8'));
-    const embedStreams = matchedStreams.filter(s => !s.streamUrl.includes('.m3u8'));
+    // All streams now use DaddyLive's embeddable player page (dlive.sx/stream/stream-XXX.php).
+    // The raw m3u8 on newkso.ru is Cloudflare-blocked server-side. The embed page resolves
+    // the stream CLIENT-SIDE in the browser (same method as tarjetarojaenvivo.cx).
+    // We do a lightweight HTTP GET check on the embed page to confirm it exists.
+    const functionalStreams = [...matchedStreams];
 
-    // Validate m3u8 streams in parallel (with concurrency limit)
-    // Only validate if there aren't too many (to avoid long response times)
-    let validatedM3u8Streams: MatchedStream[];
-
-    if (m3u8Streams.length > 0 && m3u8Streams.length <= 10) {
-      console.log(`[DaddyLive API] Validating ${m3u8Streams.length} m3u8 streams...`);
-
-      const validationResults = await Promise.allSettled(
-        m3u8Streams.map(async (stream) => {
-          const isValid = await validateStreamHealth(stream.streamUrl);
-          return { stream, isValid };
+    // Quick GET-validate embed URLs in parallel (fast, 4s timeout each)
+    if (functionalStreams.length > 0 && functionalStreams.length <= 12) {
+      const results = await Promise.allSettled(
+        functionalStreams.map(async (stream) => {
+          try {
+            const res = await fetch(stream.streamUrl, {
+              method: 'GET',
+              headers: COMMON_HEADERS,
+              signal: AbortSignal.timeout(4000),
+              redirect: 'follow',
+            });
+            return { stream, valid: res.ok };
+          } catch {
+            return { stream, valid: false };
+          }
         })
       );
-
-      validatedM3u8Streams = validationResults
-        .filter((r): r is PromiseFulfilledResult<{ stream: MatchedStream; isValid: boolean }> =>
-          r.status === 'fulfilled' && r.value.isValid
-        )
+      const validStreams = results
+        .filter((r): r is PromiseFulfilledResult<{ stream: MatchedStream; valid: boolean }> =>
+          r.status === 'fulfilled' && r.value.valid)
         .map(r => r.value.stream);
-
-      const removedCount = m3u8Streams.length - validatedM3u8Streams.length;
-      if (removedCount > 0) {
-        console.log(`[DaddyLive API] Removed ${removedCount} broken m3u8 streams`);
-      }
-    } else if (m3u8Streams.length > 10) {
-      // Too many streams - skip validation to avoid timeout, return all
-      // The client-side validation will catch broken ones
-      validatedM3u8Streams = m3u8Streams;
-    } else {
-      validatedM3u8Streams = [];
+      const removed = functionalStreams.length - validStreams.length;
+      if (removed > 0) console.log(`[DaddyLive API] Removed ${removed} unavailable embed pages`);
+      functionalStreams.length = 0;
+      functionalStreams.push(...validStreams);
     }
 
-    // Combine: validated m3u8 first, then embed URLs
-    const functionalStreams = [...validatedM3u8Streams, ...embedStreams];
-
-    // Sort: m3u8 first (better UX), then by match score (highest first), then by sport relevance
+    // Sort by match score (highest first), then by sport relevance
     functionalStreams.sort((a, b) => {
-      // m3u8 first
-      const aIsM3u8 = a.streamUrl.includes('.m3u8') ? 0 : 1;
-      const bIsM3u8 = b.streamUrl.includes('.m3u8') ? 0 : 1;
-      if (aIsM3u8 !== bIsM3u8) return aIsM3u8 - bIsM3u8;
-
-      // Then by match score (highest first)
       if (Math.abs(a.matchScore - b.matchScore) > 0.01) return b.matchScore - a.matchScore;
-
-      // Then by sport match
       if (sport) {
         const aSport = a.sport === sport ? 0 : 1;
         const bSport = b.sport === sport ? 0 : 1;
@@ -335,8 +323,7 @@ export async function GET(request: NextRequest) {
       return 0;
     });
 
-    console.log(`[DaddyLive API] Found ${functionalStreams.length} streams (${validatedM3u8Streams.length} m3u8, ${embedStreams.length} embed) for "${homeTeam}" vs "${awayTeam}" (liveOnly=${liveOnly})`);
-
+    console.log(`[DaddyLive API] Found ${functionalStreams.length} embed streams for "${homeTeam}" vs "${awayTeam}" (liveOnly=${liveOnly})`);
     // ── Competition-based fallback ──
     // If we found very few (or zero) match-specific streams, add channels that are likely
     // to broadcast this competition. This handles the case where the DaddyLive schedule is
@@ -353,13 +340,16 @@ export async function GET(request: NextRequest) {
         const channelEntry = channelsByName.get(fc.name.toLowerCase());
         if (!channelEntry) continue;
         const { name: chName, data: chData } = channelEntry;
-        const streamUrl = chData.stream_url;
+        // Extract channel id from channel_url (e.g. stream/stream-521.php -> 521)
+        const idMatch = chData.channel_url.match(/stream-(\d+)\.php/);
+        if (!idMatch) continue;
+        const streamUrl = buildEmbedUrl(idMatch[1]);
         if (!streamUrl || isDeadUrl(streamUrl) || existingUrls.has(streamUrl)) continue;
         existingUrls.add(streamUrl);
 
         fallbackStreams.push({
           channelName: chName,
-          channelId: '',
+          channelId: idMatch[1],
           streamUrl,
           channelLogo: chData.tvg_logo,
           groupTitle: chData.group_title,
@@ -389,7 +379,7 @@ export async function GET(request: NextRequest) {
         eventTime: s.eventTime,
         eventName: s.eventName,
         sport: s.sport,
-        type: s.streamUrl.includes('.m3u8') ? 'm3u8' : 'embed',
+        type: 'embed',
         source: s.matchScore < 0.35 ? 'competition-fallback' : 'daddylive',
         score: s.matchScore,
       })),

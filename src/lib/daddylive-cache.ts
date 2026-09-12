@@ -48,8 +48,10 @@ export async function fetchSchedule(): Promise<Record<string, Record<string, DLE
   const cached = scheduleCache.get('schedule');
   if (cached && Date.now() - cached.timestamp < SCHEDULE_TTL) return cached.data;
 
+  // dlive.sx is the current canonical DaddyLive domain (dlhd.st redirects here).
+  // We hit dlive.sx directly to avoid an extra redirect hop and the redirect's TLS issue.
   try {
-    const res = await fetch('https://dlhd.st/schedule/schedule-generated.json', {
+    const res = await fetch('https://dlive.sx/schedule/schedule-generated.json', {
       headers: COMMON_HEADERS,
       signal: AbortSignal.timeout(10000),
     });
@@ -60,6 +62,21 @@ export async function fetchSchedule(): Promise<Record<string, Record<string, DLE
   } catch {
     return cached?.data || {};
   }
+}
+
+/**
+ * Build the embeddable player URL for a DaddyLive channel id.
+ *
+ * DaddyLive serves an obfuscated Clappr-style player page at
+ *   https://dlive.sx/stream/stream-{channelId}.php
+ * This page handles Cloudflare clearance + m3u8 resolution INTERNALLY when
+ * loaded in a browser iframe — that's exactly how aggregator sites like
+ * tarjetarojaenvivo.cx embed DaddyLive streams. We MUST use the live embed
+ * page (not the raw m3u8 on newkso.ru, which is Cloudflare-blocked when
+ * fetched server-side).
+ */
+export function buildEmbedUrl(channelId: string | number): string {
+  return `https://dlive.sx/stream/stream-${channelId}.php`;
 }
 
 /**

@@ -32,6 +32,18 @@ function needsProxy(url: string): boolean {
   if (isHlsUrl(url)) return false;
   // Our own proxy URLs don't need re-proxying
   if (url.includes('/api/proxy-stream')) return false;
+  // Known embed sites that DON'T set X-Frame-Options → load directly in iframe.
+  // DaddyLive (dlive.sx) embed pages use an obfuscated Clappr-style player that
+  // resolves the m3u8 CLIENT-SIDE. Loading the embed directly in an iframe lets
+  // the browser handle Cloudflare clearance + m3u8 playback — this is the exact
+  // method used by tarjetarojaenvivo.cx and similar aggregators. Routing it
+  // through our server-side proxy would BREAK it (server can't execute JS,
+  // Cloudflare blocks server fetches).
+  const directLoadDomains = [
+    'dlive.sx',          // DaddyLive embed pages (tarjetaroja method)
+    'dlhd.st',           // DaddyLive legacy domain (redirects to dlive.sx)
+  ];
+  if (directLoadDomains.some(d => url.includes(d))) return false;
   // Any other URL (web page / embed) needs proxying to bypass iframe restrictions
   return true;
 }

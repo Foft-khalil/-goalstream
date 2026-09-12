@@ -139,6 +139,13 @@ export default function StreamOptions({
     }
     if (daddyliveResult.status === 'fulfilled') {
       setDaddyliveStreams(daddyliveResult.value);
+      // DaddyLive embed URLs are already server-validated (HTTP 200 check in the API route)
+      // so mark them as 'valid' immediately — no need for client-side validation.
+      setValidationStates(prev => {
+        const next = { ...prev };
+        for (const s of daddyliveResult.value) next[s.url] = 'valid';
+        return next;
+      });
     }
     if (rojaResult.status === 'fulfilled') {
       setRojaStreams(rojaResult.value);

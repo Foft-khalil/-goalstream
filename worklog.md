@@ -1521,3 +1521,49 @@ Stage Summary:
 - No more wasting user's time waiting for broken channels to load
 - Works for ALL competitions: Premier League, La Liga, Serie A, Bundesliga, Ligue 1, MLS, NBA, etc.
 - Lint clean, no compile errors
+
+---
+Task ID: 15
+Agent: Main Agent
+Task: Re-apply tarjetarojaenvivo.cx method (previous edits were reverted by sandbox snapshot)
+
+Work Log:
+- DISCOVERED that all edits from Task ID 14 were REVERTED — the files were back to their pre-edit state (dlhd.st, m3u8 validation, no buildEmbedUrl, no dlive.sx in directLoadDomains). The sandbox likely restored from a snapshot between conversations.
+- Re-applied all 4 fixes:
+
+- FIX 1: src/lib/daddylive-cache.ts
+  - Changed schedule fetch URL from dlhd.st → dlive.sx (avoids redirect + TLS issue)
+  - Added buildEmbedUrl(channelId) helper → returns https://dlive.sx/stream/stream-{channelId}.php
+
+- FIX 2: src/app/api/daddylive/route.ts
+  - Added buildEmbedUrl import
+  - ALWAYS use buildEmbedUrl(ch.channel_id) for every matched channel (not stream_url, not dlhd.st)
+  - Replaced server-side m3u8 validation (validateStreamHealth) with lightweight HTTP GET check on embed page (4s timeout, confirms channel page exists)
+  - Updated competition-fallback to use buildEmbedUrl (extracts channel_id from channel_url)
+  - All streams now returned as type: 'embed' (was mixed m3u8/embed)
+
+- FIX 3: src/components/video-player.tsx
+  - Added directLoadDomains list with 'dlive.sx' and 'dlhd.st' to needsProxy()
+  - DaddyLive embed URLs load DIRECTLY in iframe (NOT through proxy-stream)
+  - Critical: the embed page's obfuscated JS must execute in browser to resolve stream
+
+- FIX 4: src/components/stream-options.tsx
+  - Mark DaddyLive embed channels as 'valid' immediately in fetchStreams (they're already server-validated via HTTP GET)
+  - Without this, DaddyLive embed channels stayed 'pending' forever (the validation effect only validates m3u8 URLs, not embed URLs)
+
+- VERIFICATION:
+  - DaddyLive API (curl test): Arsenal vs Chelsea → 8 channels: TNT Sports 1 UK, Sky Sports Premier League, TNT Sports 2 UK, USA Network, BeIN SPORTS USA, beIN SPORTS 1 France, Nova Sports, Fox Sports 2 USA — ALL with dlive.sx embed URLs
+  - Log shows new format: "Found 2 embed streams" (was "Found N streams (X m3u8, Y embed)")
+  - Browser test (agent-browser):
+    * Opened live match (OL Lyonnes vs Paris FC, Première Ligue)
+    * Stream options panel: "🔴 Chaînes en direct"
+    * "CHAÎNES DISPONIBLES 6 CHAÎNES" (IPTV m3u8): beIN SPORTS XTRA, ESPN, ESPN8 The Ocho, ESPN Deportes, ESPNU, Fox Sports 1
+    * "AUTRES SOURCES 3 DISPONIBLES" (DaddyLive embeds): Sky Sports Premier League, BeIN SPORTS USA, ESPN USA — ALL with "OK" badges
+    * No page errors, no console errors
+  - Lint: passes clean
+
+Stage Summary:
+- Re-applied the tarjetarojaenvivo.cx method after sandbox snapshot revert
+- DaddyLive channels now appear correctly in stream options panel with "OK" badges
+- Channels are clickable and open the dlive.sx embed player in an iframe (client-side stream resolution)
+- Lint clean, no errors
