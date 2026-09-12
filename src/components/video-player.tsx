@@ -14,6 +14,8 @@ type StreamStatus = 'loading' | 'ready' | 'error';
  * vs an iframe embed URL (needs to be shown in an iframe)
  */
 function isHlsUrl(url: string): boolean {
+  // Our own playlist proxy always serves HLS manifests (Task 24 — clean streams)
+  if (url.includes('/api/hls-proxy')) return true;
   return url.includes('.m3u8') || url.includes('m3u8');
 }
 
@@ -231,15 +233,17 @@ export default function VideoPlayer() {
     let cancelled = false;
     validAltUrlRef.current = null;
 
-    // Only validate alternatives that are m3u8 (proxied URLs)
-    const m3u8Alts = playerAlternatives.filter(a => a.url && a.url.includes('stream-proxy'));
+    // Validate alternatives that are proxied HLS playlists
+    const m3u8Alts = playerAlternatives.filter(
+      (a) => a.url && (a.url.includes('stream-proxy') || a.url.includes('/api/hls-proxy'))
+    );
     if (m3u8Alts.length === 0) return;
 
     // Extract the original m3u8 URL from the proxied URL for validation
     const extractOrigUrl = (proxied: string): string => {
       try {
         const u = new URL(proxied, window.location.origin);
-        return u.searchParams.get('url') || proxied;
+        return u.searchParams.get('url') || u.searchParams.get('u') || proxied;
       } catch { return proxied; }
     };
 
@@ -248,6 +252,18 @@ export default function VideoPlayer() {
     // Validate all alternatives in parallel
     Promise.allSettled(
       m3u8Alts.map(async (alt) => {
+        // hls-proxy URLs are same-origin playlists — validate through the
+        // proxy itself (it injects the upstream Referer server-side).
+        if (alt.url.includes('/api/hls-proxy')) {
+          try {
+            const res = await fetch(alt.url, { signal: AbortSignal.timeout(8000) });
+            if (!res.ok) return { alt, valid: false, reason: `HTTP ${res.status}` };
+            const txt = await res.text();
+            return { alt, valid: txt.includes('#EXTM3U'), reason: 'playlist ok' };
+          } catch {
+            return { alt, valid: false, reason: 'proxy fetch failed' };
+          }
+        }
         const origUrl = extractOrigUrl(alt.url);
         try {
           const res = await fetch('/api/stream-validate', {
@@ -313,10 +329,13 @@ export default function VideoPlayer() {
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         startLevel: -1,
-        manifestLoadingTimeOut: 5000,    // faster timeout (was 8s)
+        // Generous timeouts: on a 403 wall the hls-proxy CHEAPLY refreshes the
+        // upstream token server-side (player-page refetch ~1-3 s) and answers
+        // with a 302 to the fresh playlist — hls.js follows transparently.
+        manifestLoadingTimeOut: 12000,
         manifestLoadingMaxRetry: 0,
-        levelLoadingTimeOut: 5000,       // faster timeout
-        levelLoadingMaxRetry: 0,
+        levelLoadingTimeOut: 12000,
+        levelLoadingMaxRetry: 1,
         fragLoadingTimeOut: 8000,
         fragLoadingMaxRetry: 1,
       });
@@ -324,15 +343,16 @@ export default function VideoPlayer() {
       hls.loadSource(currentUrl);
       hls.attachMedia(video);
 
-      // Watchdog: if manifest not parsed within 5s, force-try next channel (was 9s)
+      // Watchdog: if manifest not parsed within 11s, force-try next channel.
+      // (Token self-healing inside the proxy can legitimately take ~3-6 s.)
       let manifestParsed = false;
       let hlsDestroyed = false;
       const watchdog = setTimeout(() => {
         if (!manifestParsed && !hlsDestroyed) {
-          console.log('[VideoPlayer] Watchdog: 5s timeout, trying next channel');
+          console.log('[VideoPlayer] Watchdog: 11s timeout, trying next channel');
           if (tryNextChannel()) return;
         }
-      }, 5000);
+      }, 11000);
       watchdogRef.current = watchdog;
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {

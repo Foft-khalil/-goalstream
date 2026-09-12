@@ -1,30 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  matchEventStrict,
-  detectSport,
-  isDeadUrl,
-  dateKey,
-} from '@/lib/team-match';
-import { fetchSchedule, fetchChannelsData, buildEmbedUrl, buildWatchUrl } from '@/lib/daddylive-cache';
+import { matchEventStrict, detectSport, dateKey } from '@/lib/team-match';
+import { fetchSchedule, fetchChannelsData } from '@/lib/daddylive-cache';
+import { resolveChannelM3u8, buildHlsProxyUrl, mapWithConcurrency } from '@/lib/daddylive-resolve';
 
 /**
- * DaddyLive API Route (Task 23 — anti "wrong match" guarantee)
+ * DaddyLive API Route (Task 24 — clean, ad-free, CORRECT-match streams)
  *
- * ONLY returns channels that are attached to THE event in DaddyLive's fresh
- * schedule (the live homepage HTML) where BOTH team names of the clicked
- * match match the event title. Those channels are DaddyLive's own per-event
- * broadcaster list — i.e. streams actually dedicated to THIS match, so the
- * user sees the match they clicked, never some other game that happens to
- * be on air.
+ * CORRECT MATCH GUARANTEE: ONLY channels attached to THE event in DaddyLive's
+ * fresh schedule (live homepage HTML) are returned, and BOTH team names of
+ * the clicked match must match the event title (strict matching). The old
+ * "competition fallback" (generic channels playing whatever is on air) was
+ * removed — if no dedicated event exists we honestly return an empty list.
  *
- * The old "competition fallback" (generic channels like Sky Sports PL /
- * BeIN USA / ESPN USA when no event matched) was REMOVED: it was the direct
- * cause of "I clicked match A but a different match is playing". If no
- * dedicated event exists we honestly return an empty list instead.
+ * NO ADS GUARANTEE: we NEVER embed the ad-infested DaddyLive pages. Every
+ * channel is resolved SERVER-SIDE down to its raw HLS playlist
+ * (daddylive-resolve.ts) and returned as a same-origin /api/hls-proxy URL
+ * that our own hls.js player plays. The ad scripts (Clappr page, popups,
+ * tab-unders, banners) are never loaded by any browser.
  *
- * Stream health is validated server-side through the light watch.php page
- * (~25 KB, contains the player marker iff the channel exists) so the user
- * never sees a dead channel.
+ * NO DEAD CHANNELS GUARANTEE: resolution includes a REAL playlist check
+ * (the master m3u8 must return a valid manifest right now) — a channel is
+ * listed only if its actual stream is playable at request time.
  */
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -39,7 +35,6 @@ interface DLChannelData {
 interface MatchedStream {
   channelName: string;
   channelId: string;
-  streamUrl: string;
   channelLogo: string;
   groupTitle: string;
   eventTime: string;
@@ -48,63 +43,10 @@ interface MatchedStream {
   matchScore: number;
 }
 
-// Stream health cache: URL → { valid, timestamp } (local to this route)
-// Use globalThis to survive HMR in dev mode.
-interface HealthEntry {
-  valid: boolean;
-  timestamp: number;
-}
-const _g = globalThis as unknown as { __dlHealthCache?: Map<string, HealthEntry> };
-if (!_g.__dlHealthCache) _g.__dlHealthCache = new Map();
-const streamHealthCache = _g.__dlHealthCache;
-const HEALTH_CACHE_TTL = 3 * 60 * 1000; // 3 minutes
-
-const COMMON_HEADERS: Record<string, string> = {
-  'Accept': 'text/html, application/json, */*',
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
-};
-
-// ─── Validate a DaddyLive channel — REAL health check via light watch page ────
-// watch.php?id=N is ~25 KB and contains the player marker ('daddy') iff the
-// channel exists; dead/offline ids render a stub without it. (The full embed
-// page stream-NNN.php is ~640 KB — we don't download it server-side anymore.)
-// The health cache key is the channel id (not the URL) since watch & stream
-// pages share existence.
-async function validateChannelHealth(channelId: string): Promise<boolean> {
-  const cacheKey = `watch:${channelId}`;
-  const cached = streamHealthCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < HEALTH_CACHE_TTL) {
-    return cached.valid;
-  }
-
-  try {
-    const res = await fetch(buildWatchUrl(channelId), {
-      method: 'GET',
-      headers: {
-        ...COMMON_HEADERS,
-        // A neutral referer — mirrors how the browser will load it in-app
-        'Referer': 'https://www.google.com/',
-      },
-      signal: AbortSignal.timeout(8000),
-      redirect: 'follow',
-    });
-
-    if (!res.ok) {
-      streamHealthCache.set(cacheKey, { valid: false, timestamp: Date.now() });
-      return false;
-    }
-
-    const text = await res.text();
-    const valid = text.includes('daddy') || text.includes('premiumtv');
-
-    streamHealthCache.set(cacheKey, { valid, timestamp: Date.now() });
-    return valid;
-  } catch {
-    // Network error / timeout — invalid (don't show broken channels)
-    streamHealthCache.set(cacheKey, { valid: false, timestamp: Date.now() });
-    return false;
-  }
-}
+// Resolve at most this many best-matched channels (kept low to bound latency:
+// each resolution fetches ~640 KB + 3 KB; results are cached ~hours).
+const MAX_CHANNELS_TO_RESOLVE = 8;
+const RESOLVE_CONCURRENCY = 3;
 
 // ─── GET handler: Search for streams ────────────────────────────────────────
 export async function GET(request: NextRequest) {
@@ -136,7 +78,7 @@ export async function GET(request: NextRequest) {
     }
 
     const matchedStreams: MatchedStream[] = [];
-    const seenUrls = new Set<string>();
+    const seenChannelIds = new Set<string>();
 
     // Determine today's date key for filtering (UTC)
     const now = new Date();
@@ -175,12 +117,8 @@ export async function GET(request: NextRequest) {
           const allChannels = [...(event.channels || []), ...(event.channels2 || [])];
 
           for (const ch of allChannels) {
-            // Always embed the player page on dlive.sx (client-side m3u8
-            // resolution — the same chain the reference sites use).
-            const streamUrl = buildEmbedUrl(ch.channel_id);
-
-            if (!streamUrl || isDeadUrl(streamUrl) || seenUrls.has(streamUrl)) continue;
-            seenUrls.add(streamUrl);
+            if (!ch.channel_id || isUnusableId(ch.channel_id) || seenChannelIds.has(ch.channel_id)) continue;
+            seenChannelIds.add(ch.channel_id);
 
             // Best-effort logo by exact channel name
             const chData = channelsByName.get((ch.channel_name || '').toLowerCase());
@@ -190,7 +128,6 @@ export async function GET(request: NextRequest) {
             matchedStreams.push({
               channelName: ch.channel_name,
               channelId: ch.channel_id,
-              streamUrl,
               channelLogo,
               groupTitle,
               eventTime: event.time,
@@ -203,29 +140,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // REAL health check on every candidate channel (light watch.php page).
-    // Filter BEFORE returning so the user only ever sees working channels.
-    let finalStreams = [...matchedStreams];
-    if (finalStreams.length > 0) {
-      const results = await Promise.allSettled(
-        finalStreams.map(async (stream) => ({
-          stream,
-          valid: await validateChannelHealth(stream.channelId),
-        }))
-      );
-      const validStreams = results
-        .filter(
-          (r): r is PromiseFulfilledResult<{ stream: MatchedStream; valid: boolean }> =>
-            r.status === 'fulfilled' && r.value.valid
-        )
-        .map((r) => r.value.stream);
-      const removed = finalStreams.length - validStreams.length;
-      if (removed > 0) console.log(`[DaddyLive API] Removed ${removed} dead/offline channels (no player page)`);
-      finalStreams = validStreams;
-    }
-
-    // Sort by match score (highest first), then by sport relevance
-    finalStreams.sort((a, b) => {
+    // Best matches first, then cap the resolution work
+    matchedStreams.sort((a, b) => {
       if (Math.abs(a.matchScore - b.matchScore) > 0.01) return b.matchScore - a.matchScore;
       if (sport) {
         const aSport = a.sport === sport ? 0 : 1;
@@ -234,18 +150,39 @@ export async function GET(request: NextRequest) {
       }
       return 0;
     });
+    const candidates = matchedStreams.slice(0, MAX_CHANNELS_TO_RESOLVE);
 
-    console.log(`[DaddyLive API] Found ${finalStreams.length} dedicated channels for "${homeTeam}" vs "${awayTeam}" (both-team match)`);
+    // ── Resolve EVERY candidate to its raw HLS playlist (server-side). ──
+    // Resolution doubles as the REAL health check: only channels whose master
+    // playlist returns a valid manifest right now survive the filter below.
+    let finalStreams: Array<MatchedStream & { resolved: NonNullable<Awaited<ReturnType<typeof resolveChannelM3u8>>> }> = [];
+
+    if (candidates.length > 0) {
+      const results = await mapWithConcurrency(candidates, RESOLVE_CONCURRENCY, async (stream) => {
+        const resolved = await resolveChannelM3u8(stream.channelId);
+        return { stream, resolved };
+      });
+
+      finalStreams = results
+        .filter((r): r is { stream: MatchedStream; resolved: NonNullable<Awaited<ReturnType<typeof resolveChannelM3u8>>> } => !!r.resolved)
+        .map((r) => ({ ...r.stream, resolved: r.resolved }));
+
+      const removed = candidates.length - finalStreams.length;
+      if (removed > 0) console.log(`[DaddyLive API] Removed ${removed} dead/unresolvable channels (no valid playlist)`);
+    }
+
+    console.log(`[DaddyLive API] Found ${finalStreams.length} clean HLS channels for "${homeTeam}" vs "${awayTeam}" (both-team match)`);
     return NextResponse.json({
-      streams: finalStreams.map(s => ({
+      streams: finalStreams.map((s) => ({
         name: s.channelName,
-        url: s.streamUrl,
+        // Same-origin proxy URL — plays in OUR hls.js player. Zero ads.
+        url: buildHlsProxyUrl(s.resolved.m3u8Url, s.resolved.referer, s.channelId),
         channelLogo: s.channelLogo,
         group: s.groupTitle,
         eventTime: s.eventTime,
         eventName: s.eventName,
         sport: s.sport,
-        type: 'embed',
+        type: 'hls',
         source: 'daddylive',
         score: s.matchScore,
       })),
@@ -258,4 +195,10 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   }
+}
+
+/** "Channel Not Listed#00" style placeholders and empty ids are unresolvable. */
+function isUnusableId(id: string): boolean {
+  const n = Number(id);
+  return !Number.isFinite(n) || n <= 0;
 }

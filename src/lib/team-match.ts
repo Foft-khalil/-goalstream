@@ -18,6 +18,11 @@ export function normalizeTeamName(name: string): string {
     .toLowerCase()
     // Strip accents
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    // Fuse letter abbreviations BEFORE punctuation stripping: "D.C. United"
+    // must become "dc united" (not "d c united") so it matches DaddyLive's
+    // "DC United" — and its "dc" identity token stays matchable.
+    .replace(/\b([a-z])\.\s*(?=[a-z]\b)/g, '$1')
+    .replace(/\b([a-z])\.(?=\s|$)/g, '$1')
     // Remove punctuation (keep alphanumerics and spaces)
     .replace(/[^a-z0-9\s]/g, ' ')
     // Collapse whitespace
@@ -457,6 +462,14 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** Whole-word containment — substring includes() is far too loose for short
+ *  aliases ('ne' ⊂ 'new' once pulled the whole New England family into every
+ *  New York team's alias set and broke their scoring). */
+function includesWord(haystack: string, needle: string): boolean {
+  if (!haystack || !needle) return false;
+  return new RegExp(`\\b${escapeRegExp(needle)}\\b`).test(haystack);
+}
+
 /**
  * Light plural stemming — "bulls" ↔ "bull", consistent on BOTH sides
  * (team names and event titles are stemmed the same way, so "Red Bull New
@@ -482,67 +495,145 @@ function meaningfulTokens(normalizedName: string): string[] {
   return meaningful.length > 0 ? meaningful : toks;
 }
 
-/** Curated alias full-names for a team (dictionary only — no mechanical splits). */
+/** Curated alias full-names for a team (dictionary only — no mechanical splits).
+ *  Family inclusion uses WHOLE-WORD matching, and value-based inclusion needs
+ *  a ≥6-char value — short ambiguous values ('bulls', 'ne') otherwise drag in
+ *  unrelated families (Chicago Bulls / New England Revolution) and poison the
+ *  forward token coverage. */
 function dictionaryVariants(name: string): string[] {
   const normalized = normalizeTeamName(name);
   if (!normalized) return [];
   const out = new Set<string>([normalized]);
   for (const [key, values] of Object.entries(TEAM_ALIASES)) {
     const normKey = normalizeTeamName(key);
-    if (normalized === normKey || normalized.includes(normKey) || normKey.includes(normalized)) {
-      out.add(normKey);
-      for (const v of values) out.add(normalizeTeamName(v));
-    }
+    const keyMatches =
+      normalized === normKey ||
+      includesWord(normalized, normKey) ||
+      includesWord(normKey, normalized);
+    let valueMatches = false;
     for (const v of values) {
       const nv = normalizeTeamName(v);
-      if (nv && (normalized === nv || normalized.includes(nv) || nv.includes(normalized))) {
-        out.add(normKey);
-        for (const v2 of values) out.add(normalizeTeamName(v2));
+      if (nv && nv.length >= 6 &&
+        (normalized === nv || includesWord(normalized, nv) || includesWord(nv, normalized))) {
+        valueMatches = true;
+        break;
       }
+    }
+    if (keyMatches || valueMatches) {
+      out.add(normKey);
+      for (const v of values) out.add(normalizeTeamName(v));
     }
   }
   return [...out].filter(v => v.length >= 3);
 }
 
 /**
- * Score ONE team against an event title (0..1) with the strict rules above.
- * 1.0 = full name (or alias) contained; 0.5+ = most identity tokens hit;
- * < 0.5 = insufficient evidence → treat as NO match.
+ * Score ONE team against ONE team phrase from an event title (0..1).
+ *
+ * Forward coverage: every meaningful token of the team must be found in the
+ * phrase — directly, or via INITIALS (DaddyLive abbreviates sponsor compounds:
+ * "New York RB" for "Red Bull New York" / "New York Red Bulls"; a 2-3 char
+ * alphabetic phrase token whose letters match the initials of consecutive
+ * team tokens credits that whole sequence).
+ *
+ * Reverse coverage (anti false-positive): every meaningful token of the
+ * phrase must be covered by the team. Without this, "New York City FC"
+ * ([new, york] after generic stripping) scores 1.0 against the phrase
+ * "New York RB" — two DIFFERENT New York clubs — and the user gets channels
+ * playing the wrong derby. Reverse coverage rejects it because "rb" is not
+ * explained by NYCFC's name.
  */
-export function scoreTeamInEvent(teamName: string, eventName: string): number {
-  // Both sides stemmed identically (plurals collapse: "bulls" ↔ "bull")
-  const evNorm = stemName(eventName);
-  if (!evNorm || !teamName) return 0;
+function scoreTeamInPhrase(teamName: string, phraseNorm: string): number {
+  if (!phraseNorm || !teamName) return 0;
   // Dictionary lookup uses the UNSTEMMED normalized name (stemming is for
   // comparison only — "Los Angeles" must still find the 'lafc' alias family).
   const teamRaw = normalizeTeamName(teamName);
   const teamNorm = stemName(teamName);
   if (!teamNorm || !teamRaw) return 0;
 
-  // Layer 2 — token coverage of the full team identity
-  const targets = new Set(meaningfulTokens(teamNorm));
-  for (const variant of dictionaryVariants(teamRaw)) {
-    for (const tok of meaningfulTokens(stemName(variant))) targets.add(tok);
-  }
-  let hits = 0;
-  for (const tok of targets) {
-    if (new RegExp(`\\b${escapeRegExp(tok)}\\b`).test(evNorm)) hits++;
-  }
-  let score = targets.size > 0 ? hits / targets.size : 0;
+  const evTokenList = phraseNorm.split(' ').filter(Boolean);
 
-  // Layer 3 — exact full-name (or curated alias) containment wins outright.
-  // Dictionary aliases may be short abbreviations ("psg", "lafc", "bha") —
-  // they are curated, so 3+ chars is trusted for them; the raw team name
-  // needs 4+ chars.
-  if (teamNorm.length >= 4 && evNorm.includes(teamNorm)) score = 1;
-  else {
-    for (const variant of dictionaryVariants(teamRaw)) {
-      const stemmedVariant = stemName(variant);
-      if (stemmedVariant !== teamNorm && stemmedVariant.length >= 3 && evNorm.includes(stemmedVariant)) { score = 1; break; }
+  // Score against the BEST variant (union of all variants' tokens would let
+  // one alias family's irrelevant tokens drag a true match below threshold).
+  let best = 0;
+  for (const variant of [teamNorm, ...dictionaryVariants(teamRaw).map(stemName)]) {
+    const vToks = meaningfulTokens(variant);
+    if (vToks.length === 0) continue;
+
+    // Forward coverage — direct token hits + initials credit: a 2-3 char
+    // phrase token whose letters are the initials of consecutive variant
+    // tokens credits that whole sequence ("New York RB" covers "Red Bull").
+    const credit = new Set<string>();
+    for (let len = 2; len <= Math.min(3, vToks.length); len++) {
+      for (let i = 0; i + len <= vToks.length; i++) {
+        const seq = vToks.slice(i, i + len);
+        const initials = seq.map(t => t[0]).join('');
+        if (evTokenList.includes(initials)) {
+          for (const t of seq) credit.add(t);
+        }
+      }
     }
-  }
+    let hits = 0;
+    for (const tok of vToks) {
+      if (credit.has(tok) || new RegExp(`\\b${escapeRegExp(tok)}\\b`).test(phraseNorm)) hits++;
+    }
+    let score = hits / vToks.length;
 
-  return score;
+    // Full containment wins outright (curated aliases may be 3+ chars, the
+    // plain team name needs 4+).
+    const minLen = variant === teamNorm ? 4 : 3;
+    if (variant.length >= minLen && phraseNorm.includes(variant)) score = 1;
+
+    // Reverse coverage gate: every meaningful PHRASE token must be explained
+    // by this variant (direct token or initials of a sequence). Kills
+    // look-alike fixtures (NYCFC ≠ New York RB, Tampa Bay Sun ≠ Rowdies).
+    // NOTE: phrase-side identity tokens go down to 2 chars — the 2-char
+    // abbreviations ("rb" in "New York RB") are exactly the discriminating
+    // tokens; meaningfulTokens() would filter them away and NYCFC would
+    // score 1.0 against a New York RB fixture.
+    const phraseIdentityToks = phraseNorm
+      .split(' ')
+      .filter(w => w.length >= 2 && !GENERIC_TOKENS.has(w));
+    let fullyExplained = true;
+    for (const pt of phraseIdentityToks) {
+      let covered = new RegExp(`\\b${escapeRegExp(pt)}\\b`).test(variant);
+      if (!covered) {
+        for (let len = 2; len <= Math.min(3, vToks.length) && !covered; len++) {
+          for (let i = 0; i + len <= vToks.length; i++) {
+            if (vToks.slice(i, i + len).map(t => t[0]).join('') === pt) covered = true;
+          }
+        }
+      }
+      if (!covered) { fullyExplained = false; break; }
+    }
+    if (!fullyExplained) score = Math.min(score, 0.5);
+
+    if (score > best) best = score;
+  }
+  return best;
+}
+
+/**
+ * Score ONE team against an event title (0..1) with the strict rules above.
+ * The event is split into team phrases ("TeamA vs TeamB") and the team is
+ * scored against its BEST phrase with bidirectional token coverage.
+ * 1.0 = full name (or alias) contained; 0.75+ = strict match;
+ * < 0.75 = insufficient evidence → treat as NO match.
+ */
+export function scoreTeamInEvent(teamName: string, eventName: string): number {
+  const raw = (eventName || '').replace(/[\u{1F1E6}-\u{1F1FF}]/gu, ' ');
+  if (!raw || !teamName) return 0;
+  const phrases = raw
+    .split(/\s+(?:vs\.?|v\.?)\s+/i)
+    .map(p => stemName(p.replace(/\s+/g, ' ').trim()))
+    .filter(p => p.length >= 3);
+  const candidates = phrases.length > 0 ? phrases : [stemName(raw)];
+  let best = 0;
+  for (const phrase of candidates) {
+    const s = scoreTeamInPhrase(teamName, phrase);
+    if (s > best) best = s;
+  }
+  return best;
 }
 
 /**

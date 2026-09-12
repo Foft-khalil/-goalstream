@@ -1900,3 +1900,27 @@ Stage Summary:
 - Le match USL de l'utilisateur a maintenant son canal dédié ESPN+ USA qui joue DANS l'app; si un match
   n'est dans le programme d'aucune chaîne, l'app le dit honnêtement au lieu d'afficher un autre match.
 - Les futurs matchs (à venir, autres sports) suivent exactement la même chaîne de traitement.
+
+---
+Task ID: 24
+Agent: Main Agent
+Task: Fix live-stream ads (user report: "quant j'appuis pour regarder le match sa me montre des pages de publiciter"), broken HLS playback (manifestParsingError) and guarantee the clicked match is the one that plays
+
+Work Log:
+- Diagnosed root cause: StreamOptions embedded dlive.sx/stream-NNN.php pages in an iframe — those pages carry Clappr + popups/tab-unders (the "Alimentez votre chaîne…" ad) and their client-side m3u8 fetches often fail (hls:networkError_manifestParsingError on the user's screenshot)
+- LIVE-VERIFIED the full DaddyLive chain server-side: stream-NNN.php → premiumtv/daddyX.php iframe → atob() m3u8 URL → CDN playlist (Referer-gated, Varnish "403 Invalid Token", tokens live ~15-20s, ~50% of requests 403/connection-reset) → variant playlists embed PRE-SIGNED Cloudflare R2 segment URLs with CORS *
+- Created src/lib/daddylive-resolve.ts: server-side chain resolver with long-lived player-page cache (6h) + CHEAP token refresh (3KB player page refetch, the 640KB stream page only on first resolve), in-flight dedup, concurrency helper
+- Created /api/hls-proxy: Referer-injecting playlist proxy (tries full player-page URL / origin / dlive.sx per request, 3 rounds with 350ms pauses), rewrites nested playlists through the proxy, leaves pre-signed absolute segments DIRECT (browser pulls video from CDN — server carries no video traffic), validates #EXTM3U body, SELF-HEALS via cheap token refresh + 302 redirect (absolute URL required — NextResponse.redirect threw "Invalid URL" on relative paths, found via dev-log stack trace), loop-breaker (h=1) + 6s heal rate-limit per channel
+- Rewrote /api/daddylive: strict both-team event matching kept (anti wrong-match), resolves up to 8 best channels server-side (concurrency 3), returns type:'hls' same-origin proxy URLs — dead/unresolvable channels never listed
+- Rewrote stream-options.tsx: iframe player layer DELETED (no third-party page ever loaded by any browser ⇒ zero ads possible); channel click hands the proxy URL to the global VideoPlayer with the other channels as auto-failover alternatives
+- Updated video-player.tsx: isHlsUrl recognizes /api/hls-proxy, alternatives validated through the proxy, generous timeouts (12s manifest/level, 11s watchdog) to ride out token self-healing
+- Team matcher hardened (src/lib/team-match.ts): event split into team phrases with BIDIRECTIONAL token coverage + initials matching ("New York RB" ≡ "Red Bull New York"), reverse gate with 2-char identity tokens (kills NYCFC↔NYRB mixups), whole-word alias matching (the 'ne'⊂'new' substring bug poisoned targets with the New England family), D.C.→dc abbreviation fusing. 13/13 unit cases pass (incl. false-positive traps)
+- Sustained-playback tested: 15/16 successful playlist refreshes over 60s+ on a live Cruz Azul vs América stream (self-heal recovered every throttled window; only failure was a hard 5s CDN black-out window)
+- Agent-browser end-to-end verified twice: D.C. United vs Atlanta United (Apple TV, 1920×1080, playing, currentTime advancing 30→50→70) and San Diego Wave vs NC Courage (ion USA, 1280×720, correct scoreboard SD 1-0 NC on screen) — correct match, in-app, ZERO ad pages, no redirects
+
+Stage Summary:
+- Ads are structurally impossible now: no third-party page is ever rendered in the app; the browser only touches our origin + the raw segment CDN
+- Clicked match = played match: channels come only from the event whose title strictly matches both clicked team names
+- No dead channels listed: every channel is resolved + token-refreshed server-side before display; playback auto-heals expired tokens mid-stream and auto-switches channels if a feed truly dies
+- New files: src/lib/daddylive-resolve.ts, src/app/api/hls-proxy/route.ts; rewritten: api/daddylive/route.ts, components/stream-options.tsx; patched: components/video-player.tsx, lib/team-match.ts
+- Known upstream limitation (documented): the DaddyLive CDN throttles/throttles playlist requests (~15-20s token life, ~50% 403/reset) — mitigated by retries + cheap self-healing; worst case a channel switch, never an ad page
