@@ -31,7 +31,7 @@ export function normalizeTeamName(name: string): string {
 const TEAM_ALIASES: Record<string, string[]> = {
   // ── Premier League (England) ──
   'manchester city': ['man city', 'mancity', 'city', 'mci'],
-  'manchester united': ['man utd', 'manchester utd', 'manunited', 'manu', 'mun'],
+  'manchester united': ['man utd', 'manchester utd', 'manunited', 'manu', 'mun', 'man united'],
   'tottenham hotspur': ['tottenham', 'spurs', 'tot'],
   'tottenham': ['spurs', 'tot'],
   'crystal palace': ['c palace', 'cpalace', 'palace', 'cpfc'],
@@ -422,6 +422,151 @@ export function scoreEventMatch(
   // Combined: if both match strongly → 1.0; if both match weakly → 0.6; if only one → 0.3
   const score = (homeScore + awayScore) / 2;
   return { score, homeScore, awayScore, bothMatch, eitherMatch };
+}
+
+// ─── STRICT event matching (Task 23 — anti "wrong match" guarantee) ─────────
+//
+// Problem this solves: with plain token matching, clicking "Tampa Bay Sun FC
+// vs Fort Lauderdale United FC" ALSO matched the NWSL event "United States -
+// NWSL : Seattle Reign vs Bay FC", because the generic token "bay" hit "Bay
+// FC" and "united" hit the league prefix "United States". The user then saw a
+// DIFFERENT match than the one they clicked.
+//
+// Fix, in three layers:
+//   1. Strip the league prefix ("League : TeamA vs TeamB" → "TeamA vs TeamB")
+//      so country/league words can never satisfy a team token.
+//   2. Token COVERAGE of the full team name: the fraction of the team's
+//      meaningful tokens (3+ chars, generic words like "fc"/"united"/"city"
+//      excluded) found in the event. Requires ≥ 0.5 — a single generic word
+//      can no longer carry a match.
+//   3. Full-name containment: the exact team name (or a curated alias like
+//      "lafc"/"psg") contained in the event forces a 1.0.
+
+// Words that appear in thousands of team/league names — never trusted as
+// stand-alone evidence.
+const GENERIC_TOKENS = new Set([
+  'fc', 'sc', 'cf', 'ac', 'as', 'sk', 'fk', 'bk', 'if', 'sv', 'vfl', 'vfb',
+  'tsg', 'fsv', 'tsv', 'ssc', 'afc', 'cfc', 'rsc', 'rc', 'ca', 'ud', 'cd',
+  'sd', 'ec', 'us', 'usa',
+  'united', 'city', 'town', 'county', 'club', 'real', 'inter', 'sporting',
+  'athletic', 'deportivo', 'wanderers', 'rangers', 'rovers', 'dynamo',
+  'dynamos', 'olympique', 'olympiacos', 'olympic', 'national', 'academy',
+]);
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Light plural stemming — "bulls" ↔ "bull", consistent on BOTH sides
+ * (team names and event titles are stemmed the same way, so "Red Bull New
+ * York" on DaddyLive matches "New York Red Bulls" from our data source).
+ * Protective endings (ss/us/is) and short words are left untouched.
+ */
+function stemToken(w: string): string {
+  if (w.length >= 5 && w.endsWith('s') && !w.endsWith('ss') && !w.endsWith('us') && !w.endsWith('is') && !w.endsWith('es')) {
+    return w.slice(0, -1);
+  }
+  return w;
+}
+
+/** normalizeTeamName + per-token stemming, re-joined. */
+function stemName(name: string): string {
+  return normalizeTeamName(name).split(' ').map(stemToken).filter(Boolean).join(' ');
+}
+
+/** Tokens of a normalized name that carry real identity (falls back to all tokens). */
+function meaningfulTokens(normalizedName: string): string[] {
+  const toks = normalizedName.split(' ').filter(w => w.length >= 3);
+  const meaningful = toks.filter(w => !GENERIC_TOKENS.has(w));
+  return meaningful.length > 0 ? meaningful : toks;
+}
+
+/** Curated alias full-names for a team (dictionary only — no mechanical splits). */
+function dictionaryVariants(name: string): string[] {
+  const normalized = normalizeTeamName(name);
+  if (!normalized) return [];
+  const out = new Set<string>([normalized]);
+  for (const [key, values] of Object.entries(TEAM_ALIASES)) {
+    const normKey = normalizeTeamName(key);
+    if (normalized === normKey || normalized.includes(normKey) || normKey.includes(normalized)) {
+      out.add(normKey);
+      for (const v of values) out.add(normalizeTeamName(v));
+    }
+    for (const v of values) {
+      const nv = normalizeTeamName(v);
+      if (nv && (normalized === nv || normalized.includes(nv) || nv.includes(normalized))) {
+        out.add(normKey);
+        for (const v2 of values) out.add(normalizeTeamName(v2));
+      }
+    }
+  }
+  return [...out].filter(v => v.length >= 3);
+}
+
+/**
+ * Score ONE team against an event title (0..1) with the strict rules above.
+ * 1.0 = full name (or alias) contained; 0.5+ = most identity tokens hit;
+ * < 0.5 = insufficient evidence → treat as NO match.
+ */
+export function scoreTeamInEvent(teamName: string, eventName: string): number {
+  // Both sides stemmed identically (plurals collapse: "bulls" ↔ "bull")
+  const evNorm = stemName(eventName);
+  if (!evNorm || !teamName) return 0;
+  // Dictionary lookup uses the UNSTEMMED normalized name (stemming is for
+  // comparison only — "Los Angeles" must still find the 'lafc' alias family).
+  const teamRaw = normalizeTeamName(teamName);
+  const teamNorm = stemName(teamName);
+  if (!teamNorm || !teamRaw) return 0;
+
+  // Layer 2 — token coverage of the full team identity
+  const targets = new Set(meaningfulTokens(teamNorm));
+  for (const variant of dictionaryVariants(teamRaw)) {
+    for (const tok of meaningfulTokens(stemName(variant))) targets.add(tok);
+  }
+  let hits = 0;
+  for (const tok of targets) {
+    if (new RegExp(`\\b${escapeRegExp(tok)}\\b`).test(evNorm)) hits++;
+  }
+  let score = targets.size > 0 ? hits / targets.size : 0;
+
+  // Layer 3 — exact full-name (or curated alias) containment wins outright.
+  // Dictionary aliases may be short abbreviations ("psg", "lafc", "bha") —
+  // they are curated, so 3+ chars is trusted for them; the raw team name
+  // needs 4+ chars.
+  if (teamNorm.length >= 4 && evNorm.includes(teamNorm)) score = 1;
+  else {
+    for (const variant of dictionaryVariants(teamRaw)) {
+      const stemmedVariant = stemName(variant);
+      if (stemmedVariant !== teamNorm && stemmedVariant.length >= 3 && evNorm.includes(stemmedVariant)) { score = 1; break; }
+    }
+  }
+
+  return score;
+}
+
+/**
+ * Check an event against both teams STRICTLY.
+ * - Strips the "League : " prefix from DaddyLive event titles first.
+ * - Returns per-team scores; `ok` requires BOTH teams ≥ 0.75.
+ *   (0.75, not 0.5: "Tampa Bay Rowdies" shares 2 of 3 tokens with "Tampa Bay
+ *   Sun" — different clubs in different USL leagues. A 2/3 token overlap must
+ *   NOT be treated as the same fixture.)
+ */
+export function matchEventStrict(
+  homeTeam: string,
+  awayTeam: string,
+  eventName: string,
+): { home: number; away: number; ok: boolean } {
+  let name = eventName || '';
+  // DaddyLive format: "⚽ 🇺🇸 USL Super League : Tampa Bay Sun 🇺🇸 vs Fort Lauderdale United 🇺🇸"
+  // Drop everything up to the last " : " so league/country words are never scored.
+  const colonIdx = name.lastIndexOf(' : ');
+  if (colonIdx > 0) name = name.slice(colonIdx + 3);
+
+  const home = scoreTeamInEvent(homeTeam, name);
+  const away = scoreTeamInEvent(awayTeam, name);
+  return { home, away, ok: home >= 0.75 && away >= 0.75 };
 }
 
 // ─── Clean HTML from category/event names ───────────────────────────────────

@@ -1832,3 +1832,71 @@ Stage Summary:
 - FINI les chaînes mortes affichées: validation serveur réelle (player présent vs Access Blocked) sur toutes les chaînes, fallbacks compris
 - La méthode est exactement celle de tarjetarojaenvivo (embed DaddyLive avec chaîne de referers naturels), fraîchement re-validée niveau par niveau
 - Le chemin kora/enerexa (impossible in-app, whitelist frame-ancestors + m3u8 same-origin) n'est plus proposé du tout: plus aucune redirection nulle part dans l'app
+
+---
+Task ID: 23
+Agent: Main Agent
+Task: « Je clique sur un match en direct mais je vois un AUTRE match » — trouver la vraie source du problème et corriger
+
+Work Log:
+- DIAGNOSTIC (cause racine trouvée — 2 bugs en cascade):
+  1. LE SCHEDULE DADDYLIVE ÉTAIT MORT: dlive.sx/schedule/schedule-generated.json = fichier statique
+     figé au « Thursday 20th March 2025 » (last-modified prouvé via curl). Le matching d'événements ne
+     trouvait donc JAMAIS les matchs actuels → le fallback « chaînes de la compétition » se déclenchait
+     pour TOUT match → USL Super League = fallback générique football (Sky Sports PL, BeIN USA, ESPN USA)
+     = chaînes TV live qui diffusent n'importe quoi → l'utilisateur voyait un AUTRE match.
+  2. MÊME avec un schedule frais, le matching flou était défectueux: « Tampa Bay Sun FC » matchait
+     « Bay FC » (token bay) et « Fort Lauderdale United » matchait le préfixe « United States - NWSL »
+     (token united) → faux positif démontré (NWSL Seattle Reign vs Bay FC retourné pour le match USL).
+- DÉCOUVERTE de la VRAIE source (méthode réelle du site, inspectée aujourd'hui):
+  * dlive.sx sert son programme complet (~830 évts/jour, tous sports) SERVEUR-SIDE dans le HTML de la
+    homepage (1.2 MB) + endpoints /schedule-api.php?source=extra* (HTML fragmenté).
+  * Format: schedule__dayTitle («Saturday 12th Sep 2026»), schedule__category (card__meta),
+    schedule__event (eventTitle + data-time), canaux = <a href="/watch.php?id=177" title="ESPN+ USA">.
+  * watch.php?id=N ↔ stream-NNN.php (mapping 1:1 prouvé: watch.php?id=177 iframes stream-177.php et
+    expose ce code embed). stream-177.php: 200, player présent, PAS de X-Frame-Options → embeddable.
+  * LE match de l'utilisateur EST dans le programme: « USL Super League : Tampa Bay Sun vs Fort
+    Lauderdale United » 22:00 → canal dédié ESPN+ USA (#177). Vérifié aussi: NWSL San Diego Wave vs
+    NC Courage → ion USA (#325) + TNT Sports 4 UK (#34).
+- IMPLÉMENTATION:
+  * src/lib/daddylive-cache.ts REWRITTEN: fetchSchedule parse maintenant le HTML live de dlive.sx
+    (parser jour/catégorie/événement/canaux, décodage entités, filtre jour = aujourd'hui ±1 — le bloc
+    jour périmé «April 2026» de la page est exclu); buildWatchUrl() ajouté (page 25 KB vs 640 KB).
+  * src/lib/team-match.ts: NOUVEAU matching strict matchEventStrict/scoreTeamInEvent — 3 couches:
+    (1) strip du préfixe ligue «League : » (2) couverture de tokens identitaires (mots génériques
+    fc/united/city… exclus, seuil 0.75 les 2 équipes) (3) containment plein nom + alias dict.
+    Stemming léger pluriel (bulls↔bull, «Red Bull New York» OK; ss/us/is/es protégés; lookup dict
+    non stemmé pour préserver les alias). 15/15 tests unitaires (faux positifs NWSL/Rowdies rejetés,
+    PSG/LAFC/ManU/reordering acceptés).
+  * src/app/api/daddylive/route.ts: fallback compétition SUPPRIMÉ (et src/lib/competition-channels.ts
+    supprimé); matching strict 2 équipes requis (live et à venir); health-check via watch.php (25 KB)
+    au lieu de stream-XXX.php (640 KB), cache par channel id; logos par NOM exact (le dataset nightah
+    pointe vers dlhd.click mort — jamais résolu par id ni URL).
+  * src/app/api/find-stream/route.ts: même nettoyage (fallback supprimé, matching strict, embed URLs
+    dlive.sx — était dlhd.st mort).
+  * src/components/stream-options.tsx: sous-titre « Diffuse ce match en direct » partout (fini
+    « Chaîne de la compétition »); bannière dédiée « Chaînes qui diffusent CE match (programme vérifié
+    · 22:00 heure UK) : <événement DaddyLive> » avec nom d'événement nettoyé (emojis/drapeaux/heure
+    strippés); état vide honnête « Aucune chaîne ne diffuse ce match pour le moment — nous
+    n'affichons que des chaînes dédiées à ce match, jamais une chaîne qui diffuse un autre match ».
+- VÉRIFICATION (unitaires + agent-browser + curl):
+  * 15/15 tests matching strict.
+  * API: Tampa Bay Sun FC vs Fort Lauderdale United FC → EXACTEMENT 1 canal: ESPN+ USA (stream-177),
+    eventName = le match USL cliqué, score 1.0. San Diego Wave vs NC Courage → 2 canaux dédiés
+    (ion USA + TNT Sports 4 UK, logos résolus). Match inconnu → [] honnête.
+  * Navigateur E2E: cartes « Regarder en direct » → panneau « Chaînes en direct · 1 VÉRIFIÉE » avec
+    bannière dédiée + ESPN+ USA → lecteur plein écran DANS l'app (iframe dlive.sx/stream/stream-177.php
+    confirmée dans le DOM, aucune redirection/nouvel onglet). Panneau NWSL: 2 chaînes + logos + bannière.
+  * Lecture vidéo finale non confirmable en headless (limiter sandbox connue, cf. Task 22) mais chaque
+    maillon validé: schedule frais (parser 824 évts du jour), canal dédié existence + player (curl),
+    iframe chargée dans l'app (DOM).
+  * Lint clean; /api/warmup OK; dev.log sans erreur.
+
+Stage Summary:
+- CAUSE RACINE: schedule-generated.json figé en mars 2025 → fallback « chaînes de compétition » pour
+  tous les matchs → l'utilisateur voyait le match diffusé sur Sky/BeIN/ESPN au lieu du sien.
+- FIX: parsing du programme LIVE de dlive.sx (la vraie méthode du site) + matching strict des 2 équipes
+  + zéro fallback. Une chaîne listée = une chaîne attachée à CE match dans le programme DaddyLive.
+- Le match USL de l'utilisateur a maintenant son canal dédié ESPN+ USA qui joue DANS l'app; si un match
+  n'est dans le programme d'aucune chaîne, l'app le dit honnêtement au lieu d'afficher un autre match.
+- Les futurs matchs (à venir, autres sports) suivent exactement la même chaîne de traitement.

@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  getTeamVariants,
-  teamMatchScore,
+  matchEventStrict,
   detectSport,
   isDeadUrl,
   dateKey,
 } from '@/lib/team-match';
-import { getCompetitionChannels } from '@/lib/competition-channels';
-import { fetchSchedule, fetchChannelsData, type DLChannelData, type DLEvent } from '@/lib/daddylive-cache';
+import { fetchSchedule, buildEmbedUrl, type DLEvent } from '@/lib/daddylive-cache';
 
 /**
  * Auto-Find Stream API — INSTANT VERSION
@@ -15,11 +13,11 @@ import { fetchSchedule, fetchChannelsData, type DLChannelData, type DLEvent } fr
  * Returns the best stream candidate IMMEDIATELY without server-side validation.
  * The player's watchdog + HLS error handling do the validation in real-time.
  *
- * Strategy:
- * 1. Search the DaddyLive schedule for matching events (fuzzy match)
- * 2. Add competition-based fallback channels if schedule has no match
- * 3. Sort: m3u8 first, then by match score + day boost
- * 4. Return the BEST candidate as the primary stream + others as alternatives
+ * Strategy (Task 23 — anti "wrong match" guarantee):
+ * 1. Search the DaddyLive fresh schedule for events where BOTH team names match
+ * 2. Sort by match score + day boost
+ * 3. Return the BEST candidate as the primary stream + others as alternatives
+ * (No generic competition fallback — channels must be dedicated to this fixture.)
  *
  * Total response time: ~50-200ms (was 2.8s+ with validation)
  *
@@ -45,35 +43,18 @@ export async function GET(request: NextRequest) {
   const homeTeam = searchParams.get('homeTeam') || '';
   const awayTeam = searchParams.get('awayTeam') || '';
   const sport = searchParams.get('sport') || 'football';
-  const competition = searchParams.get('competition') || '';
 
   if (!homeTeam || !awayTeam) {
     return NextResponse.json({ found: false, tried: 0, candidates: [] });
   }
-
-  const homeVariants = getTeamVariants(homeTeam);
-  const awayVariants = getTeamVariants(awayTeam);
 
   const now = new Date();
   const todayK = dateKey(now);
   const yesterdayK = dateKey(new Date(now.getTime() - 24 * 60 * 60 * 1000));
   const tomorrowK = dateKey(new Date(now.getTime() + 24 * 60 * 60 * 1000));
 
-  // Fetch schedule + channels in parallel
-  const [schedule, channelsData] = await Promise.all([fetchSchedule(), fetchChannelsData()]);
-
-  // Build a channel_id → channelData lookup map for O(1) access (was O(n) per channel lookup)
-  // This is the key optimization: 729 channels × 900 lookups = 650k comparisons → 900 lookups
-  const channelsById = new Map<string, { name: string; data: DLChannelData }>();
-  const channelsByName = new Map<string, { name: string; data: DLChannelData }>();
-  for (const [name, data] of Object.entries(channelsData)) {
-    // Extract channel_id from channel_url patterns like "stream-1.php" or "stream_1"
-    const match1 = data.channel_url.match(/stream-(\d+)\.php/);
-    const match2 = data.channel_url.match(/stream_(\d+)/);
-    const id = match1?.[1] || match2?.[1];
-    if (id) channelsById.set(id, { name, data });
-    channelsByName.set(name.toLowerCase(), { name, data });
-  }
+  // Fetch schedule
+  const schedule = await fetchSchedule();
 
   const candidates: CandidateStream[] = [];
   const seenUrls = new Set<string>();
@@ -90,43 +71,23 @@ export async function GET(request: NextRequest) {
 
       for (const event of events) {
         const eventName = event.event || '';
-        const homeScore = teamMatchScore(homeVariants, eventName);
-        const awayScore = teamMatchScore(awayVariants, eventName);
 
-        const bothStrong = homeScore >= 0.5 && awayScore >= 0.5;
-        const oneStrong = (homeScore >= 0.6 && awayScore >= 0.35) || (awayScore >= 0.6 && homeScore >= 0.35);
-        const bothWeak = homeScore >= 0.35 && awayScore >= 0.35;
-        if (!bothStrong && !oneStrong && !bothWeak) continue;
+        // BOTH teams must match strictly — channels must belong to THIS fixture
+        const strict = matchEventStrict(homeTeam, awayTeam, eventName);
+        if (!strict.ok) continue;
 
-        const matchScore = (homeScore + awayScore) / 2;
+        const matchScore = (strict.home + strict.away) / 2;
         const allChannels = [...(event.channels || []), ...(event.channels2 || [])];
 
         for (const ch of allChannels) {
-          // O(1) lookup by channel_id (was O(n) with Object.entries().find())
-          const channelEntry = channelsById.get(ch.channel_id);
-
-          let streamUrl = '';
-          let channelLogo = '';
-          let channelName = ch.channel_name;
-          let groupTitle = '';
-
-          if (channelEntry) {
-            const { name: chName, data: chData } = channelEntry;
-            streamUrl = chData.stream_url;
-            channelLogo = chData.tvg_logo;
-            groupTitle = chData.group_title;
-            channelName = ch.channel_name || chName;
-          } else {
-            streamUrl = `https://dlhd.st/stream/stream-${ch.channel_id}.php`;
-          }
-
+          // Always the embeddable dlive.sx player page (client-side m3u8)
+          const streamUrl = buildEmbedUrl(ch.channel_id);
           if (!streamUrl || isDeadUrl(streamUrl) || seenUrls.has(streamUrl)) continue;
           seenUrls.add(streamUrl);
 
-          const isM3u8 = streamUrl.includes('.m3u8');
           candidates.push({
-            name: channelName, url: streamUrl, logo: channelLogo,
-            type: isM3u8 ? 'm3u8' : 'embed',
+            name: ch.channel_name, url: streamUrl, logo: '',
+            type: 'embed',
             source: 'daddylive',
             score: matchScore * dayBoost, dayBoost, eventName,
           });
@@ -135,29 +96,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // ── Phase 2: Add competition-based fallback channels ──
-  // Always add these as they cover the case where the schedule has no match for this competition
-  const fallbackChannelNames = getCompetitionChannels(competition, sport as 'football' | 'basketball');
-  for (const fc of fallbackChannelNames) {
-    // O(1) lookup by name (was O(n) with Object.entries().find())
-    const channelEntry = channelsByName.get(fc.name.toLowerCase());
-    if (!channelEntry) continue;
-    const { name: chName, data: chData } = channelEntry;
-    const streamUrl = chData.stream_url;
-    if (!streamUrl || isDeadUrl(streamUrl) || seenUrls.has(streamUrl)) continue;
-    seenUrls.add(streamUrl);
-
-    const isM3u8 = streamUrl.includes('.m3u8');
-    candidates.push({
-      name: chName, url: streamUrl, logo: chData.tvg_logo,
-      type: isM3u8 ? 'm3u8' : 'embed',
-      source: 'competition-fallback',
-      score: 0.3, dayBoost: 1.0,
-      eventName: fc.reason,
-    });
-  }
-
-  // ── Phase 3: Sort — m3u8 first, then by score (schedule-match > fallback) ──
+  // ── Sort by score ──
   candidates.sort((a, b) => {
     if (a.type === 'm3u8' && b.type !== 'm3u8') return -1;
     if (a.type !== 'm3u8' && b.type === 'm3u8') return 1;

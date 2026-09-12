@@ -23,11 +23,23 @@ interface StreamChannel {
   channelLogo?: string | null;
   group?: string | null;
   eventName?: string | null;
+  eventTime?: string | null;
   source?: string;
   type?: string;
 }
 
 type PlayerPhase = 'connecting' | 'ready' | 'stuck';
+
+/** Strip emojis/flags & trailing time from a DaddyLive event title
+ *  (e.g. "⚽ 🇺🇸 USL Super League : Tampa Bay Sun 🇺🇸 vs Fort Lauderdale United 🇺🇸 22:00"
+ *  → "USL Super League : Tampa Bay Sun vs Fort Lauderdale United"). */
+function cleanEventName(name: string): string {
+  return (name || '')
+    .replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{FE0E}\u{FE0F}\u{200D}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\d{1,2}:\d{2}\s*$/, '')
+    .trim();
+}
 
 /**
  * StreamOptions — « Regarder » panel with IN-APP PLAYBACK.
@@ -308,11 +320,11 @@ export default function StreamOptions({
               <div className="w-14 h-14 rounded-2xl bg-secondary/50 flex items-center justify-center mb-3">
                 <Tv className="h-7 w-7 text-muted-foreground/30" />
               </div>
-              <p className="text-sm font-semibold">Aucune chaîne disponible pour ce match</p>
+              <p className="text-sm font-semibold">Aucune chaîne ne diffuse ce match pour le moment</p>
               <p className="text-xs text-muted-foreground/50 mt-1.5">
-                {isLive
-                  ? 'Aucun flux actif détecté pour le moment — réessayez dans quelques instants.'
-                  : 'Les chaînes vérifiées apparaîtront au coup d\u2019envoi du match.'}
+                Nous n&apos;affichons que des chaînes dédiées à ce match — jamais une chaîne
+                qui diffuse un autre match. La liste se met à jour automatiquement : réessayez
+                au coup d&apos;envoi ou pendant la rencontre.
               </p>
             </div>
           )}
@@ -320,7 +332,7 @@ export default function StreamOptions({
           {!loading && channels.length > 0 && (
             <div className="space-y-2">
               {/* Section label */}
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-2">
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/15">
                   <Radio className="h-3 w-3 text-emerald-400" />
                   <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
@@ -329,6 +341,19 @@ export default function StreamOptions({
                 </div>
                 <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/15 to-transparent" />
               </div>
+
+              {/* Dedicated-match confirmation — these channels broadcast THIS fixture,
+                  straight from DaddyLive's per-event schedule (never generic channels) */}
+              {cleanEventName(channels[0]?.eventName || '') && (
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/15 mb-3">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                  <p className="text-[11px] leading-snug text-emerald-100/80">
+                    Chaînes qui diffusent <span className="font-semibold text-emerald-300">ce match</span>
+                    {' '}(programme vérifié{channels[0]?.eventTime ? ` · ${channels[0].eventTime} heure UK` : ''}) :
+                    <span className="block text-emerald-100/50 mt-0.5 truncate">{cleanEventName(channels[0].eventName)}</span>
+                  </p>
+                </div>
+              )}
 
               {channels.map((ch) => (
                 <button
@@ -357,7 +382,7 @@ export default function StreamOptions({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate">{ch.name}</p>
                     <p className="text-[10px] text-muted-foreground/50 font-medium mt-0.5">
-                      {ch.source === 'competition-fallback' ? 'Chaîne de la compétition' : 'Diffuseur officiel'}
+                      Diffuse ce match en direct
                       {ch.group ? ` · ${ch.group}` : ''}
                     </p>
                   </div>
@@ -388,7 +413,7 @@ export default function StreamOptions({
           <div className="flex items-center gap-1.5 mt-2">
             <ShieldCheck className="h-3 w-3 text-emerald-400/60" />
             <span className="text-[10px] text-muted-foreground/40">
-              Flux vérifiés automatiquement — les chaînes hors ligne ne sont pas affichées
+              Flux vérifiés automatiquement · seules les chaînes diffusant ce match sont listées
             </span>
           </div>
         </div>
