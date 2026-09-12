@@ -17,7 +17,19 @@ import { NextRequest, NextResponse } from 'next/server';
 const KORA_API_BASE = 'https://ws.kora-api.space';
 const TEAM_IMG_BASE = 'https://cdn.kora-api.space/uploads/team/';
 const LEAGUE_IMG_BASE = 'https://cdn.kora-api.space/uploads/league/';
-const STREAM_BASE = 'https://xyzhes-goal-eu.smartagro.mov/';
+
+/**
+ * Watch-link configuration — replicates the method used by hes-goal.click &
+ * tarjetarojaenvivo.cx: each kora match exposes a per-match player page hosted on
+ * a rotating "live domain" (e.g. enerexa.online). Opening that URL in a new tab
+ * plays the match with the REAL broadcaster channels (beIN Sport 1, TNT 1,
+ * USA Network, etc.) switchable inside the player.
+ *
+ * The kora API provides `live_domain` / `redirect_domain` per match; when absent
+ * we fall back to the same defaults hes-goal.click uses at runtime.
+ */
+const DEFAULT_LIVE_DOMAIN = 'enerexa.online';
+const WATCH_LANG = 'fr';
 
 // ─── In-memory cache (60-second TTL) ────────────────────────────────────────
 interface CacheEntry {
@@ -60,7 +72,9 @@ interface KoraMatch {
   event_desc?: string;
   active?: string; // "1" or "0"
   redirect_url?: string;
+  redirect_domain?: string | null;
   redirect_domain_ids?: string[];
+  live_domain?: string | null;
   edges?: string[];
   edge_domain?: string | null;
   ext_domain?: string | null;
@@ -152,9 +166,15 @@ function getTodayDate(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-/** Build HesGoal stream URL for a match */
-function buildStreamUrl(matchId: string): string {
-  return `${STREAM_BASE}?m=${matchId}&lang=en`;
+/**
+ * Build the watch URL for a match — the final player page hes-goal.click users
+ * land on after the kora.html bridge redirect:
+ *   kora.html?m={id}&lang=fr&d={live_domain}  →  https://{live_domain}/?m={id}&lang=fr
+ * We link to the final destination directly (fewer hops, same result).
+ */
+function buildStreamUrl(m: KoraMatch): string {
+  const liveDomain = m.live_domain || DEFAULT_LIVE_DOMAIN;
+  return `https://${liveDomain}/?m=${m.id}&lang=${WATCH_LANG}`;
 }
 
 /** Transform a KoraMatch into our FootballMatchTransformed format */
@@ -181,7 +201,7 @@ function transformMatch(m: KoraMatch, targetDate: string): FootballMatchTransfor
     homeLogo: teamLogoUrl(m.home_logo),
     awayLogo: teamLogoUrl(m.away_logo),
     matchDate: targetDate || null,
-    streamUrl: hasStream ? buildStreamUrl(m.id) : null,
+    streamUrl: hasStream ? buildStreamUrl(m) : null,
     channelName: hasStream ? 'HesGoal' : null,
     channelLogo: null,
     // Backward compatibility fields

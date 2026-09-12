@@ -1,13 +1,14 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Clock, Heart, Activity, Share } from 'lucide-react';
+import { Play, Clock, Radio, Heart, Activity, Share } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useState } from 'react';
 import LiveMatchClock from '@/components/live-match-clock';
 import MatchTracker from '@/components/match-tracker';
+import StreamOptions from '@/components/stream-options';
 
 interface MatchCardProps {
   match: {
@@ -37,6 +38,7 @@ export default function MatchCard({ match }: MatchCardProps) {
   const { language } = useAppStore();
   const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
   const [showTracker, setShowTracker] = useState(false);
+  const [showStreamOptions, setShowStreamOptions] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
 
   const isLive = match.status === 'live';
@@ -50,6 +52,20 @@ export default function MatchCard({ match }: MatchCardProps) {
   const isTomorrow = matchDate ? new Date(Date.now() + 86400000).toDateString() === matchDate.toDateString() : false;
   const homeFav = isTeamFavorite(match.homeTeam);
   const awayFav = isTeamFavorite(match.awayTeam);
+
+  // Determine if match is about to start (within 30 min of kickoff)
+  const isAboutToStart = (() => {
+    if (!matchDate || isLive || isFinished) return false;
+    const now = Date.now();
+    const matchTime = matchDate.getTime();
+    const diffMs = matchTime - now;
+    return diffMs <= 30 * 60 * 1000 && diffMs > -5 * 60 * 1000;
+  })();
+
+  const canWatchLive = isLive || isAboutToStart;
+
+  const isBasketballSport = match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') || match.competition?.toLowerCase().includes('euroleague');
+  const sportType = isBasketballSport ? 'basketball' : 'football';
 
   const handleShare = async () => {
     const hScore = match.homeScore ?? 0;
@@ -216,7 +232,20 @@ export default function MatchCard({ match }: MatchCardProps) {
 
           {/* Action buttons */}
           <div className="mt-3 pt-3 border-t border-border/30 dark:border-white/[0.06] flex gap-2">
-            {isFinished && (
+            {isLive && match.streamUrl ? (
+              /* Direct redirection to the real player page — same method as
+                 hes-goal.click / tarjetarojaenvivo.cx: a real link opens the
+                 match player (with the real broadcaster channels) in a new tab */
+              <a
+                href={match.streamUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="flex-1 h-9 inline-flex items-center justify-center gap-2 text-xs font-bold rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-lg shadow-red-600/20 transition-all duration-200"
+              >
+                <Radio className="h-3.5 w-3.5 fill-current" />
+                {t(language, 'match.watchLive')}
+              </a>
+            ) : isFinished ? (
               <Button
                 size="sm"
                 onClick={() => setShowTracker(true)}
@@ -225,13 +254,35 @@ export default function MatchCard({ match }: MatchCardProps) {
                 <Activity className="h-3.5 w-3.5" />
                 {t(language, 'match.seeSummary')}
               </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => setShowStreamOptions(true)}
+                className={`flex-1 h-9 gap-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+                  canWatchLive
+                    ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20'
+                    : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 dark:border-emerald-500/10'
+                }`}
+              >
+                {canWatchLive ? (
+                  <>
+                    <Radio className="h-3.5 w-3.5 fill-current" />
+                    {t(language, 'match.watchLive')}
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-3.5 w-3.5" />
+                    {t(language, 'match.watch')}
+                  </>
+                )}
+              </Button>
             )}
             {/* Match Tracker button */}
             <Button
               size="sm"
               variant="outline"
               onClick={() => setShowTracker(true)}
-              className={`h-9 rounded-xl border-border/40 dark:border-white/[0.06] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1 text-muted-foreground/70 ${isFinished ? 'px-3' : 'flex-1'}`}
+              className="h-9 px-3 rounded-xl border-border/40 dark:border-white/[0.06] bg-transparent dark:bg-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] text-xs gap-1 text-muted-foreground/70"
             >
               <Activity className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{t(language, 'match.follow')}</span>
@@ -257,6 +308,18 @@ export default function MatchCard({ match }: MatchCardProps) {
           match={match}
         />
       </div>
+
+      {/* Channel selection panel — real broadcaster links (new tab) */}
+      <StreamOptions
+        isOpen={showStreamOptions}
+        onClose={() => setShowStreamOptions(false)}
+        homeTeam={match.homeTeam}
+        awayTeam={match.awayTeam}
+        competition={match.competition}
+        sport={sportType}
+        matchId={match.id}
+        isLive={isLive}
+      />
     </>
   );
 }

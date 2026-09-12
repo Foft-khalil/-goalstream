@@ -5,12 +5,14 @@ import { t } from '@/lib/i18n';
 import { useFavorites } from '@/hooks/use-favorites';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Play, Tv, Heart, Star, Clock, Trash2, WifiOff, X, Zap, Users, Globe, Trophy } from 'lucide-react';
+import { Play, Tv, Heart, Star, Clock, Radio, Trash2, WifiOff, X, Zap, Users, Globe, Trophy } from 'lucide-react';
 import { useState } from 'react';
+import StreamOptions from '@/components/stream-options';
 
 function FavoriteMatchCard({ match }: { match: FootballMatch }) {
   const { language } = useAppStore();
   const { toggleTeamFavorite, isTeamFavorite } = useFavorites();
+  const [showStreamOptions, setShowStreamOptions] = useState(false);
 
   const isLive = match.status === 'live';
   const homeScore = match.homeScore ?? 0;
@@ -35,6 +37,9 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
 
   const homeFav = isTeamFavorite(match.homeTeam);
   const awayFav = isTeamFavorite(match.awayTeam);
+
+  const isBasketballSport = match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') || match.competition?.toLowerCase().includes('euroleague');
+  const sportType = isBasketballSport ? 'basketball' : 'football';
 
   return (
     <>
@@ -140,8 +145,56 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
             </div>
           </div>
 
+          {/* Watch action — direct link to the real player when available
+              (hes-goal.click method), channel panel otherwise */}
+          <div className="mt-3 pt-3 border-t border-border dark:border-white/[0.04]">
+            {isLive && match.streamUrl ? (
+              <a
+                href={match.streamUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="w-full h-9 inline-flex items-center justify-center gap-2 text-xs font-bold rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-lg shadow-red-600/25 transition-all duration-200"
+              >
+                <Radio className="h-3.5 w-3.5 fill-current" />
+                {t(language, 'match.watchLive')}
+              </a>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => setShowStreamOptions(true)}
+                className={`w-full h-9 gap-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+                  isLive
+                    ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/25'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/25'
+                }`}
+              >
+                {isLive ? (
+                  <>
+                    <Radio className="h-3.5 w-3.5 fill-current" />
+                    {t(language, 'match.watchLive')}
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-3.5 w-3.5 fill-current" />
+                    {t(language, 'match.watch')}
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Channel selection panel — real broadcaster links (new tab) */}
+      <StreamOptions
+        isOpen={showStreamOptions}
+        onClose={() => setShowStreamOptions(false)}
+        homeTeam={match.homeTeam}
+        awayTeam={match.awayTeam}
+        competition={match.competition}
+        sport={sportType}
+        isLive={isLive}
+      />
     </>
   );
 }

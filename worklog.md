@@ -1750,3 +1750,52 @@ Stage Summary:
 - L'app se concentre maintenant sur: scores en direct, tracker (suivre), favoris, partage, classement, chaînes IPTV (onglet dédié, inchangé)
 - stream-options.tsx reste sur disque (non importé) pour restauration facile si l'utilisateur veut une solution de streaming qui marche plus tard
 - Lint clean, 0 erreur runtime, vérifié en navigateur
+
+---
+Task ID: 21
+Agent: Main Agent
+Task: Appliquer la méthode réelle de hes-goal.click / tarjetarojaenvivo.cx — redirection vers les vraies chaînes qui diffusent le match
+
+Work Log:
+- ANALYSE hes-goal.click (homepage fetchée + JS décortiqué):
+  * Source matchs: https://ws.kora-api.space/api/matches/{date}/1 (la MÊME API que notre /api/hesgoal)
+  * Lien de visionnage par match: carte entière = <a target="_blank" rel="noopener noreferrer nofollow">
+    href = https://xyzhes-goal-click.{redirect_domain|redirectus.net}/kora.html?m={id}&lang=en&d={live_domain|enerexa.online}
+  * kora.html = pont JS qui redirige vers https://{live_domain}/?m={id}&lang={lang} (ex: enerexa.online)
+  * La page player (enerexa.online) fetch https://ws.kora-api.top/api/matche/{id}/{lang} → canaux réels
+    (Bein Sport 1, TNT 1, USA Network, Live 1-4…) joués via frames https://{edge}.kora-plus.li/frame.php
+    (Clappr/HLS, m3u8 + .ts en 200 vérifiés réseau) OU iframe direct du channel.link si edge=0
+- ANALYSE tarjetarojaenvivo.cx: protégée par challenge JS (curl bloqué), méthode connue = embeds DaddyLive
+- TESTS RÉELS (agent-browser):
+  * enerexa.online/?m=31402&lang=fr → PLAYER FONCTIONNE: beIN SPORTS 1 visible (Sunderland-Arsenal),
+    boutons de chaînes, m3u8/segments HTTP 200
+  * Frames kora-plus.li en direct sans referer → redirect google (protégées) → l'in-app iframe est
+    impossible (X-Frame-Options SAMEORIGIN sur enerexa + protection frames) → LA REDIRECTION est LA méthode
+- IMPLÉMENTATION (méthode hes-goal exacte):
+  * src/app/api/hesgoal/route.ts: buildStreamUrl → https://{live_domain||enerexa.online}/?m={id}&lang=fr
+    (fini l'ancien xyzhes-goal-eu.smartagro.mov mort); champs live_domain/redirect_domain ajoutés au type
+  * Les 12 matchs kora LIVE ont maintenant un vrai lien player direct (vérifié API)
+  * match-card.tsx: match live + streamUrl → <a target=_blank> rouge « Regarder en direct » (1 clic → player réel);
+    sinon bouton « Regarder/Live » → StreamOptions; StreamOptions restauré
+  * favorites-view.tsx: même logique (ancre directe si streamUrl, sinon panneau)
+  * basketball-match-card.tsx: bouton → StreamOptions (pas de kora basket en septembre; NBA en octobre)
+  * stream-options.tsx: REWRITTEN — canaux DaddyLive (vraies chaînes: Canal+, beIN France, Sky…)
+    chacun en <a href target=_blank rel=noopener> (FINI window.open bloqué par les popups!),
+    dédoublonnage, cache par match, note pop-ups, design refait
+- VÉRIFICATION NAVIGATEUR (golden path):
+  * Clic « Regarder en direct » (Paris FC vs Lyon) → NOUVEL ONGLET enerexa.online/?m=31404&lang=fr
+    → PLAYER JOUE beIN SPORTS 4 (PFC 0-0 OL 76e visible en screenshot, m3u8 b4 200) ✅
+  * Match sans kora (AJ Auxerre vs Nice) → panneau: Canal+ Foot, Canal+ Sport, beIN 1/2 France
+    → clic chaîne → nouvel onglet dlive.sx/stream-116.php ✅ (page lourde en pub, lente sous automation)
+  * Basketball (WNBA): panneau 6 chaînes ✅; Favoris: même logique ✅
+  * 0 erreur console/navigateur; lint clean
+
+Stage Summary:
+- LA méthode des sites de référence est appliquée: 1 clic sur « Regarder en direct » → redirection
+  vers le VRAI player du match avec les VRAIES chaînes (beIN, TNT, USA Network, Canal+…) qui JOUE.
+- 12+ matchs en direct kora ont un lien direct fonctionnel (lang=fr); les autres matchs passent par
+  le panneau de vraies chaînes DaddyLive en liens réels (plus de window.open bloqué)
+- Le player ne peut PAS être intégré in-app (X-Frame-Options + anti-referer des frames) — la
+  redirection nouvel onglet est la seule voie fiable, identique aux sites de référence
+- Note: bannière « Délai d'attente dépassé » = lenteur upstream ESPN (préexistante, bouton Réessayer)
+- Lint clean, 0 erreur runtime, golden path vérifié en navigateur avec preuve de lecture vidéo
