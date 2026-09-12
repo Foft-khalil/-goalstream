@@ -98,24 +98,19 @@ export default function StreamOptions({
     setRojaStreams([]);
     setValidationStates({});
 
-    // Fetch from THREE sources in parallel:
-    // 1. /api/iptv-channels — PRIMARY: IPTV-org channels validated through stream-proxy (ACTUALLY WORK)
-    // 2. /api/daddylive — SECONDARY: DaddyLive schedule channels (may be Cloudflare-protected, need client validation)
-    // 3. /api/streams — TERTIARY: Rojadirecta embed streams
-    const [iptvResult, daddyliveResult, rojaResult] = await Promise.allSettled([
-      // PRIMARY: IPTV-org channels (already validated through proxy — these actually play)
-      fetch(`/api/iptv-channels?competition=${encodeURIComponent(competition || '')}&sport=${sport}`)
-        .then(r => r.json())
-        .then(data => ((data.channels || []) as StreamResult[]).filter(s => !isDeadStream(s.url)))
-        .catch(() => [] as StreamResult[]),
-
-      // SECONDARY: DaddyLive channels (need client-side validation via stream-proxy)
+    // Fetch DaddyLive channels FIRST (fast, ~1s) — these are the match-specific
+    // channels (Sky Sports, beIN SPORTS, ESPN, TNT Sports, etc.) shown in the panel.
+    // We NO LONGER fetch IPTV-org channels (the "CHAÎNES DISPONIBLES" section was removed)
+    // because that fetch takes 2+ minutes (deep validation of 368 channels) and blocked
+    // the entire panel. Rojadirecta is fetched as a secondary source.
+    const [daddyliveResult, rojaResult] = await Promise.allSettled([
+      // PRIMARY: DaddyLive schedule channels (match-specific broadcasters)
       fetch(`/api/daddylive?homeTeam=${encodeURIComponent(homeTeam)}&awayTeam=${encodeURIComponent(awayTeam)}&sport=${sport}&competition=${encodeURIComponent(competition || '')}${isLive ? '&liveOnly=true' : ''}`)
         .then(r => r.json())
         .then(data => ((data.streams || []) as StreamResult[]).filter(s => !isDeadStream(s.url)))
         .catch(() => [] as StreamResult[]),
 
-      // TERTIARY: Rojadirecta embed streams
+      // SECONDARY: Rojadirecta embed streams
       fetch('/api/streams', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -128,15 +123,6 @@ export default function StreamOptions({
 
     if (cancelledRef.current) return;
 
-    if (iptvResult.status === 'fulfilled') {
-      setIptvStreams(iptvResult.value);
-      // Mark IPTV channels as "valid" immediately (they were already validated via proxy)
-      const validStates: Record<string, ValidationState> = {};
-      for (const s of iptvResult.value) {
-        validStates[s.url] = 'valid';
-      }
-      setValidationStates(validStates);
-    }
     if (daddyliveResult.status === 'fulfilled') {
       setDaddyliveStreams(daddyliveResult.value);
       // DaddyLive embed URLs are already server-validated (HTTP 200 check in the API route)
@@ -151,7 +137,7 @@ export default function StreamOptions({
       setRojaStreams(rojaResult.value);
     }
 
-    if (iptvResult.status === 'rejected' && daddyliveResult.status === 'rejected' && rojaResult.status === 'rejected') {
+    if (daddyliveResult.status === 'rejected' && rojaResult.status === 'rejected') {
       setApiError('Impossible de charger les flux. Vérifiez votre connexion.');
     }
 
@@ -369,7 +355,7 @@ export default function StreamOptions({
             <div>
               <h3 className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
                 <Zap className="h-3 w-3" />
-                Chaînes du match
+                Autres sources
                 {confirmedWorkingEmbed.length > 0 && (
                   <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 text-[8px] font-bold">
                     {confirmedWorkingEmbed.length} DISPONIBLE{confirmedWorkingEmbed.length > 1 ? 'S' : ''}
