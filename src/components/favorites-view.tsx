@@ -145,47 +145,34 @@ function FavoriteMatchCard({ match }: { match: FootballMatch }) {
             </div>
           </div>
 
-          {/* Watch action — direct link to the real player when available
-              (hes-goal.click method), channel panel otherwise */}
+          {/* Watch action — always the in-app channel panel (no redirect) */}
           <div className="mt-3 pt-3 border-t border-border dark:border-white/[0.04]">
-            {isLive && match.streamUrl ? (
-              <a
-                href={match.streamUrl}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                className="w-full h-9 inline-flex items-center justify-center gap-2 text-xs font-bold rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-lg shadow-red-600/25 transition-all duration-200"
-              >
-                <Radio className="h-3.5 w-3.5 fill-current" />
-                {t(language, 'match.watchLive')}
-              </a>
-            ) : (
-              <Button
-                size="sm"
-                onClick={() => setShowStreamOptions(true)}
-                className={`w-full h-9 gap-2 text-xs font-bold rounded-xl transition-all duration-200 ${
-                  isLive
-                    ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/25'
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/25'
-                }`}
-              >
-                {isLive ? (
-                  <>
-                    <Radio className="h-3.5 w-3.5 fill-current" />
-                    {t(language, 'match.watchLive')}
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-3.5 w-3.5 fill-current" />
-                    {t(language, 'match.watch')}
-                  </>
-                )}
-              </Button>
-            )}
+            <Button
+              size="sm"
+              onClick={() => setShowStreamOptions(true)}
+              className={`w-full h-9 gap-2 text-xs font-bold rounded-xl transition-all duration-200 ${
+                isLive
+                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/25'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/25'
+              }`}
+            >
+              {isLive ? (
+                <>
+                  <Radio className="h-3.5 w-3.5 fill-current" />
+                  {t(language, 'match.watchLive')}
+                </>
+              ) : (
+                <>
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                  {t(language, 'match.watch')}
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Channel selection panel — real broadcaster links (new tab) */}
+      {/* In-app channel player panel — stream plays inside the app, no redirect */}
       <StreamOptions
         isOpen={showStreamOptions}
         onClose={() => setShowStreamOptions(false)}

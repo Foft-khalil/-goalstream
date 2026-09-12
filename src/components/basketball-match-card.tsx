@@ -185,8 +185,8 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
                 {t(language, 'match.seeSummary')}
               </Button>
             ) : (
-              /* Opens the channel panel — each channel is a real link that
-                 opens the broadcaster's player in a new tab */
+              /* In-app playback: opens the channel panel, the stream plays inside
+                 the app (no redirect) */
               <Button
                 size="sm"
                 onClick={() => setShowStreamOptions(true)}
@@ -230,7 +230,7 @@ export default function BasketballMatchCard({ match }: BasketballMatchCardProps)
         />
       </div>
 
-      {/* Channel selection panel — real broadcaster links (new tab) */}
+      {/* In-app channel player panel — stream plays inside the app, no redirect */}
       <StreamOptions
         isOpen={showStreamOptions}
         onClose={() => setShowStreamOptions(false)}

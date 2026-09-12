@@ -232,20 +232,7 @@ export default function MatchCard({ match }: MatchCardProps) {
 
           {/* Action buttons */}
           <div className="mt-3 pt-3 border-t border-border/30 dark:border-white/[0.06] flex gap-2">
-            {isLive && match.streamUrl ? (
-              /* Direct redirection to the real player page — same method as
-                 hes-goal.click / tarjetarojaenvivo.cx: a real link opens the
-                 match player (with the real broadcaster channels) in a new tab */
-              <a
-                href={match.streamUrl}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                className="flex-1 h-9 inline-flex items-center justify-center gap-2 text-xs font-bold rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-lg shadow-red-600/20 transition-all duration-200"
-              >
-                <Radio className="h-3.5 w-3.5 fill-current" />
-                {t(language, 'match.watchLive')}
-              </a>
-            ) : isFinished ? (
+            {isFinished ? (
               <Button
                 size="sm"
                 onClick={() => setShowTracker(true)}
@@ -255,6 +242,8 @@ export default function MatchCard({ match }: MatchCardProps) {
                 {t(language, 'match.seeSummary')}
               </Button>
             ) : (
+              /* In-app playback: opens the channel panel, the stream plays inside
+                 the app (no redirect) — same channels as the reference sites */
               <Button
                 size="sm"
                 onClick={() => setShowStreamOptions(true)}
@@ -309,7 +298,7 @@ export default function MatchCard({ match }: MatchCardProps) {
         />
       </div>
 
-      {/* Channel selection panel — real broadcaster links (new tab) */}
+      {/* In-app channel player panel — stream plays inside the app, no redirect */}
       <StreamOptions
         isOpen={showStreamOptions}
         onClose={() => setShowStreamOptions(false)}

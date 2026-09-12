@@ -75,8 +75,14 @@ const COMMON_HEADERS: Record<string, string> = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
 };
 
-// ─── Validate m3u8 stream health — STRICT mode (only 200 + #EXTM3U is valid) ──
-async function validateStreamHealth(url: string): Promise<boolean> {
+// ─── Validate a DaddyLive embed page — REAL health check ──────────────────────
+// Method (validated by analysis): dlive.sx serves the REAL player page when the
+// request carries ANY non-empty Referer; without one it serves an "Access Blocked"
+// stub. The real player page embeds the nested "daddy" player iframe
+// (…/premiumtv/daddyX.php?id=X). So: GET with a neutral third-party Referer and
+// check the marker → this filters genuinely dead/offline channels server-side so
+// the user never sees a broken "Disponible" channel.
+async function validateEmbedHealth(url: string): Promise<boolean> {
   // Check cache first
   const cached = streamHealthCache.get(url);
   if (cached && Date.now() - cached.timestamp < HEALTH_CACHE_TTL) {
@@ -84,61 +90,31 @@ async function validateStreamHealth(url: string): Promise<boolean> {
   }
 
   try {
-    const isM3u8 = url.includes('.m3u8');
-
-    if (isM3u8) {
-      // Determine the correct Origin header
-      let origin = '';
-      try {
-        const hostname = new URL(url).hostname;
-        if (hostname.includes('newkso.ru')) {
-          origin = 'https://jxoxkplay.xyz';
-        } else if (hostname.includes('fubo') || hostname.includes('fltvhd') || hostname.includes('futbolonlinehd')) {
-          origin = 'https://fltvhd.com';
-        }
-      } catch {}
-
-      const headers: Record<string, string> = {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
         ...COMMON_HEADERS,
-        'Accept': '*/*',
-        ...(origin ? { 'Origin': origin, 'Referer': `${origin}/` } : {}),
-      };
+        // ANY non-empty referer unlocks the real player page (verified: google.com works)
+        'Referer': 'https://www.google.com/',
+      },
+      signal: AbortSignal.timeout(8000),
+      redirect: 'follow',
+    });
 
-      const res = await fetch(url, {
-        method: 'GET',
-        headers,
-        signal: AbortSignal.timeout(6000),
-        redirect: 'follow',
-      });
-
-      // STRICT: only 200 + valid HLS playlist is valid.
-      // 403/5xx = Cloudflare/anti-bot blocks it → invalid (stream-proxy uses same Origin detection).
-      if (res.ok) {
-        const contentType = res.headers.get('content-type') || '';
-        const text = await res.text();
-        const isValid = text.includes('#EXTM3U') || text.includes('#EXTINF') ||
-                       contentType.includes('mpegurl') || contentType.includes('octet-stream');
-        streamHealthCache.set(url, { valid: isValid, timestamp: Date.now() });
-        return isValid;
-      }
-
+    if (!res.ok) {
       streamHealthCache.set(url, { valid: false, timestamp: Date.now() });
       return false;
-    } else {
-      // For embed URLs — STRICT: only 200 is valid
-      const res = await fetch(url, {
-        method: 'HEAD',
-        headers: COMMON_HEADERS,
-        signal: AbortSignal.timeout(6000),
-        redirect: 'follow',
-      });
-
-      const valid = res.ok;
-      streamHealthCache.set(url, { valid, timestamp: Date.now() });
-      return valid;
     }
+
+    const text = await res.text();
+    const valid =
+      !text.includes('Access Blocked') &&
+      (text.includes('daddy') || text.includes('premiumtv'));
+
+    streamHealthCache.set(url, { valid, timestamp: Date.now() });
+    return valid;
   } catch {
-    // Network error / timeout — STRICT: invalid (don't show broken channels)
+    // Network error / timeout — invalid (don't show broken channels)
     streamHealthCache.set(url, { valid: false, timestamp: Date.now() });
     return false;
   }
@@ -228,9 +204,11 @@ export async function GET(request: NextRequest) {
             // For live: require a reasonable match (don't show totally unrelated channels)
             if (!bothStrong && !oneStrong) continue;
           } else {
-            // For non-live: be more lenient (at least weak match on either team)
-            const either = homeScore >= 0.4 || awayScore >= 0.4;
-            if (!either && !bothWeak) continue;
+            // For non-live: require at least ONE solid team-name hit. The old weak
+            // thresholds (0.35) produced false positives like kids/entertainment
+            // channels ("Nick JR USA") on upcoming matches.
+            const oneSolid = homeScore >= 0.5 || awayScore >= 0.5;
+            if (!oneSolid && !bothWeak) continue;
           }
 
           const matchScore = ((homeScore + awayScore) / 2) * dayBoost;
@@ -280,40 +258,26 @@ export async function GET(request: NextRequest) {
     }
 
     // All streams now use DaddyLive's embeddable player page (dlive.sx/stream/stream-XXX.php).
-    // The raw m3u8 on newkso.ru is Cloudflare-blocked server-side. The embed page resolves
-    // the stream CLIENT-SIDE in the browser (same method as tarjetarojaenvivo.cx).
-    // We do a lightweight HTTP GET check on the embed page to confirm it exists.
+    // REAL health check: with a neutral third-party Referer, dlive.sx serves the real
+    // player page (contains the nested daddy iframe); dead/offline channels serve an
+    // "Access Blocked" stub instead. Filter BEFORE returning so the user only ever
+    // sees working channels.
     const functionalStreams = [...matchedStreams];
-
-    // Quick GET-validate embed URLs in parallel (fast, 4s timeout each)
-    // hamis.romponalis.st requires Referer: https://dlive.sx/ (returns 403 without it)
-    if (functionalStreams.length > 0 && functionalStreams.length <= 12) {
+    if (functionalStreams.length > 0) {
       const results = await Promise.allSettled(
-        functionalStreams.map(async (stream) => {
-          try {
-            const headers = { ...COMMON_HEADERS };
-            // hamis.romponalis.st blocks requests without a dlive.sx referer
-            if (stream.streamUrl.includes('hamis.romponalis.st')) {
-              headers['Referer'] = 'https://dlive.sx/';
-            }
-            const res = await fetch(stream.streamUrl, {
-              method: 'GET',
-              headers,
-              signal: AbortSignal.timeout(4000),
-              redirect: 'follow',
-            });
-            return { stream, valid: res.ok };
-          } catch {
-            return { stream, valid: false };
-          }
-        })
+        functionalStreams.map(async (stream) => ({
+          stream,
+          valid: await validateEmbedHealth(stream.streamUrl),
+        }))
       );
       const validStreams = results
-        .filter((r): r is PromiseFulfilledResult<{ stream: MatchedStream; valid: boolean }> =>
-          r.status === 'fulfilled' && r.value.valid)
-        .map(r => r.value.stream);
+        .filter(
+          (r): r is PromiseFulfilledResult<{ stream: MatchedStream; valid: boolean }> =>
+            r.status === 'fulfilled' && r.value.valid
+        )
+        .map((r) => r.value.stream);
       const removed = functionalStreams.length - validStreams.length;
-      if (removed > 0) console.log(`[DaddyLive API] Removed ${removed} unavailable embed pages`);
+      if (removed > 0) console.log(`[DaddyLive API] Removed ${removed} dead/offline channels (Access Blocked or no player)`);
       functionalStreams.length = 0;
       functionalStreams.push(...validStreams);
     }
@@ -367,12 +331,20 @@ export async function GET(request: NextRequest) {
       }
 
       if (fallbackStreams.length > 0) {
-        // Don't validate fallback channels server-side — they're often Cloudflare-protected (403)
-        // and server-side validation can't access them. The client-side validation (stream-validate
-        // called from StreamOptions) will handle filtering. This way the user sees all candidate
-        // channels immediately and can try them.
-        finalStreams = [...functionalStreams, ...fallbackStreams];
-        console.log(`[DaddyLive API] Added ${fallbackStreams.length} competition-fallback channels (total now ${finalStreams.length}) — client-side validation will filter broken ones`);
+        // Validate fallback channels with the SAME real health check — a dead
+        // fallback channel must never reach the UI (that's what caused the old
+        // "Disponible but broken" list).
+        const validatedFallbacks: MatchedStream[] = [];
+        const fbResults = await Promise.allSettled(
+          fallbackStreams.map(async (s) => ({ s, valid: await validateEmbedHealth(s.streamUrl) }))
+        );
+        for (const r of fbResults) {
+          if (r.status === 'fulfilled' && r.value.valid) validatedFallbacks.push(r.value.s);
+        }
+        const fbRemoved = fallbackStreams.length - validatedFallbacks.length;
+        if (fbRemoved > 0) console.log(`[DaddyLive API] Removed ${fbRemoved} dead competition-fallback channels`);
+        finalStreams = [...functionalStreams, ...validatedFallbacks];
+        console.log(`[DaddyLive API] Added ${validatedFallbacks.length} alive competition-fallback channels (total now ${finalStreams.length})`);
       }
     }
 

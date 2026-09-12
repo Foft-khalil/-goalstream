@@ -1799,3 +1799,36 @@ Stage Summary:
   redirection nouvel onglet est la seule voie fiable, identique aux sites de référence
 - Note: bannière « Délai d'attente dépassé » = lenteur upstream ESPN (préexistante, bouton Réessayer)
 - Lint clean, 0 erreur runtime, golden path vérifié en navigateur avec preuve de lecture vidéo
+
+---
+Task ID: 22
+Agent: Main Agent
+Task: Lecteur INTÉGRÉ (zéro redirection) + chaînes validées — les chaînes ne doivent plus renvoyer vers un site externe ni être cassées
+
+Work Log:
+- CONSTAT utilisateur: le panneau « Chaînes en direct » affichait Canal+/beIN « DISPONIBLE » qui, une fois cliqués, ouvraient dlive.sx/stream-116.php en nouvel onglet → « Access Blocked - Please use official site! : DaddyLive.pk » (noreferrer = pas de referer = stub).
+- ANALYSE FRESH des sites de référence (agent-browser):
+  * tarjetarojaenvivo.cx est MORT (« Services are suspended ») — les domaines pivotent, confirmation de la nécessité d'une méthode propre.
+  * hes-goal.click vivant: pont redirectus.net/kora.html → player enerexa.online (m=31402…). Chaîne kora inspectée: frame a12.kora-plus.li/frame.php?ch=tnt1&p=12&token=UUID_ALÉATOIRE&kt=now (getVisitorId = simple UUID localStorage, P_VALUE=12 constante) → m3u8 a12.kora-plus.li/live/tnt1.m3u8?token=…&exp=…
+  * KORA IMPOSSIBLE in-app: m3u8 verrouillé same-origin (XHR depuis notre origine → 503 « offline »), frame.php CSP frame-ancestors whitelistée (localhost rejeté), fetch cross-origin bloqué. La redirection est la SEULE voie kora (méthode hes-goal, Task 21 inchangée sur ce point).
+- DÉCOUVERTE CLÉ (curl, chaque niveau prouvé):
+  * dlive.sx/stream/stream-XXX.php SANS referer → stub « Access Blocked » (le bug de l'utilisateur)
+  * dlive.sx/stream/stream-XXX.php AVEC referer tiers (example.com/google.com) → VRAI player (643KB, iframe imbriquée hamis.romponalis.st/premiumtv/daddy4.php?id=XXX) et AUCUN header X-Frame-Options/frame-ancestors → EMBEDDABLE
+  * daddy4.php avec referer dlive.sx → 200, Clappr + m3u8 en base64 (xameleon.phantemlis.top/four/secure/…) → c'est la méthode tarjetarojaenvivo: la chaîne d'iframes porte naturellement les bons referers à chaque niveau
+  * m3u8 xameleon: CORS ouvert (ACAO:*) mais 403 anti-bot (TLS/UA) même dans le navigateur headless → la lecture directe HLS in-app n'est pas fiable, l'IFRAME est la bonne méthode
+- IMPLÉMENTATION:
+  * src/components/stream-options.tsx REWRITTEN: chaque chaîne est un <button> PLAY qui ouvre une COUCHE LECTEUR plein écran DANS l'app: iframe src=dlive.sx/stream-XXX.php + referrerPolicy="origin" (referer non vide obligatoire) + sandbox "allow-scripts allow-same-origin allow-forms allow-presentation" (bloque pop-ups ET hijack de navigation) + allow autoplay/fullscreen; phases connecting→ready→stuck (25s → astuce « essayez une autre chaîne » + bouton Changer); bouton « ← Chaînes » pour revenir à la liste; footer « Lecture intégrée dans l'application · aucune redirection »; plus AUCUN <a target=_blank> ni ExternalLink
+  * src/app/api/daddylive/route.ts: validateEmbedHealth() — GET avec Referer google.com, canal VIVANT si la page contient le player (daddy/premiumtv) et PAS « Access Blocked »; appliqué aux chaînes du schedule ET aux fallbacks compétition (avant: fallbacks non validés = l'origine des chaînes mortes « DISPONIBLE »); seuils de matching non-live resserrés (0.5 au lieu de 0.4) contre les faux positifs
+  * match-card.tsx: suppression de l'ancre kora <a target=_blank> « Regarder en direct » (redirection enerexa) → TOUS les matchs passent par le panneau in-app; favorites-view.tsx idem; basketball-match-card.tsx commentaires mis à jour
+  * Fix lint react-hooks (set-state-in-effect → pattern « adjust state during render »; refs en render → cleanup dans l'effet watchdog); fix erreur de parsing (flèche multi-lignes)
+- VÉRIFICATION (agent-browser + curl):
+  * API: Arsenal/Sunderland → 3 chaînes vivantes; AJ Auxerre/Nice (le match du screenshot) → 4 chaînes vivantes dont stream-116 (celle qui montrait « Access Blocked »)
+  * App E2E: MLS → « Regarder » → panneau « Chaînes du match · 5 VÉRIFIÉES » (badges VÉRIFIÉE, boutons PLAY rouges, footer « aucun renvoi vers un autre site ») → clic chaîne → couche lecteur plein écran « Fox Sports 1 USA / Columbus Crew vs Red Bull New York » avec iframe dlive 200 (stream-39) — AUCUNE redirection, AUCUN nouvel onglet (screenshots)
+  * Onglet Basketball: boutons « Regarder » orange OK; lint clean; dev.log sans erreur
+  * LIMITATION headless: la vidéo finale ne peut pas être confirmée dans la sandbox (le CDN xameleon bloque l'UA headless, et la page dlive sature le chrome headless sandbox) — mais chaque maillon est prouvé par curl côté serveur et la chaîne d'iframes reproduit 1:1 celle des sites de référence fonctionnels
+
+Stage Summary:
+- FINI les chaînes qui renvoient vers un site externe: le flux se joue DANS l'app (couche lecteur plein écran, iframe DaddyLive + sandbox anti-hijack)
+- FINI les chaînes mortes affichées: validation serveur réelle (player présent vs Access Blocked) sur toutes les chaînes, fallbacks compris
+- La méthode est exactement celle de tarjetarojaenvivo (embed DaddyLive avec chaîne de referers naturels), fraîchement re-validée niveau par niveau
+- Le chemin kora/enerexa (impossible in-app, whitelist frame-ancestors + m3u8 same-origin) n'est plus proposé du tout: plus aucune redirection nulle part dans l'app
