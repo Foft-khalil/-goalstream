@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { X, RefreshCw, Loader2, Circle, Square, ArrowRightLeft, AlertTriangle, Eye, Tv, MapPin, Users, Clock, Trophy, BarChart3, Star, Shirt } from 'lucide-react';
+import { X, RefreshCw, Loader2, Circle, Square, ArrowRightLeft, AlertTriangle, Eye, MapPin, Users, Clock, Trophy, BarChart3, Star, Shirt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
@@ -311,7 +311,7 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
   const [possession, setPossession] = useState<'home' | 'away' | null>(null);
   const [summary, setSummary] = useState<FootballMatchSummary | null>(null);
   const [activeTab, setActiveTab] = useState<'timeline' | 'stats' | 'players' | 'lineups'>('timeline');
-  const { openPlayer, language } = useAppStore();
+  const { language } = useAppStore();
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   // Derive league from match competition
@@ -444,17 +444,6 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
   // Team abbreviations for pitch display
   const homeAbbr = match.homeTeam.slice(0, 3).toUpperCase();
   const awayAbbr = match.awayTeam.slice(0, 3).toUpperCase();
-
-  // Determine if match is about to start
-  const isAboutToStart = (() => {
-    if (!match.matchDate || isLive || isFinished) return false;
-    const matchDate = new Date(match.matchDate);
-    const now = Date.now();
-    const diffMs = matchDate.getTime() - now;
-    return diffMs <= 30 * 60 * 1000 && diffMs > -5 * 60 * 1000;
-  })();
-
-  const canWatchLive = isLive || isAboutToStart;
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-xl overflow-hidden flex flex-col">
@@ -1048,91 +1037,6 @@ export default function MatchTracker({ isOpen, onClose, match }: MatchTrackerPro
                 </div>
               ) : null}
             </>
-          )}
-
-          {/* Watch live button — only for live or about-to-start matches */}
-          {canWatchLive && (
-            <div className="mt-6 space-y-2">
-              <Button
-                className={`w-full gap-2 h-10 font-semibold ${
-                  isLive
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-green-600 hover:bg-green-700 text-white'
-                }`}
-                onClick={async () => {
-                  try {
-                    // Step 1: Try kora-api first (fast, direct streaming)
-                    try {
-                      const koraRes = await fetch('/api/streams', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          homeTeam: match.homeTeam,
-                          awayTeam: match.awayTeam,
-                          competition: match.competition,
-                          sport: match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') ? 'basketball' : 'football',
-                        }),
-                        signal: AbortSignal.timeout(8000),
-                      });
-
-                      if (koraRes.ok) {
-                        const koraData = await koraRes.json();
-                        if (koraData.streams && koraData.streams.length > 0) {
-                          const first = koraData.streams[0];
-                          const alternatives = koraData.streams.slice(1).map((s: any) => ({
-                            name: `${s.langFlag} ${s.name}`,
-                            url: s.url,
-                            logo: '',
-                          }));
-                          openPlayer(first.url, `${first.langFlag} ${first.name}`, undefined, alternatives);
-                          onClose();
-                          return;
-                        }
-                      }
-                    } catch(_e) {
-                      // kora-api failed, fall through to IPTV
-                    }
-
-                    // Step 2: IPTV fallback (short timeout)
-                    const controller = new AbortController();
-                    const timeout = setTimeout(() => controller.abort(), 10000);
-
-                    const res = await fetch('/api/match-stream', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        homeTeam: match.homeTeam,
-                        awayTeam: match.awayTeam,
-                        competition: match.competition,
-                        matchDate: match.matchDate,
-                        sport: match.competition?.toLowerCase().includes('basketball') || match.competition?.toLowerCase().includes('nba') ? 'basketball' : 'football',
-                      }),
-                      signal: controller.signal,
-                    });
-
-                    clearTimeout(timeout);
-
-                    if (res.ok) {
-                      const data = await res.json();
-                      const channels = data.channels || [];
-                      if (channels.length > 0) {
-                        const first = channels[0];
-                        const alternatives = channels.slice(1);
-                        openPlayer(first.url, first.name, first.logo || undefined, alternatives);
-                        onClose();
-                      }
-                    }
-                  } catch (err) {
-                    console.error('Error finding stream from tracker:', err);
-                  }
-                }}
-              >
-                <Tv className="h-4 w-4" />
-                {isLive ? 'Regarder en direct' : 'Regarder le match'}
-              </Button>
-
-
-            </div>
           )}
         </div>
       </div>

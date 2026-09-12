@@ -1718,3 +1718,35 @@ Stage Summary:
 - No more direct auto-play of dead HesGoal streams — the user chooses the channel
 - 7 match-specific DaddyLive channels show with DISPONIBLE badges within seconds
 - Lint clean, no compile errors
+
+---
+Task ID: 20
+Agent: Main Agent
+Task: Supprimer les chaînes du flux « Regarder en direct » — l'utilisateur ne veut plus voir la liste « Autres sources » (aucune chaîne ne fonctionne)
+
+Work Log:
+- User request: "pourquoi je vois la liste des autres sources, supprimes les chaines quant j'appuis sur match en directe. tout les chaine ne marche pas."
+- Décision: suppression COMPLÈTE du parcours de visionnage (boutons Regarder + panneau de chaînes) partout dans l'app, car toutes les chaînes sont cassées selon l'utilisateur.
+- src/components/match-card.tsx:
+  * Supprimé: import StreamOptions, état showStreamOptions, handleWatchLive, isAboutToStart, canWatchLive, isBasketballSport/sportType
+  * Supprimé: bouton « Regarder en direct »/« Regarder » (live + à venir) et le panneau <StreamOptions>
+  * Les cartes montrent désormais: Suivre (flex-1 si pas d'action principale) + Partager (+ Voir résumé si terminé)
+  * Nettoyage imports: Badge, Play, Tv, Radio, Zap supprimés
+- src/components/basketball-match-card.tsx: mêmes suppressions (bouton orange Regarder + StreamOptions), imports Play/Radio nettoyés
+- src/components/favorites-view.tsx: FavoriteMatchCard — supprimé bouton Regarder + panneau StreamOptions + sportType; Radio retiré des imports (Play/Tv conservés pour FavoriteChannelCard)
+- src/components/match-tracker.tsx: supprimé le bloc bouton « Regarder en direct » interne (kora-api/IPTV → openPlayer), canWatchLive, isAboutToStart, openPlayer du store, Tv de l'import
+- src/components/basketball-match-tracker.tsx: idem + suppression import useAppStore (plus utilisé)
+- src/components/stream-options.tsx: conservé sur disque mais PLUS AUCUN import — composant mort, non bundlé
+
+VERIFICATION (agent-browser):
+- Cartes football en direct (8 matchs live): uniquement « Suivre » + « Partager », plus aucun bouton rouge « Regarder en direct »
+- Clic « Suivre »: tracker s'ouvre (chronologie/stats), AUCUN bouton Regarder dedans
+- Onglet Basketball (WNBA): cartes uniquement « Suivre »; tracker basketball s'ouvre sans erreur ni bouton de chaîne
+- Onglet Favoris (avec équipe favorite Strasbourg): cartes sans bouton de visionnage
+- Aucune erreur console/navigateur; lint clean; dev server compile
+
+Stage Summary:
+- SUPPRIMÉ: tout le flux « Regarder en direct » / liste de chaînes (Autres sources) sur les cartes football, basketball, favoris et dans les 2 trackers
+- L'app se concentre maintenant sur: scores en direct, tracker (suivre), favoris, partage, classement, chaînes IPTV (onglet dédié, inchangé)
+- stream-options.tsx reste sur disque (non importé) pour restauration facile si l'utilisateur veut une solution de streaming qui marche plus tard
+- Lint clean, 0 erreur runtime, vérifié en navigateur

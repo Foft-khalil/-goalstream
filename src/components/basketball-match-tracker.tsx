@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { X, RefreshCw, Loader2, Circle, ArrowRightLeft, AlertTriangle, Tv, Clock, MapPin, Users, Trophy, BarChart3, Star } from 'lucide-react';
+import { X, RefreshCw, Loader2, Circle, ArrowRightLeft, AlertTriangle, Clock, MapPin, Users, Trophy, BarChart3, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAppStore } from '@/lib/store';
 import DynamicBasketballCourt from '@/components/dynamic-basketball-court';
 
 // ─── Types (must match API) ───────────────────────────────────────────────────
@@ -163,7 +162,6 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
   const [possession, setPossession] = useState<'home' | 'away' | null>(null);
   const [summary, setSummary] = useState<MatchSummary | null>(null);
   const [activeTab, setActiveTab] = useState<'timeline' | 'stats' | 'players'>('timeline');
-  const { openPlayer } = useAppStore();
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   // Derive league from match competition
@@ -264,17 +262,6 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
   // Team abbreviations
   const homeAbbr = match.homeAbbreviation || match.homeTeam.slice(0, 3).toUpperCase();
   const awayAbbr = match.awayAbbreviation || match.awayTeam.slice(0, 3).toUpperCase();
-
-  // Determine if match is about to start
-  const isAboutToStart = (() => {
-    if (!match.matchDate || isLive || isFinished) return false;
-    const matchDate = new Date(match.matchDate);
-    const now = Date.now();
-    const diffMs = matchDate.getTime() - now;
-    return diffMs <= 30 * 60 * 1000 && diffMs > -5 * 60 * 1000;
-  })();
-
-  const canWatchLive = isLive || isAboutToStart;
 
   // Determine winner for finished matches
   const homeWins = isFinished && displayHomeScore > displayAwayScore;
@@ -823,56 +810,6 @@ export default function BasketballMatchTracker({ isOpen, onClose, match }: Baske
                 </div>
               )}
             </>
-          )}
-
-          {/* Watch live button — only for live or about-to-start matches */}
-          {canWatchLive && (
-            <div className="mt-6">
-              <Button
-                className={`w-full gap-2 h-10 font-semibold ${
-                  isLive
-                    ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                    : 'bg-green-600 hover:bg-green-700 text-white'
-                }`}
-                onClick={async () => {
-                  try {
-                    const controller = new AbortController();
-                    const timeout = setTimeout(() => controller.abort(), 45000);
-
-                    const res = await fetch('/api/match-stream', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        homeTeam: match.homeTeam,
-                        awayTeam: match.awayTeam,
-                        competition: match.competition,
-                        matchDate: match.matchDate,
-                        sport: 'basketball',
-                      }),
-                      signal: controller.signal,
-                    });
-
-                    clearTimeout(timeout);
-
-                    if (res.ok) {
-                      const data = await res.json();
-                      const channels = data.channels || [];
-                      if (channels.length > 0) {
-                        const first = channels[0];
-                        const alternatives = channels.slice(1);
-                        openPlayer(first.url, first.name, first.logo || undefined, alternatives);
-                        onClose();
-                      }
-                    }
-                  } catch (err) {
-                    console.error('Error finding stream from tracker:', err);
-                  }
-                }}
-              >
-                <Tv className="h-4 w-4" />
-                {isLive ? 'Regarder en direct' : 'Regarder le match'}
-              </Button>
-            </div>
           )}
         </div>
       </div>
