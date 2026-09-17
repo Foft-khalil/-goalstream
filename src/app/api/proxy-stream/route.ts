@@ -130,9 +130,17 @@ export async function GET(request: NextRequest) {
     );
 
     // Remove anti-iframe-breakout scripts (various patterns)
+    // Handles BOTH forms: with braces `if(window==window.top){document.location="/"}`
+    // and without braces `if(window==window.top)document.location="/"`
     html = html.replace(
-      /if\s*\(\s*window\s*==\s*window\.top\s*\)\s*document\.location\s*=\s*['"][^'"]*['"]/gi,
+      /if\s*\(\s*window\s*==\s*window\.top\s*\)\s*\{?\s*document\.location\s*=\s*['"][^'"]*['"]\s*\}?/gi,
       '/* removed top-frame redirect */'
+    );
+    // Also strip the entire <script> block containing the top-frame check
+    // (some variants have other code in the same script tag)
+    html = html.replace(
+      /<script[^>]*>\s*if\s*\(\s*window\s*==\s*window\.top\s*\)[^<]*<\/script>/gi,
+      ''
     );
     html = html.replace(
       /if\s*\(\s*window\s*!==\s*window\.top\s*\)[^;]*;/gi,
@@ -299,13 +307,18 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    // ── Step 6: Inject a <base> tag for remaining relative URLs ──────────────
-    if (!html.includes('<base')) {
-      html = html.replace(
-        /<head([^>]*)>/i,
-        `<base href="${baseUrl.href}" target="_self">$1`
-      );
-    }
+    // ── Step 6 (REMOVED in Task 28): Inject a <base> tag for remaining relative URLs ──
+    // This USED to re-add <base href="https://upstream/..."> after Step 0 stripped
+    // it — but that DEFEATS Step 0's purpose: relative URLs would resolve against
+    // the upstream host instead of our origin, breaking the /api/proxy-stream
+    // rewrites done in Steps 4 + 4b. After Step 0 strips <base>:
+    //   - Script srcs are rewritten to absolute URLs (Step 4b) → load through
+    //     our proxy with proper CORS + Referer.
+    //   - Other relative URLs (link href, iframe src) are made absolute by
+    //     Steps 2 + 3 against the upstream origin (which is what we want for
+    //     CSS/images iframes; they don't need CORS).
+    // So no <base> tag is needed — leaving it out lets the browser resolve
+    // any UNREWRITTEN relative URLs against OUR origin (localhost:3000).
 
     return new NextResponse(html, {
       status: 200,

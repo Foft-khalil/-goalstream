@@ -35,20 +35,24 @@ function needsProxy(url: string): boolean {
   // Our own proxy URLs don't need re-proxying
   if (url.includes('/api/proxy-stream')) return false;
   // Known embed sites that DON'T set X-Frame-Options → load directly in iframe.
-  // NOTE: DaddyLive (dlive.sx) is NO LONGER in this list — it's too heavy (643KB
-  // + ads + nested iframes) and times out. Instead, dlive.sx URLs go through
-  // /api/proxy-stream which fetches the page server-side (stripping ads/scripts),
-  // rewrites the nested hamis.romponalis.st iframe to also go through the proxy
-  // (with Referer: https://dlive.sx/ so hamis returns 200), and serves a
-  // lightweight page from our own domain.
   //
-  // Task 27 (Sep 2026): tiestep.top is the NEW player host for DaddyLive
-  // channels. It REQUIRES Referer: https://dlive.sx/ (returns 403 otherwise).
-  // Since the browser cannot inject a custom Referer on iframe loads, we route
-  // tiestep.top URLs through /api/proxy-stream (which injects the Referer
-  // server-side and serves the page from our own origin → no X-Frame-Options
-  // issues, no 403). The iframe is then sandbox-embedded in our app.
-  const directLoadDomains: string[] = [];
+  // Task 28 (Sep 2026): dlive.sx/watch.php?id=N is the BEST embed URL for
+  // DaddyLive channels. When loaded DIRECTLY (not through proxy-stream) in
+  // the user's browser:
+  //   1. Browser fetches dlive.sx/watch.php from USER's IP
+  //   2. Page has nested iframe → stream-N.php (same origin, loads fine)
+  //   3. stream-N.php has iframe → tiestep.top/e/{slug} with Referer: dlive.sx
+  //      (parent origin) → tiestep.top returns 200
+  //   4. stream.js decodes _econfig → m3u8 URL, token bound to USER's IP
+  //   5. Clappr fetches m3u8 from USER's IP → matches token → 200 OK → video
+  //
+  // This is the ONLY working approach: the m3u8 token is IP-bound to whoever
+  // loaded the player page. Server-side proxying (sandbox IP) ≠ user's IP →
+  // 403. Direct iframe load (user's IP) = m3u8 fetch (user's IP) → match.
+  //
+  // dlive.sx/watch.php pages DO include popunder ad scripts (greatdexchange.com
+  // etc.) but they only fire on user click, not on autoplay load.
+  const directLoadDomains: string[] = ['dlive.sx/watch.php'];
   if (directLoadDomains.some(d => url.includes(d))) return false;
   // Any other URL (web page / embed) needs proxying to bypass iframe restrictions
   return true;

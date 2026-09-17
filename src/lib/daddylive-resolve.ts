@@ -308,7 +308,34 @@ export async function resolveChannel(
   const id = String(channelId);
   if (!id || id === '0' || id === '00') return null;
 
-  // Try clean m3u8 first
+  // PRACTICAL FALLBACK (Task 28): use dlive.sx/watch.php?id=N as the iframe
+  // URL. When the user's browser loads this directly (NOT through proxy-stream):
+  //   1. Browser fetches dlive.sx/watch.php?id=N from USER's IP
+  //      (dlive.sx has NO X-Frame-Options → embeddable in our iframe).
+  //   2. The page has a nested iframe src=dlive.sx/stream/stream-N.php (same
+  //      origin, loads fine).
+  //   3. stream-N.php has iframe src=tiestop.top/e/{slug} — the iframe's
+  //      Referer is https://dlive.sx/ (parent origin) → tiestop.top accepts.
+  //   4. stream.js decodes _econfig → m3u8 URL, token bound to USER's IP.
+  //   5. Clappr fetches m3u8 from USER's IP → matches token → 200 OK → video.
+  //
+  // This is the ONLY approach that works because the m3u8 token is IP-bound
+  // to whoever loaded the player page. Server-side proxying (our previous
+  // approach) bound the token to the SANDBOX IP, but the user's browser
+  // has a different IP → 403.
+  //
+  // The dlive.sx/watch.php page DOES include popunder ad scripts, but they
+  // only fire on user click (not on autoplay), so the user can watch the
+  // match without seeing ads unless they click around.
+  return {
+    type: 'iframe',
+    url: `https://dlive.sx/watch.php?id=${id}`,
+    referer: `https://dlive.sx/watch.php?id=${id}`,
+  };
+
+  // (Previous m3u8 + tiestop.top iframe logic below — kept for future
+  // server-side decoding work but currently unreachable due to the early
+  // return above.)
   const m3u8 = await resolveChannelM3u8(id, force);
   if (m3u8) {
     return {

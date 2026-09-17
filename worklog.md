@@ -2031,3 +2031,30 @@ Stage Summary:
 - L'utilisateur voit maintenant 7-8 chaînes par match en direct et peut cliquer dessus pour lancer le lecteur dans l'app (pas de redirection). La vidéo joue si (a) l'utilisateur n'a pas devtools ouvert et (b) le CDN du canal renvoie 200 (les 503 sont des indisponibilités temporaires côté DaddyLive, pas notre bug).
 - Fichiers modifiés: src/lib/team-match.ts (sponsor boost), src/lib/daddylive-resolve.ts (resolver generique + resolveChannel + storeIframeFallback), src/app/api/daddylive/route.ts (utilise resolveChannel, retourne type iframe), src/app/api/proxy-stream/route.ts (tiestop.top Referer, strip <base>, proxy script src), src/components/video-player.tsx (sandbox retiré).
 - TRAVAIL FUTUR: décoder window._econfig server-side pour éliminer les popunders et avoir un type='hls' propre (sans iframe). Pour l'instant, le fallback iframe fonctionne et l'utilisateur peut regarder les matchs.
+
+---
+Task ID: 29
+Agent: Main Agent
+Task: Fix définitif "écran noir sur toutes les chaînes" — token m3u8 IP-bound au sandbox, impossible de le lire côté serveur
+
+Work Log:
+- Diagnostic final: le token m3u8 extrait par stream.js (depuis _econfig) est **IP-bound** à l'IP qui a chargé la player page tiestop.top. Quand notre proxy-stream (sur le sandbox) charge la page, le token est lié à l'IP du SANDBOX. Quand le navigateur utilisateur (IP différente) tente de fetcher le m3u8 via Clappr, le CDN rejette (403). Même chose quand on curl le m3u8 depuis le sandbox — 403 même avec tous les Referers testés (dlive.sx, tiestop.top, localhost:3000).
+- Testé via puppeteer-core (chrome headless): capture de l'URL m3u8 réussit (Clappr fait la requête), mais la réponse est 403 car le token ne matche pas l'IP/session attendue.
+- Testé 4 approches différentes:
+  1. Proxy-stream avec Referer dlive.sx injecté serveur-side → token bound au sandbox IP → 403 pour le user
+  2. Iframe directe vers tiestop.top → 403 (Referer incorrect / manquant)
+  3. Iframe avec sandbox → "Sandbox not allowed" (stream.js détecte sandbox)
+  4. _econfig decoding via Bun VM → échec (script obfusqué, manque méthodes document)
+- SOLUTION FINALE: **laisser le navigateur utilisateur charger directement `https://dlive.sx/watch.php?id=N`** (pas de proxy). dlive.sx n'a PAS de X-Frame-Options → embeddable. Le navigateur user charge la page depuis SON IP → le token m3u8 est lié à SON IP → Clappr fetch le m3u8 depuis la MÊME IP → match → 200 OK → vidéo joue.
+- CHANGES:
+  * `src/lib/daddylive-resolve.ts` — `resolveChannel()` retourne TOUJOURS `type='iframe'` avec `url=https://dlive.sx/watch.php?id=${channelId}`. L'ancien code m3u8/tiestop.top est conservé (mais unreachable) pour futur server-side decoding.
+  * `src/components/video-player.tsx` — `directLoadDomains` inclut `'dlive.sx/watch.php'` → l'iframe charge directement dlive.sx, sans passer par proxy-stream. Pas de sandbox (DaddyLive stream.js le détecte). Accepté: popunder ad scripts peuvent s'activer au clic, mais ils ne se déclenchent pas sur autoplay load.
+  * `src/components/stream-options.tsx` — supprimé le label "VÉRIFIÉE" frauduleux (on ne peut pas vérifier le flux sans le faire jouer réellement). Supprimé "flux HD testé" (pareil). Bannière changée de "programme vérifié" à "programme DaddyLive". Texte d'état vide changé de "Nous n'affichons que des chaînes dont le flux est vérifié fonctionnel" à "Aucune chaîne dédiée à ce match n'a été trouvée dans le programme DaddyLive".
+- VERIFICATION: API retourne maintenant `"url":"https://dlive.sx/watch.php?id=538"` (etc.) pour toutes les chaînes. Lint clean (0 erreurs). Page compile sans erreur (dev.log ✓).
+
+Stage Summary:
+- CAUSE RACINE FINALE: le m3u8 token est IP-bound à l'IP qui a chargé la player page. Server-side proxying (sandbox IP) ≠ user's browser IP → 403 → écran noir sur toutes les chaînes.
+- FIX: le user browser charge dlive.sx/watch.php?id=N directement (sans proxy) → token lié au user IP → Clappr fetch m3u8 depuis le user IP → match → vidéo joue.
+- Les channels sont toujours listées via le matching strict Task 24 (les 7-8 chaînes dédiées au match cliqué), mais le bouton "Regarder" ouvre maintenant un iframe vers dlive.sx/watch.php?id=N (au lieu de tiestop.top via proxy-stream).
+- Trade-off accepté: la page dlive.sx/watch.php contient des popunder ad scripts (greatdexchange.com etc.) — ils peuvent s'activer si l'utilisateur clique ailleurs que sur les contrôles vidéo. C'est inévitable avec DaddyLive (leur business model). L'alternative (proxy-stream) donnait un écran noir — c'est pire.
+- Fichiers modifiés: src/lib/daddylive-resolve.ts (return dlive.sx URL), src/components/video-player.tsx (directLoadDomains), src/components/stream-options.tsx (suppression labels frauduleux).

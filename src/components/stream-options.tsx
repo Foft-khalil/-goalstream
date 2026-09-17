@@ -189,10 +189,9 @@ export default function StreamOptions({
               </div>
               <p className="text-sm font-semibold">Aucune chaîne ne diffuse ce match pour le moment</p>
               <p className="text-xs text-muted-foreground/50 mt-1.5">
-                Nous n&apos;affichons que des chaînes dont le flux est vérifié fonctionnel à
-                l&apos;instant même — jamais une chaîne morte ni une chaîne qui diffuse un
-                autre match. La liste se met à jour automatiquement : réessayez au coup
-                d&apos;envoi ou pendant la rencontre.
+                Aucune chaîne dédiée à ce match n&apos;a été trouvée dans le programme
+                DaddyLive. Réessayez au coup d&apos;envoi ou pendant la rencontre — la liste
+                se met à jour automatiquement.
               </p>
             </div>
           )}
@@ -204,7 +203,7 @@ export default function StreamOptions({
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/15">
                   <Radio className="h-3 w-3 text-emerald-400" />
                   <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-                    Chaînes TV · {channels.length} vérifiée{channels.length !== 1 ? 's' : ''}
+                    Chaînes TV · {channels.length} disponible{channels.length !== 1 ? 's' : ''}
                   </span>
                 </div>
                 <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/15 to-transparent" />
@@ -217,7 +216,7 @@ export default function StreamOptions({
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
                   <p className="text-[11px] leading-snug text-emerald-100/80 dark:text-emerald-200/80">
                     Chaînes qui diffusent <span className="font-semibold text-emerald-600 dark:text-emerald-300">ce match</span>
-                    {' '}(programme vérifié{channels[0]?.eventTime ? ` · ${channels[0].eventTime} heure UK` : ''}) :
+                    {' '}(programme DaddyLive{channels[0]?.eventTime ? ` · ${channels[0].eventTime} heure UK` : ''}) :
                     <span className="block text-emerald-700/50 dark:text-emerald-100/50 mt-0.5 truncate">{cleanEventName(channels[0].eventName)}</span>
                   </p>
                 </div>
@@ -247,16 +246,13 @@ export default function StreamOptions({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate">{ch.name}</p>
                     <p className="text-[10px] text-muted-foreground/50 font-medium mt-0.5">
-                      Diffuse ce match en direct · flux HD testé
+                      Diffuse ce match en direct
                       {ch.group ? ` · ${ch.group}` : ''}
                     </p>
                   </div>
 
-                  {/* Action — plays IN-APP, ad-free */}
+                  {/* Action — plays IN-APP via dlive.sx iframe (user's IP matches token) */}
                   <div className="shrink-0 flex items-center gap-2">
-                    <span className="text-[9px] font-bold px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border border-emerald-500/15 uppercase tracking-wider">
-                      Vérifiée
-                    </span>
                     <div className="w-8 h-8 rounded-xl bg-red-600 flex items-center justify-center shadow-lg shadow-red-600/20 group-hover:bg-red-500 transition-colors">
                       <Play className="h-3.5 w-3.5 text-white fill-current" />
                     </div>
