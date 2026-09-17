@@ -41,6 +41,16 @@ export interface Translations {
     checkBackLater: string;
     loadingMatches: string;
     otherMatches: string;
+    yesterday: string;
+    pickDate: string;
+    noMatchesDay: string;
+    showFinishedMatches: string;
+    hideFinishedMatches: string;
+    liveNow: string;
+    todayUpcoming: string;
+    dayMatches: string;
+    finishedMatches: string;
+    upcomingMatches: string;
   };
   match: {
     min: string;
@@ -456,6 +466,16 @@ export const translations: Record<Language, Translations> = {
       checkBackLater: 'Revenez plus tard pour les prochains matchs !',
       loadingMatches: 'Chargement des matchs...',
       otherMatches: 'autres matchs',
+      yesterday: 'Hier',
+      pickDate: 'Choisir une date',
+      noMatchesDay: 'Aucun match programmé ce jour',
+      showFinishedMatches: 'Afficher les matchs terminés',
+      hideFinishedMatches: 'Masquer les matchs terminés',
+      liveNow: 'En direct maintenant',
+      todayUpcoming: "À venir aujourd'hui",
+      dayMatches: 'Matchs du jour',
+      finishedMatches: 'Matchs terminés',
+      upcomingMatches: 'Matchs à venir',
     },
     match: {
       min: 'min',
@@ -869,6 +889,16 @@ export const translations: Record<Language, Translations> = {
       checkBackLater: 'Check back later for upcoming matches!',
       loadingMatches: 'Loading matches...',
       otherMatches: 'other matches',
+      yesterday: 'Yesterday',
+      pickDate: 'Pick a date',
+      noMatchesDay: 'No matches scheduled on this day',
+      showFinishedMatches: 'Show finished matches',
+      hideFinishedMatches: 'Hide finished matches',
+      liveNow: 'Live now',
+      todayUpcoming: 'Today upcoming',
+      dayMatches: 'Day matches',
+      finishedMatches: 'Finished matches',
+      upcomingMatches: 'Upcoming matches',
     },
     match: {
       min: 'min',
@@ -1282,6 +1312,16 @@ export const translations: Record<Language, Translations> = {
       checkBackLater: 'عد لاحقاً للمباريات القادمة!',
       loadingMatches: 'جاري تحميل المباريات...',
       otherMatches: 'مباريات أخرى',
+      yesterday: 'أمس',
+      pickDate: 'اختر تاريخاً',
+      noMatchesDay: 'لا توجد مباريات في هذا اليوم',
+      showFinishedMatches: 'عرض المباريات المنتهية',
+      hideFinishedMatches: 'إخفاء المباريات المنتهية',
+      liveNow: 'مباشر الآن',
+      todayUpcoming: 'قادمة اليوم',
+      dayMatches: 'مباريات اليوم',
+      finishedMatches: 'مباريات منتهية',
+      upcomingMatches: 'مباريات قادمة',
     },
     match: {
       min: 'د',
@@ -1695,6 +1735,16 @@ export const translations: Record<Language, Translations> = {
       checkBackLater: '¡Vuelve más tarde para los próximos partidos!',
       loadingMatches: 'Cargando partidos...',
       otherMatches: 'otros partidos',
+      yesterday: 'Ayer',
+      pickDate: 'Elige una fecha',
+      noMatchesDay: 'No hay partidos programados en este día',
+      showFinishedMatches: 'Mostrar partidos finalizados',
+      hideFinishedMatches: 'Ocultar partidos finalizados',
+      liveNow: 'En directo ahora',
+      todayUpcoming: 'Próximos hoy',
+      dayMatches: 'Partidos del día',
+      finishedMatches: 'Partidos finalizados',
+      upcomingMatches: 'Partidos próximos',
     },
     match: {
       min: 'min',
@@ -2108,6 +2158,16 @@ export const translations: Record<Language, Translations> = {
       checkBackLater: 'Volte mais tarde para os próximos jogos!',
       loadingMatches: 'Carregando jogos...',
       otherMatches: 'outros jogos',
+      yesterday: 'Ontem',
+      pickDate: 'Escolher data',
+      noMatchesDay: 'Nenhum jogo programado neste dia',
+      showFinishedMatches: 'Mostrar jogos finalizados',
+      hideFinishedMatches: 'Ocultar jogos finalizados',
+      liveNow: 'Ao vivo agora',
+      todayUpcoming: 'A seguir hoje',
+      dayMatches: 'Jogos do dia',
+      finishedMatches: 'Jogos finalizados',
+      upcomingMatches: 'Próximos jogos',
     },
     match: {
       min: 'min',

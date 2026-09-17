@@ -7,10 +7,18 @@ import { formatShort, formatLong } from '@/lib/date-utils';
 import { Language } from '@/lib/i18n';
 import MatchCard from '@/components/match-card';
 import { usePullRefresh } from '@/hooks/use-pull-refresh';
-import { Loader2, Calendar, RefreshCw, AlertCircle, Clock, Wifi, WifiOff, Sparkles, ChevronRight, Filter, Trophy, Zap } from 'lucide-react';
+import {
+  Loader2, Calendar, RefreshCw, AlertCircle, Wifi, WifiOff,
+  Trophy, Zap, ChevronLeft, ChevronRight, ChevronDown, Filter,
+  Radio, Clock, CheckCircle2, CalendarDays
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Popover, PopoverContent, PopoverTrigger
+} from '@/components/ui/popover';
 
-/** Get YYYYMMDD string for a Date */
+/* ─── Date helpers (timezone-independent, deterministic) ───────────────── */
+
 function formatDateYMD(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -18,41 +26,64 @@ function formatDateYMD(date: Date): string {
   return `${y}${m}${d}`;
 }
 
-/** Check if a match's ISO date falls on a given YYYYMMDD date */
-function isMatchOnDate(matchDate: string | null, ymd: string): boolean {
-  if (!matchDate) return false;
-  try {
-    const d = new Date(matchDate);
-    return formatDateYMD(d) === ymd;
-  } catch(_e) {
-    return false;
-  }
-}
-
-/** Get today's YYYYMMDD */
 function getTodayYMD(): string {
   return formatDateYMD(new Date());
 }
 
-/** Date header label for a given YYYYMMDD */
-function getDateLabel(ymd: string, language: Language): string {
-  const today = getTodayYMD();
-  const tomorrow = formatDateYMD(new Date(Date.now() + 86400000));
-  const yesterday = formatDateYMD(new Date(Date.now() - 86400000));
+/** Returns a YYYYMMDD for an offset relative to today (-1 = yesterday, +1 = tomorrow). */
+function ymdForOffset(offset: number): string {
+  return formatDateYMD(new Date(Date.now() + offset * 86400000));
+}
 
-  if (ymd === today) return t(language, 'common.today');
-  if (ymd === tomorrow) return t(language, 'common.tomorrow');
-  if (ymd === yesterday) {
-    const d = new Date(Date.now() - 86400000);
-    return formatLong(d, language);
+/** Day offset (signed int) from today's YYYYMMDD target. Returns null if future >14d or past <3d. */
+function offsetFromYMD(ymd: string): number | null {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [y, m, d] = [parseInt(ymd.slice(0, 4)), parseInt(ymd.slice(4, 6)) - 1, parseInt(ymd.slice(6, 8))];
+  const target = new Date(y, m, d);
+  target.setHours(0, 0, 0, 0);
+  const offset = Math.round((target.getTime() - today.getTime()) / 86400000);
+  if (offset < -3 || offset > 14) return null;
+  return offset;
+}
+
+function isMatchOnDate(matchDate: string | null, ymd: string): boolean {
+  if (!matchDate) return false;
+  try {
+    return formatDateYMD(new Date(matchDate)) === ymd;
+  } catch (_e) {
+    return false;
   }
+}
 
-  const year = parseInt(ymd.substring(0, 4), 10);
-  const month = parseInt(ymd.substring(4, 6), 10) - 1;
-  const day = parseInt(ymd.substring(6, 8), 10);
-  const d = new Date(year, month, day);
+/** Returns a human label for a day offset. */
+function dayLabel(offset: number, language: Language): string {
+  if (offset === 0) return t(language, 'common.today');
+  if (offset === 1) return t(language, 'common.tomorrow');
+  if (offset === -1) return t(language, 'common.yesterday');
+  const d = new Date(Date.now() + offset * 86400000);
   return formatLong(d, language);
 }
+
+/** Short label for chips (e.g. "Hier", "Auj.", "Demain", "Sam 13"). */
+function dayChipLabel(offset: number, language: Language): string {
+  if (offset === 0) return t(language, 'common.today');
+  if (offset === 1) return t(language, 'common.tomorrow');
+  if (offset === -1) return t(language, 'common.yesterday');
+  const d = new Date(Date.now() + offset * 86400000);
+  return formatShort(d, language);
+}
+
+/** Day-of-week + date number (e.g. "sam. 13 sept."). */
+function dayDateNumber(offset: number, language: Language): string {
+  const d = new Date(Date.now() + offset * 86400000);
+  return formatLong(d, language);
+}
+
+/* ─── Component ─────────────────────────────────────────────────────────── */
+
+const MIN_OFFSET = -3;
+const MAX_OFFSET = 14;
 
 export default function LiveMatches() {
   const {
@@ -60,58 +91,62 @@ export default function LiveMatches() {
     footballLoading,
     footballError,
     footballLastUpdated,
-    selectedCompetition,
-    setSelectedCompetition,
+    selectedDate,
+    setSelectedDate,
     fetchFootballMatches,
     language,
   } = useAppStore();
 
+  /* ── State ─────────────────────────────────────────────────────────── */
   const [countdown, setCountdown] = useState(60);
   const [forceUpdate, setForceUpdate] = useState(0);
   const lastUpdatedRef = useRef<string | null>(null);
   const [loadStartedAt, setLoadStartedAt] = useState<number | null>(null);
+  const [showFinished, setShowFinished] = useState(false);
+  const [visibleUpcoming, setVisibleUpcoming] = useState(30);
+  const [visibleFinished, setVisibleFinished] = useState(15);
 
-  // Infinite scroll state
-  const [visibleCount, setVisibleCount] = useState(20);
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  const LOAD_INCREMENT = 15;
 
+  /* ── Selected day offset (parse from store's DateTab) ───────────────── */
+  const selectedOffset = useMemo(() => {
+    if (!selectedDate) return 0;
+    const m = /^day(-?\d+)$/.exec(selectedDate);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n >= MIN_OFFSET && n <= MAX_OFFSET) return n;
+    }
+    return 0;
+  }, [selectedDate]);
+
+  const setSelectedOffset = useCallback((offset: number) => {
+    const clamped = Math.max(MIN_OFFSET, Math.min(MAX_OFFSET, offset));
+    setSelectedDate(`day${clamped}`);
+    setShowFinished(false);
+    setVisibleUpcoming(30);
+    setVisibleFinished(15);
+  }, [setSelectedDate]);
+
+  /* ── Competition filter ────────────────────────────────────────────── */
+  const [selectedCompetition, setSelectedCompetitionLocal] = useState('');
   const handleCompetitionSelect = useCallback((comp: string) => {
-    setSelectedCompetition(comp);
-    setVisibleCount(20);
-  }, [setSelectedCompetition]);
-
-  // IntersectionObserver for infinite scroll
-  useEffect(() => {
-    const sentinel = loadMoreRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setVisibleCount((prev) => prev + LOAD_INCREMENT);
-        }
-      },
-      { rootMargin: '400px' }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
+    setSelectedCompetitionLocal(comp);
+    setVisibleUpcoming(30);
+    setVisibleFinished(15);
   }, []);
 
-  // Track when loading starts to implement a max 8-second loading screen
+  /* ── Loading timeout (8s) ──────────────────────────────────────────── */
   useEffect(() => {
     if (footballLoading && footballMatches.length === 0) {
       setLoadStartedAt((prev) => prev ?? Date.now());
     }
   }, [footballLoading, footballMatches.length]);
 
-  // Force re-render after 8 seconds of loading to show empty state
   useEffect(() => {
     if (loadStartedAt !== null && footballLoading && footballMatches.length === 0) {
       const elapsed = Date.now() - loadStartedAt;
       const remaining = Math.max(0, 8000 - elapsed);
-      const timer = setTimeout(() => {
-        setForceUpdate((n) => n + 1);
-      }, remaining + 100);
+      const timer = setTimeout(() => setForceUpdate((n) => n + 1), remaining + 100);
       return () => clearTimeout(timer);
     }
   }, [loadStartedAt, footballLoading, footballMatches.length, forceUpdate]);
@@ -119,22 +154,18 @@ export default function LiveMatches() {
   const loadingTimeout = loadStartedAt !== null && footballLoading && footballMatches.length === 0 && (Date.now() - loadStartedAt > 8000);
 
   useEffect(() => {
-    if (!footballLoading && loadStartedAt !== null) {
-      setLoadStartedAt(null);
-    }
+    if (!footballLoading && loadStartedAt !== null) setLoadStartedAt(null);
   }, [footballLoading, loadStartedAt]);
 
-  // Adaptive polling: 15s when live matches exist, 2 min otherwise
-  const hasLive = footballMatches.some(m => m.status === 'live');
+  /* ── Adaptive polling ──────────────────────────────────────────────── */
+  const hasLive = footballMatches.some((m) => m.status === 'live');
   const pollInterval = hasLive ? 15 * 1000 : 120 * 1000;
   const hasFetchedOnce = footballMatches.length > 0 || footballError !== null;
 
   useEffect(() => {
     if (!hasFetchedOnce) return;
     const interval = setInterval(() => {
-      const now = new Date();
-      const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-      fetchFootballMatches([today]);
+      fetchFootballMatches([getTodayYMD()]);
     }, pollInterval);
     return () => clearInterval(interval);
   }, [fetchFootballMatches, pollInterval, hasFetchedOnce]);
@@ -153,54 +184,43 @@ export default function LiveMatches() {
   }, [footballLastUpdated, hasLive]);
 
   const handleRetry = useCallback(() => {
-    const now = new Date();
-    const today = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-    fetchFootballMatches([today]);
+    fetchFootballMatches([getTodayYMD()]);
     setCountdown(60);
   }, [fetchFootballMatches]);
 
-  // Pull-to-refresh integration
   const { pullDistance, isRefreshing } = usePullRefresh({
     onRefresh: handleRetry,
     threshold: 60,
   });
 
-  // ─── Group ALL matches by date ────────────────────────────────────
-  const matchesByDate = useMemo(() => {
-    const groups: { ymd: string; label: string; matches: typeof footballMatches; isToday: boolean; isPast: boolean; isFuture: boolean }[] = [];
-    const todayYMD = getTodayYMD();
-    const dateMap = new Map<string, typeof footballMatches>();
-
-    // Separate live matches
-    const nonLiveMatches = footballMatches.filter(m => m.status !== 'live');
-
-    nonLiveMatches.forEach(match => {
-      const ymd = match.matchDate ? formatDateYMD(new Date(match.matchDate)) : 'unknown';
-      if (!dateMap.has(ymd)) dateMap.set(ymd, []);
-      dateMap.get(ymd)!.push(match);
-    });
-
-    const sortedDates = Array.from(dateMap.keys()).sort();
-
-    for (const ymd of sortedDates) {
-      const matches = dateMap.get(ymd)!;
-      const isToday = ymd === todayYMD;
-      const isPast = ymd < todayYMD;
-      const isFuture = ymd > todayYMD;
-      const label = getDateLabel(ymd, language);
-      groups.push({ ymd, label, matches, isToday, isPast, isFuture });
-    }
-
-    return groups;
-  }, [footballMatches, language]);
-
-  // Live matches (always shown at top)
+  /* ── Match partitioning ────────────────────────────────────────────── */
   const liveMatches = useMemo(
     () => footballMatches.filter((m) => m.status === 'live'),
     [footballMatches]
   );
 
-  // Extract unique competitions from ALL matches for the filter
+  const selectedYMD = useMemo(() => ymdForOffset(selectedOffset), [selectedOffset]);
+
+  const dayMatches = useMemo(
+    () => footballMatches.filter((m) => isMatchOnDate(m.matchDate, selectedYMD) && m.status !== 'live'),
+    [footballMatches, selectedYMD]
+  );
+
+  const dayUpcoming = useMemo(
+    () => dayMatches
+      .filter((m) => m.status === 'upcoming')
+      .sort((a, b) => (a.matchDate ?? '').localeCompare(b.matchDate ?? '')),
+    [dayMatches]
+  );
+
+  const dayFinished = useMemo(
+    () => dayMatches
+      .filter((m) => m.status === 'finished')
+      .sort((a, b) => (b.matchDate ?? '').localeCompare(a.matchDate ?? '')),
+    [dayMatches]
+  );
+
+  /* ── Competition filter ────────────────────────────────────────────── */
   const uniqueCompetitions = useMemo(() => {
     const comps = new Set<string>();
     footballMatches.forEach((m) => {
@@ -209,52 +229,34 @@ export default function LiveMatches() {
     return Array.from(comps).sort();
   }, [footballMatches]);
 
-  // Reset competition filter when it no longer exists
+  const filterFn = useCallback((m: typeof footballMatches[number]) => !selectedCompetition || m.competition === selectedCompetition, [selectedCompetition]);
+
+  const filteredLive = useMemo(() => liveMatches.filter(filterFn), [liveMatches, filterFn]);
+  const filteredUpcoming = useMemo(() => dayUpcoming.filter(filterFn), [dayUpcoming, filterFn]);
+  const filteredFinished = useMemo(() => dayFinished.filter(filterFn), [dayFinished, filterFn]);
+
+  /* ── Infinite scroll for upcoming (most relevant section) ──────────── */
   useEffect(() => {
-    if (selectedCompetition && !uniqueCompetitions.includes(selectedCompetition)) {
-      setSelectedCompetition('');
-    }
-  }, [selectedCompetition, uniqueCompetitions, setSelectedCompetition]);
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleUpcoming((p) => p + 20);
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [selectedOffset, selectedCompetition]);
 
-  // Apply competition filter + infinite scroll to non-live matches
-  const filteredMatchesByDate = useMemo(() => {
-    if (!selectedCompetition) return matchesByDate;
-    return matchesByDate.map(group => ({
-      ...group,
-      matches: group.matches.filter(m => m.competition === selectedCompetition),
-    })).filter(group => group.matches.length > 0);
-  }, [matchesByDate, selectedCompetition]);
-
-  const totalNonLiveMatches = useMemo(() => {
-    let total = 0;
-    for (const group of filteredMatchesByDate) {
-      total += group.matches.length;
-    }
-    return total;
-  }, [filteredMatchesByDate]);
-
-  const visibleMatchesByDate = useMemo(() => {
-    let remaining = visibleCount;
-    const result: typeof filteredMatchesByDate = [];
-
-    for (const group of filteredMatchesByDate) {
-      if (remaining <= 0) break;
-      const take = Math.min(group.matches.length, remaining);
-      result.push({
-        ...group,
-        matches: group.matches.slice(0, take),
-      });
-      remaining -= take;
-    }
-
-    return result;
-  }, [filteredMatchesByDate, visibleCount]);
-
-  const hasMoreMatches = visibleCount < totalNonLiveMatches;
-
+  /* ── Derived values ────────────────────────────────────────────────── */
+  const totalMatches = footballMatches.length;
   const countdownStr = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`;
+  const dayHasAnything = filteredLive.length + filteredUpcoming.length + filteredFinished.length > 0;
 
-  // ─── Loading state ────────────────────────────────────────────────
+  /* ── Loading state ─────────────────────────────────────────────────── */
   if (footballLoading && footballMatches.length === 0 && !loadingTimeout) {
     return (
       <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
@@ -274,7 +276,6 @@ export default function LiveMatches() {
     );
   }
 
-  // Error state
   if (footballError && footballMatches.length === 0 && !loadingTimeout) {
     return (
       <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
@@ -291,11 +292,9 @@ export default function LiveMatches() {
     );
   }
 
-  const totalMatches = footballMatches.length;
-
   return (
-    <div className="space-y-5 pb-4">
-      {/* Pull-to-refresh indicator */}
+    <div className="space-y-4 pb-4">
+      {/* Pull-to-refresh */}
       {(pullDistance > 0 || isRefreshing) && (
         <div
           className="flex items-center justify-center transition-all duration-150 ease-out overflow-hidden"
@@ -304,18 +303,20 @@ export default function LiveMatches() {
           <div className="flex items-center gap-2 text-emerald-400">
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span className="text-xs font-medium">
-              {isRefreshing
-                ? t(language, 'standings.updating')
-                : pullDistance >= 60
-                  ? t(language, 'common.retry')
-                  : '↓'
-              }
+              {isRefreshing ? t(language, 'standings.updating') : pullDistance >= 60 ? t(language, 'common.retry') : '↓'}
             </span>
           </div>
         </div>
       )}
 
-      {/* Competition Filter Bar */}
+      {/* === DATE NAVIGATION BAR === */}
+      <DateNavigationBar
+        selectedOffset={selectedOffset}
+        onSelect={setSelectedOffset}
+        language={language}
+      />
+
+      {/* === COMPETITION FILTER === */}
       {uniqueCompetitions.length > 1 && (
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide" style={{ touchAction: 'pan-x', overscrollBehaviorX: 'contain' }}>
           <button
@@ -345,36 +346,24 @@ export default function LiveMatches() {
         </div>
       )}
 
-      {/* Header with live count + refresh */}
+      {/* === REFRESH HEADER === */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold flex items-center gap-2.5 tracking-tight">
-            {liveMatches.length > 0 ? (
-              <>
-                <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-red-500/10">
-                  <Zap className="h-3.5 w-3.5 text-red-400" />
-                </div>
-                <span className="text-red-400">{liveMatches.length} {t(language, 'common.live').toLowerCase()}</span>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-500/8">
-                  <Wifi className="h-3.5 w-3.5 text-emerald-400" />
-                </div>
-                <span>{totalMatches} {t(language, 'nav.matches').toLowerCase()}</span>
-              </>
-            )}
-          </h2>
-          {liveMatches.length > 0 && (
-            <p className="text-xs text-muted-foreground mt-0.5 ml-8.5">
-              {totalMatches - liveMatches.length} {t(language, 'common.otherMatches') || t(language, 'nav.matches').toLowerCase()}
-            </p>
-          )}
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground/60 font-medium">
+          {filteredLive.length > 0 ? (
+            <>
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                {filteredLive.length} {t(language, 'common.live').toLowerCase()}
+              </span>
+              <span className="text-muted-foreground/30">·</span>
+            </>
+          ) : null}
+          <span>
+            {filteredUpcoming.length + filteredFinished.length} {t(language, 'nav.matches').toLowerCase()}
+          </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground tabular-nums font-medium">
-            {countdownStr}
-          </span>
+          <span className="text-[10px] text-muted-foreground tabular-nums font-medium">{countdownStr}</span>
           <Button
             variant="outline"
             size="icon"
@@ -387,7 +376,7 @@ export default function LiveMatches() {
         </div>
       </div>
 
-      {/* Error banner */}
+      {/* === ERROR BANNER === */}
       {footballError && footballMatches.length > 0 && (
         <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/5 border border-red-500/10 text-xs text-red-400 glass-card">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
@@ -398,151 +387,278 @@ export default function LiveMatches() {
         </div>
       )}
 
-      {/* ─── Empty state ─── */}
+      {/* === EMPTY STATE === */}
       {footballMatches.length === 0 && (loadingTimeout || footballError) && (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
           <div className="w-14 h-14 rounded-2xl bg-secondary/30 dark:bg-white/[0.02] flex items-center justify-center mb-4 border border-border/20 dark:border-white/[0.03]">
             <Calendar className="h-7 w-7 text-muted-foreground/40" />
           </div>
           <h3 className="text-sm font-bold mb-1">{t(language, 'common.noMatchesNow')}</h3>
-          <p className="text-xs text-muted-foreground/50">
-            {t(language, 'common.checkBackLater')}
-          </p>
+          <p className="text-xs text-muted-foreground/50">{t(language, 'common.checkBackLater')}</p>
         </div>
       )}
 
-      {/* ===== LIVE MATCHES (always at top) ===== */}
-      {liveMatches.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-500/8 border border-red-500/10">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">{t(language, 'common.live')}</span>
-            </div>
-            <div className="h-px flex-1 bg-gradient-to-r from-red-500/15 to-transparent" />
-          </div>
+      {/* === LIVE SECTION (always at top) === */}
+      {filteredLive.length > 0 && (
+        <Section
+          icon={<Radio className="h-3.5 w-3.5 text-red-400" />}
+          accent="red"
+          label={t(language, 'common.liveNow')}
+          count={filteredLive.length}
+        >
           <div className="space-y-3">
-            {liveMatches.map((match) => (
+            {filteredLive.map((match) => (
               <MatchCard key={match.id} match={match} />
             ))}
           </div>
-        </section>
+        </Section>
       )}
 
-      {/* ===== MATCHES GROUPED BY DATE ===== */}
-      {visibleMatchesByDate.map((group) => {
-        const upcoming = group.matches.filter(m => m.status === 'upcoming');
-        const finished = group.matches.filter(m => m.status === 'finished');
-
-        // Group by competition within each date
-        const upcomingByComp = upcoming.reduce<Record<string, typeof upcoming>>((acc, match) => {
-          const comp = match.competition || 'Football';
-          if (!acc[comp]) acc[comp] = [];
-          acc[comp].push(match);
-          return acc;
-        }, {});
-
-        const finishedByComp = finished.reduce<Record<string, typeof finished>>((acc, match) => {
-          const comp = match.competition || 'Football';
-          if (!acc[comp]) acc[comp] = [];
-          acc[comp].push(match);
-          return acc;
-        }, {});
-
-        return (
-          <section key={group.ymd}>
-            {/* Date header */}
-            <div className="flex items-center gap-3 mb-3 sticky top-14 z-10 bg-background/90 backdrop-blur-xl py-1.5 -mx-1 px-1">
-              <div className="flex items-center gap-2">
-                {group.isToday ? (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/8 border border-emerald-500/10">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span className="text-[12px] font-bold text-emerald-400">{group.label}</span>
-                  </div>
-                ) : group.isPast ? (
-                  <span className="text-[12px] font-semibold text-muted-foreground/80">{group.label}</span>
-                ) : (
-                  <span className="text-[12px] font-semibold text-foreground/60">{group.label}</span>
-                )}
-                <span className="text-[10px] text-muted-foreground/60 font-medium">
-                  {group.matches.length} {t(language, 'nav.matches').toLowerCase()}
-                </span>
-              </div>
-              <div className="h-px flex-1 bg-border/30 dark:bg-white/[0.06]" />
-            </div>
-
-            {/* Upcoming matches by competition */}
-            {Object.entries(upcomingByComp).map(([competition, matches]) => (
-              <div key={competition} className="mb-4">
-                <div className="flex items-center gap-2.5 mb-2.5">
-                  <div className="h-px flex-1 bg-border/20 dark:bg-white/[0.04]" />
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary/30 dark:bg-white/[0.03] border border-border/25 dark:border-white/[0.05]">
-                    <Trophy className="h-3 w-3 text-emerald-400/50" />
-                    <span className="text-[10px] font-semibold text-muted-foreground">{competition}</span>
-                    <span className="text-[9px] text-muted-foreground/60 font-medium">{matches.length}</span>
-                  </div>
-                  <div className="h-px flex-1 bg-border/20 dark:bg-white/[0.04]" />
-                </div>
-                <div className="space-y-2.5">
-                  {matches.map((match) => (
-                    <MatchCard key={match.id} match={match} />
-                  ))}
-                </div>
-              </div>
+      {/* === SELECTED DAY UPcoming === */}
+      {filteredUpcoming.length > 0 && (
+        <Section
+          icon={<Clock className="h-3.5 w-3.5 text-emerald-400" />}
+          accent="emerald"
+          label={selectedOffset === 0
+            ? t(language, 'common.todayUpcoming')
+            : selectedOffset > 0
+              ? t(language, 'common.upcomingMatches')
+              : t(language, 'common.dayMatches')}
+          count={filteredUpcoming.length}
+        >
+          <div className="space-y-3">
+            {filteredUpcoming.slice(0, visibleUpcoming).map((match) => (
+              <MatchCard key={match.id} match={match} />
             ))}
-
-            {/* Finished matches by competition */}
-            {Object.keys(finishedByComp).length > 0 && (
-              <div className="mb-2">
-                <div className="flex items-center gap-2 mb-2.5">
-                  <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-secondary/30 dark:bg-white/[0.03] border border-border/25 dark:border-white/[0.05]">
-                    <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{t(language, 'common.finished')}</span>
-                    <span className="text-[9px] text-muted-foreground/60">{finished.length}</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {Object.entries(finishedByComp).map(([competition, matches]) => (
-                    <div key={competition}>
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[10px] font-medium text-muted-foreground/80">{competition}</span>
-                        <div className="h-px flex-1 bg-secondary/20 dark:bg-white/[0.03]" />
-                      </div>
-                      {matches.map((match) => (
-                        <MatchCard key={match.id} match={match} />
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
-        );
-      })}
-
-      {/* Load more sentinel & match count */}
-      {totalNonLiveMatches > 20 && (
-        <div className="flex flex-col items-center gap-2 pt-2 pb-1">
-          <div ref={loadMoreRef} className="h-1" />
-          {hasMoreMatches && (
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-3 w-3 animate-spin text-emerald-400/40" />
-              <span className="text-[10px] text-muted-foreground/50">
-                {Math.min(visibleCount, totalNonLiveMatches)} / {totalNonLiveMatches} {t(language, 'nav.matches').toLowerCase()}
+          </div>
+          {visibleUpcoming < filteredUpcoming.length && (
+            <div ref={loadMoreRef} className="flex justify-center pt-2">
+              <span className="text-[10px] text-muted-foreground/50 flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin text-emerald-400/40" />
+                {Math.min(visibleUpcoming, filteredUpcoming.length)} / {filteredUpcoming.length}
               </span>
             </div>
           )}
-          {!hasMoreMatches && totalNonLiveMatches > 20 && (
-            <span className="text-[10px] text-muted-foreground/40">
-              {totalNonLiveMatches} {t(language, 'nav.matches').toLowerCase()}
-            </span>
+        </Section>
+      )}
+
+      {/* === FINISHED SECTION (collapsed by default) === */}
+      {filteredFinished.length > 0 && (
+        <Section
+          icon={<CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground/60" />}
+          accent="muted"
+          label={t(language, 'common.finishedMatches')}
+          count={filteredFinished.length}
+          collapsible
+          collapsed={!showFinished}
+          onToggle={() => {
+            setShowFinished((v) => !v);
+            setVisibleFinished(15);
+          }}
+        >
+          {showFinished && (
+            <div className="space-y-3">
+              {filteredFinished.slice(0, visibleFinished).map((match) => (
+                <MatchCard key={match.id} match={match} />
+              ))}
+              {visibleFinished < filteredFinished.length && (
+                <button
+                  onClick={() => setVisibleFinished((v) => v + 30)}
+                  className="w-full text-center py-2 text-[11px] font-semibold text-muted-foreground/60 hover:text-emerald-400 transition-colors"
+                >
+                  + {filteredFinished.length - visibleFinished} {t(language, 'nav.matches').toLowerCase()}
+                </button>
+              )}
+            </div>
           )}
+        </Section>
+      )}
+
+      {/* === EMPTY STATE PER DAY === */}
+      {!dayHasAnything && footballMatches.length > 0 && (
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-secondary/30 dark:bg-white/[0.02] flex items-center justify-center mb-3 border border-border/20 dark:border-white/[0.03]">
+            <CalendarDays className="h-6 w-6 text-muted-foreground/40" />
+          </div>
+          <h3 className="text-sm font-bold mb-1">{t(language, 'common.noMatchesDay')}</h3>
+          <p className="text-xs text-muted-foreground/50">{dayDateNumber(selectedOffset, language)}</p>
         </div>
       )}
 
-      {/* Footer info */}
+      {/* === FOOTER INFO === */}
       <div className="text-center text-[10px] text-muted-foreground/60 pt-1 font-medium">
         {t(language, 'common.update')} {hasLive ? '15s' : '2 min'}{hasLive ? ` (${t(language, 'common.live').toLowerCase()})` : ''}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Section wrapper (with optional collapsible behavior) ──────────────── */
+
+function Section({
+  icon, accent, label, count, children, collapsible = false, collapsed = false, onToggle,
+}: {
+  icon: React.ReactNode;
+  accent: 'red' | 'emerald' | 'muted';
+  label: string;
+  count: number;
+  children?: React.ReactNode;
+  collapsible?: boolean;
+  collapsed?: boolean;
+  onToggle?: () => void;
+}) {
+  const accentBg = accent === 'red'
+    ? 'bg-red-500/8 border-red-500/10'
+    : accent === 'emerald'
+      ? 'bg-emerald-500/8 border-emerald-500/10'
+      : 'bg-secondary/30 dark:bg-white/[0.02] border-border/20 dark:border-white/[0.03]';
+  const accentText = accent === 'red' ? 'text-red-400' : accent === 'emerald' ? 'text-emerald-400' : 'text-muted-foreground/60';
+  const accentLine = accent === 'red' ? 'from-red-500/15' : accent === 'emerald' ? 'from-emerald-500/15' : 'from-border/30 dark:from-white/[0.06]';
+
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={collapsible ? onToggle : undefined}
+        disabled={!collapsible}
+        className={`w-full flex items-center gap-2.5 mb-3 ${collapsible ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+      >
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${accentBg}`}>
+          {icon}
+          <span className={`text-[10px] font-bold uppercase tracking-wider ${accentText}`}>{label}</span>
+          <span className="text-[10px] text-muted-foreground/70 font-semibold">· {count}</span>
+        </div>
+        <div className={`h-px flex-1 bg-gradient-to-r ${accentLine} to-transparent`} />
+        {collapsible && (
+          <ChevronDown className={`h-4 w-4 text-muted-foreground/50 transition-transform ${collapsed ? '' : 'rotate-180'}`} />
+        )}
+      </button>
+      {children}
+    </section>
+  );
+}
+
+/* ─── Date Navigation Bar ──────────────────────────────────────────────── */
+
+function DateNavigationBar({
+  selectedOffset, onSelect, language,
+}: {
+  selectedOffset: number;
+  onSelect: (offset: number) => void;
+  language: Language;
+}) {
+  // Build chips: -1 (Hier), 0 (Aujourd'hui), 1 (Demain), 2, 3
+  const quickChips = [-1, 0, 1, 2, 3];
+
+  // Date picker state
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const todayYMD = getTodayYMD();
+
+  // Convert YYYYMMDD → yyyy-mm-dd for <input type="date">
+  const selectedDateValue = useMemo(() => {
+    const ymd = ymdForOffset(selectedOffset);
+    return `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`;
+  }, [selectedOffset]);
+
+  const handleDateChange = useCallback((value: string) => {
+    const ymd = value.replace(/-/g, '');
+    const off = offsetFromYMD(ymd);
+    if (off !== null) onSelect(off);
+    setPickerOpen(false);
+  }, [onSelect, setPickerOpen]);
+
+  return (
+    <div className="sticky top-14 z-20 -mx-4 px-3 py-2 bg-background/85 backdrop-blur-xl border-b border-border/20 dark:border-white/[0.04]">
+      <div className="flex items-center gap-2">
+        {/* Prev arrow */}
+        <button
+          onClick={() => onSelect(selectedOffset - 1)}
+          disabled={selectedOffset <= MIN_OFFSET}
+          className="flex-shrink-0 h-8 w-8 rounded-xl flex items-center justify-center bg-secondary/40 dark:bg-white/[0.03] border border-border/20 dark:border-white/[0.04] text-muted-foreground/70 hover:text-emerald-400 hover:border-emerald-500/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Previous day"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+
+        {/* Quick chips: Hier / Aujourd'hui / Demain / +2 / +3 */}
+        <div className="flex-1 flex items-center gap-1 overflow-x-auto scrollbar-hide" style={{ touchAction: 'pan-x' }}>
+          {quickChips.map((off) => {
+            const isActive = off === selectedOffset;
+            const isToday = off === 0;
+            return (
+              <button
+                key={off}
+                onClick={() => onSelect(off)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-emerald-500/12 text-emerald-400 border border-emerald-500/20 shadow-sm shadow-emerald-500/10'
+                    : 'bg-secondary/20 dark:bg-white/[0.02] text-muted-foreground/60 border border-transparent hover:bg-secondary/50 dark:hover:bg-white/[0.04] hover:text-foreground'
+                }`}
+              >
+                {isToday && (
+                  <span className={`inline-flex items-center justify-center w-1.5 h-1.5 rounded-full mr-1.5 ${isActive ? 'bg-emerald-400' : 'bg-emerald-500/50'}`} />
+                )}
+                {dayChipLabel(off, language)}
+              </button>
+            );
+          })}
+
+          {/* More days indicator */}
+          {selectedOffset > 3 || selectedOffset < -1 ? (
+            <span className="flex-shrink-0 px-2 py-1 text-[10px] text-muted-foreground/40">·</span>
+          ) : null}
+
+          {/* If user is on a far day, show its chip too */}
+          {selectedOffset > 3 && (
+            <button
+              onClick={() => onSelect(selectedOffset)}
+              className="flex-shrink-0 px-3 py-1.5 rounded-xl text-[11px] font-bold bg-emerald-500/12 text-emerald-400 border border-emerald-500/20"
+            >
+              {dayChipLabel(selectedOffset, language)}
+            </button>
+          )}
+        </div>
+
+        {/* Date picker */}
+        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+          <PopoverTrigger asChild>
+            <button
+              className="flex-shrink-0 h-8 w-8 rounded-xl flex items-center justify-center bg-secondary/40 dark:bg-white/[0.03] border border-border/20 dark:border-white/[0.04] text-muted-foreground/70 hover:text-emerald-400 hover:border-emerald-500/20 transition-all"
+              aria-label={t(language, 'common.pickDate')}
+              title={t(language, 'common.pickDate')}
+            >
+              <Calendar className="h-4 w-4" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-auto p-3">
+            <div className="space-y-2">
+              <p className="text-[11px] font-bold text-foreground/80">{t(language, 'common.pickDate')}</p>
+              <input
+                type="date"
+                value={selectedDateValue}
+                min={`${todayYMD.slice(0, 4)}-${todayYMD.slice(4, 6)}-${(parseInt(todayYMD.slice(6, 8)) - 3).toString().padStart(2, '0')}`}
+                onChange={(e) => e.target.value && handleDateChange(e.target.value)}
+                className="bg-secondary/30 dark:bg-white/[0.04] border border-border/30 dark:border-white/[0.05] rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-emerald-500/30"
+              />
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Next arrow */}
+        <button
+          onClick={() => onSelect(selectedOffset + 1)}
+          disabled={selectedOffset >= MAX_OFFSET}
+          className="flex-shrink-0 h-8 w-8 rounded-xl flex items-center justify-center bg-secondary/40 dark:bg-white/[0.03] border border-border/20 dark:border-white/[0.04] text-muted-foreground/70 hover:text-emerald-400 hover:border-emerald-500/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Next day"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Current day long label */}
+      <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground/60 font-medium">
+        <CalendarDays className="h-3 w-3" />
+        <span>{dayDateNumber(selectedOffset, language)}</span>
       </div>
     </div>
   );

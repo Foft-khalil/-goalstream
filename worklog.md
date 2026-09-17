@@ -1924,3 +1924,38 @@ Stage Summary:
 - No dead channels listed: every channel is resolved + token-refreshed server-side before display; playback auto-heals expired tokens mid-stream and auto-switches channels if a feed truly dies
 - New files: src/lib/daddylive-resolve.ts, src/app/api/hls-proxy/route.ts; rewritten: api/daddylive/route.ts, components/stream-options.tsx; patched: components/video-player.tsx, lib/team-match.ts
 - Known upstream limitation (documented): the DaddyLive CDN throttles/throttles playlist requests (~15-20s token life, ~50% 403/reset) — mitigated by retries + cheap self-healing; worst case a channel switch, never an ad page
+
+---
+Task ID: 25
+Agent: Main Agent
+Task: Refonte UX page d'accueil — prioriser matchs en direct / du jour / à venir, écarter matchs terminés (collapsible), ajouter navigation par date
+
+Work Log:
+- Diagnostic de l'état antérieur: LiveMatches groupait TOUS les matchs non-live par date triées en ordre ASCENDANT → les jours passés (hier, avant-hier, J-3) apparaissaient AVANT aujourd'hui → l'utilisateur devait scroller longtemps à travers une longue liste de matchs terminés avant de voir les matchs du jour.
+- Audit du store: selectedDate (DateTab) et setSelectedDate existaient dans le store mais n'étaient JAMAIS utilisés côté UI. Même chose pour selectedBasketballDate.
+- Ajout de 11 nouvelles clés de traduction (yesterday, pickDate, noMatchesDay, showFinishedMatches, hideFinishedMatches, liveNow, todayUpcoming, dayMatches, finishedMatches, upcomingMatches) dans l'interface Translations + dans les 5 langues (fr, en, ar, es, pt).
+- REWRITE COMPLET de src/components/live-matches.tsx:
+  * NOUVELLE STRUCTURE: barre de navigation par date (sticky, sous header) → section Live (toujours en haut, indépendante du jour sélectionné) → section "À venir aujourd'hui" (le jour sélectionné) → section "Matchs terminés" COLLAPSIBLE (réduite par défaut, compteur visible).
+  * Navigation par date: flèches ← Hier | Aujourd'hui (actif par défaut, point vert) | Demain | sam. 19 | dim. 20 → + bouton calendrier (📅) qui ouvre un Popover avec input type=date (range J-3 à J+14).
+  * Le label long du jour (ex: "vendredi 18 septembre") est affiché juste sous les chips, l'utilisateur sait toujours où il est.
+  * Section "Matchs terminés" réduite par défaut avec chevron qui pivote à l'expand; chargement progressif (15 puis +30 par clic).
+  * Tri: upcoming = ASC par heure; finished = DESC par heure (les plus récents d'abord).
+  * Infinite scroll gardé pour la section upcoming (la plus pertinente), supprimé pour les terminés (car section collapsible).
+  * Section Live reste TOUJOURS en haut peu importe le jour sélectionné (live = "en cours maintenant", pas lié au jour).
+  * État vide par jour: "Aucun match programmé ce jour" avec le nom long du jour dessous.
+- REWRITE COMPLET de src/components/basketball-matches.tsx: même structure (orange theme), utilise selectedBasketballDate du store.
+- Lint clean (2 erreurs initialement: apostrophe non échappée dans "À venir aujourd'hui" → corrigée avec double quotes; useCallback dep manquant pour setPickerOpen → corrigé).
+- E2E vérifié via agent-browser:
+  * Desktop (1280x720): "À VENIR AUJOURD'HUI · 11" avec 11 matchs en haut + "MATCHS TERMINÉS · 2" (collapsed) en bas. Bouton déplier fonctionnel.
+  * Navigation par date testée: clic "Demain" → label "vendredi 18 septembre" + état vide "Aucun match programmé ce jour". Clic "sam. 19" → "samedi 19 septembre".
+  * Vue mobile (375x812): tous les éléments restent visibles et utilisables (chips scrollables horizontalement, flèches, sélecteur date).
+  * Onglet Basketball: même UX cohérente (orange theme, navigation par date, section "À VENIR AUJOURD'HUI · 1").
+- VLM a confirmé: design moderne et professionnel, hiérarchie claire, matchs du jour mis en avant (point vert, compteur dynamique), navigation intuitive bidirectionnelle + raccourcis rapides + sélecteur calendrier.
+
+Stage Summary:
+- PROBLÈME RÉSOLU: à l'ouverture de l'app, l'utilisateur voit immédiatement la barre de nav par date (Aujourd'hui pré-sélectionné) + la section "À VENIR AUJOURD'HUI" avec les matchs du jour, suivie de la section collapsible "MATCHS TERMINÉS" (réduite par défaut).
+- Plus besoin de scroller à travers des dizaines de matchs terminés pour accéder aux matchs du jour.
+- Navigation par date fluide: ← Hier | Aujourd'hui | Demain | +2 | +3 | 📅 → (range J-3 à J+14).
+- Même UX appliquée au basketball (cohérence entre les deux sports).
+- Fichiers modifiés: src/lib/i18n/translations.ts (interface + 5 langues), src/components/live-matches.tsx (rewrite), src/components/basketball-matches.tsx (rewrite).
+- Comportement Live inaltéré: les matchs en direct restent TOUJOURS en haut de la page (peu importe le jour sélectionné).
