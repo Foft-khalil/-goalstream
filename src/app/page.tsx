@@ -23,6 +23,7 @@ import GlobalSearch from '@/components/global-search';
 import { PrivacyPolicyDialog } from '@/components/privacy-policy-dialog';
 import { useNotificationStore } from '@/lib/notification-store';
 import { useFavorites } from '@/hooks/use-favorites';
+import ClientOnly from '@/components/client-only';
 import { useNotifications } from '@/hooks/use-notifications';
 
 function AppHeader() {
@@ -339,6 +340,47 @@ function AppHeader() {
   );
 }
 
+/**
+ * Static placeholder rendered during SSR (and the very first client render)
+ * to avoid hydration mismatches caused by Radix primitives' non-deterministic
+ * useId() values in Turbopack dev mode. Same dimensions as the real header
+ * → no layout shift on hydration.
+ */
+function AppHeaderPlaceholder() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-border/30">
+      <div className="header-glass">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-secondary/40 dark:bg-white/[0.04]" />
+              <div>
+                <div className="text-[15px] font-extrabold leading-tight tracking-tight">
+                  <span className="gradient-text">Goal</span>Stream
+                </div>
+                <div className="text-[9px] text-muted-foreground/40 leading-tight font-semibold uppercase tracking-[0.15em]">Sport en direct</div>
+              </div>
+            </div>
+            {/* Placeholder for actions/nav */}
+            <div className="hidden sm:flex items-center gap-1.5">
+              <div className="h-8 w-8 rounded-xl bg-secondary/30 dark:bg-white/[0.03]" />
+              <div className="h-8 w-8 rounded-xl bg-secondary/30 dark:bg-white/[0.03]" />
+              <div className="h-8 w-8 rounded-xl bg-secondary/30 dark:bg-white/[0.03]" />
+              <div className="h-8 w-8 rounded-xl bg-secondary/30 dark:bg-white/[0.03]" />
+              <div className="h-8 w-40 rounded-xl bg-secondary/30 dark:bg-white/[0.03]" />
+            </div>
+            <div className="flex sm:hidden items-center gap-1">
+              <div className="h-9 w-9 rounded-xl bg-secondary/30 dark:bg-white/[0.03]" />
+              <div className="h-9 w-9 rounded-xl bg-secondary/30 dark:bg-white/[0.03]" />
+              <div className="h-9 w-9 rounded-xl bg-secondary/30 dark:bg-white/[0.03]" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
 function MobileBottomNav() {
   const { currentView, setCurrentView, footballMatches, basketballMatches, language } = useAppStore();
   const { totalFavorites } = useFavorites();
@@ -500,7 +542,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <AppHeader />
+      <ClientOnly fallback={<AppHeaderPlaceholder />}>
+        <AppHeader />
+      </ClientOnly>
 
       {/* Offline banner */}
       {!isOnline && (

@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import {
   Popover, PopoverContent, PopoverTrigger
 } from '@/components/ui/popover';
+import { useHydrated } from '@/hooks/use-hydrated';
 
 /* ─── Date helpers (timezone-independent, deterministic) ───────────────── */
 
@@ -376,8 +377,12 @@ export default function LiveMatches() {
         </div>
       </div>
 
-      {/* === ERROR BANNER === */}
-      {footballError && footballMatches.length > 0 && (
+      {/* === ERROR BANNER ===
+          Only show the full red banner when there are no matches at all.
+          If matches ARE displayed and a partial fetch failed (e.g. timeout
+          on +8..+14 days fetch), silently swallow the error — the user has
+          enough to watch and the next poll cycle will retry automatically. */}
+      {footballError && footballMatches.length === 0 && !loadingTimeout && (
         <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/5 border border-red-500/10 text-xs text-red-400 glass-card">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
           <span>{footballError}</span>
@@ -547,6 +552,7 @@ function DateNavigationBar({
   onSelect: (offset: number) => void;
   language: Language;
 }) {
+  const hydrated = useHydrated();
   // Build chips: -1 (Hier), 0 (Aujourd'hui), 1 (Demain), 2, 3
   const quickChips = [-1, 0, 1, 2, 3];
 
@@ -619,30 +625,36 @@ function DateNavigationBar({
           )}
         </div>
 
-        {/* Date picker */}
-        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-          <PopoverTrigger asChild>
-            <button
-              className="flex-shrink-0 h-8 w-8 rounded-xl flex items-center justify-center bg-secondary/40 dark:bg-white/[0.03] border border-border/20 dark:border-white/[0.04] text-muted-foreground/70 hover:text-emerald-400 hover:border-emerald-500/20 transition-all"
-              aria-label={t(language, 'common.pickDate')}
-              title={t(language, 'common.pickDate')}
-            >
-              <Calendar className="h-4 w-4" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-auto p-3">
-            <div className="space-y-2">
-              <p className="text-[11px] font-bold text-foreground/80">{t(language, 'common.pickDate')}</p>
-              <input
-                type="date"
-                value={selectedDateValue}
-                min={`${todayYMD.slice(0, 4)}-${todayYMD.slice(4, 6)}-${(parseInt(todayYMD.slice(6, 8)) - 3).toString().padStart(2, '0')}`}
-                onChange={(e) => e.target.value && handleDateChange(e.target.value)}
-                className="bg-secondary/30 dark:bg-white/[0.04] border border-border/30 dark:border-white/[0.05] rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-emerald-500/30"
-              />
-            </div>
-          </PopoverContent>
-        </Popover>
+        {/* Date picker — only mount the Radix Popover after hydration to avoid
+            SSR/CSR useId mismatches (Turbopack dev). Before mount, render a
+            plain button of identical dimensions to prevent layout shift. */}
+        {hydrated ? (
+          <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className="flex-shrink-0 h-8 w-8 rounded-xl flex items-center justify-center bg-secondary/40 dark:bg-white/[0.03] border border-border/20 dark:border-white/[0.04] text-muted-foreground/70 hover:text-emerald-400 hover:border-emerald-500/20 transition-all"
+                aria-label={t(language, 'common.pickDate')}
+                title={t(language, 'common.pickDate')}
+              >
+                <Calendar className="h-4 w-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-auto p-3">
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold text-foreground/80">{t(language, 'common.pickDate')}</p>
+                <input
+                  type="date"
+                  value={selectedDateValue}
+                  min={`${todayYMD.slice(0, 4)}-${todayYMD.slice(4, 6)}-${(parseInt(todayYMD.slice(6, 8)) - 3).toString().padStart(2, '0')}`}
+                  onChange={(e) => e.target.value && handleDateChange(e.target.value)}
+                  className="bg-secondary/30 dark:bg-white/[0.04] border border-border/30 dark:border-white/[0.05] rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-emerald-500/30"
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <div className="flex-shrink-0 h-8 w-8 rounded-xl bg-secondary/40 dark:bg-white/[0.03] border border-border/20 dark:border-white/[0.04]" />
+        )}
 
         {/* Next arrow */}
         <button
