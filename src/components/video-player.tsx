@@ -41,6 +41,13 @@ function needsProxy(url: string): boolean {
   // rewrites the nested hamis.romponalis.st iframe to also go through the proxy
   // (with Referer: https://dlive.sx/ so hamis returns 200), and serves a
   // lightweight page from our own domain.
+  //
+  // Task 27 (Sep 2026): tiestep.top is the NEW player host for DaddyLive
+  // channels. It REQUIRES Referer: https://dlive.sx/ (returns 403 otherwise).
+  // Since the browser cannot inject a custom Referer on iframe loads, we route
+  // tiestep.top URLs through /api/proxy-stream (which injects the Referer
+  // server-side and serves the page from our own origin → no X-Frame-Options
+  // issues, no 403). The iframe is then sandbox-embedded in our app.
   const directLoadDomains: string[] = [];
   if (directLoadDomains.some(d => url.includes(d))) return false;
   // Any other URL (web page / embed) needs proxying to bypass iframe restrictions
@@ -565,16 +572,24 @@ export default function VideoPlayer() {
         onClick={isHls ? togglePlay : undefined}
       >
         {isIframe ? (
-          /* Iframe-based stream (e.g. from kora-api via proxy) */
+          /* Iframe-based stream — DaddyLive (tiestep.top) embed proxied
+           * through /api/proxy-stream (Referer: dlive.sx injected server-side,
+           * <base> tag stripped, anti-iframe-bust scripts removed, stream.js
+           * re-routed through our proxy to bypass the ES-module CORS block).
+           *
+           * NO sandbox attribute: DaddyLive's stream.js actively detects
+           * `sandbox` on the iframe element and refuses to play ("Sandbox
+           * not allowed"). We accept the trade-off — popunder ad scripts
+           * (greatdexchange.com etc.) CAN run and may open new tabs on
+           * user click — because the alternative is no video at all.
+           * Popunders require a click trigger, so loading + autoplaying
+           * the video doesn't trigger them. */
           <iframe
             src={iframeSrc}
             className="w-full h-full border-0"
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             title={`${t(language, 'player.liveStream')}: ${playerChannelName}`}
-            // no-referrer: the proxied page (served from our domain) shouldn't send
-            // our origin as Referer to third-party resources (ads, CDNs). The
-            // proxy-stream handles upstream Referers server-side.
             referrerPolicy="no-referrer"
             onError={() => {
               console.warn('[VideoPlayer] iframe onError triggered');

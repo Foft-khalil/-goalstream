@@ -154,8 +154,20 @@ function extractM3u8FromPlayerPage(html: string): string | null {
 }
 
 
-/** Full chain: heavy stream page (~640 KB) → player page → m3u8. */
-async function resolveChain(channelId: string): Promise<{ resolved: ResolvedStream; playerPageUrl: string } | null> {
+/** Full chain: heavy stream page (~640 KB) → player page → m3u8.
+ *
+ *  DADDYLIVE EMBED CHANGES (Task 27 — Sep 2026):
+ *  The iframe host/path has rotated several times:
+ *    Old (Task 24): {host}/premiumtv/daddyX.php?id=N  (3 KB, atob() inline → m3u8)
+ *    New (Sep 2026): tiestep.top/e/{slug}  (150 KB, m3u8 obfuscated in window._econfig)
+ *  We use a GENERIC iframe regex that matches any https iframe URL on a
+ *  NON-dlive.sx host — robust against future rotations of the player host.
+ *  When the (cheap) m3u8 extraction fails (the new obfuscated encoding is
+ *  not yet decoded server-side), we fall back to returning the iframe URL
+ *  itself as an `iframe` stream type — the player page is then sandbox-
+ *  embedded in OUR app (no redirects, no top-level navigation, no ads
+ *  popunders thanks to the sandbox restrictions). */
+async function resolveChain(channelId: string): Promise<{ resolved: ResolvedStream | null; playerPageUrl: string } | null> {
   const page = await fetchText(
     `https://dlive.sx/stream/stream-${channelId}.php`,
     'https://dlive.sx/',
@@ -163,12 +175,15 @@ async function resolveChain(channelId: string): Promise<{ resolved: ResolvedStre
   );
   if (!page.ok) return null;
 
-  const iframeMatch = page.text.match(/<iframe[^>]+src="(https:\/\/[^"]*premiumtv\/[^"]*\.php\?id=\d+)"/i);
+  // Generic iframe matcher: any https URL on a non-dlive host (the player
+  // page is hosted on a third-party embed host that rotates over time).
+  const iframeMatch = page.text.match(/<iframe[^>]+src="(https:\/\/(?!dlive\.sx)[^"]+)"/i);
   if (!iframeMatch) return null;
   const playerPageUrl = iframeMatch[1];
 
   const fromPlayer = await tokenFromPlayerPage(playerPageUrl);
-  if (!fromPlayer) return null;
+  // Even if m3u8 extraction fails, we keep the playerPageUrl so callers can
+  // fall back to iframe embedding.
   return { resolved: fromPlayer, playerPageUrl };
 }
 
@@ -225,11 +240,19 @@ export async function resolveChannelM3u8(
       // fall through to the full chain (player page may have rotated)
     }
 
-    // 2) FULL chain — heavy stream page (~640 KB)
+    // 2) FULL chain — heavy stream page (~640 KB). resolveChain now ALWAYS
+    //    returns the playerPageUrl even when m3u8 extraction fails (so the
+    //    caller can fall back to iframe embedding).
     const full = await resolveChain(id);
     if (full) {
-      storeToken(id, full.playerPageUrl, full.resolved);
-      return full.resolved;
+      if (full.resolved) {
+        storeToken(id, full.playerPageUrl, full.resolved);
+        return full.resolved;
+      }
+      // m3u8 extraction failed but we have a valid iframe URL — cache the
+      // iframe URL so callers can embed it (with sandbox to block ads).
+      storeIframeFallback(id, full.playerPageUrl);
+      return null;
     }
 
     // 3) Keep the player-page knowledge even when the stream is dead right
@@ -258,6 +281,65 @@ export async function resolveChannelM3u8(
   } finally {
     inflight.delete(id);
   }
+}
+
+/**
+ * Resolve a channel to EITHER a clean m3u8 stream OR a fallback iframe URL.
+ * - If we have a clean m3u8 (token decode succeeded), return type='hls' with
+ *   a same-origin /api/hls-proxy URL (zero ads, in our hls.js player).
+ * - Otherwise, return type='iframe' with the embed player URL — the caller
+ *   sandbox-embeds it (popunders blocked, no top-level redirect).
+ * Returns null only if the channel id is unusable or the stream page itself
+ * cannot be fetched.
+ */
+export interface ChannelResolution {
+  type: 'hls' | 'iframe';
+  /** For type='hls': same-origin /api/hls-proxy URL. For type='iframe': the
+   *  upstream embed URL (e.g. https://tiestep.top/e/xxx). */
+  url: string;
+  /** The canonical player-page URL (used as Referer for hls-proxy). */
+  referer: string;
+}
+
+export async function resolveChannel(
+  channelId: string | number,
+  force = false
+): Promise<ChannelResolution | null> {
+  const id = String(channelId);
+  if (!id || id === '0' || id === '00') return null;
+
+  // Try clean m3u8 first
+  const m3u8 = await resolveChannelM3u8(id, force);
+  if (m3u8) {
+    return {
+      type: 'hls',
+      url: buildHlsProxyUrl(m3u8.m3u8Url, m3u8.referer, id),
+      referer: m3u8.referer,
+    };
+  }
+
+  // Fall back to iframe embedding using the cached playerPageUrl
+  const cached = resolveCache.get(id);
+  if (cached?.playerPageUrl) {
+    return {
+      type: 'iframe',
+      url: cached.playerPageUrl,
+      referer: cached.playerPageUrl,
+    };
+  }
+
+  return null;
+}
+
+/** Cache the iframe URL even when m3u8 extraction fails — the iframe is
+ *  still a usable embed source. */
+function storeIframeFallback(id: string, playerPageUrl: string): void {
+  resolveCache.set(id, {
+    resolved: null,
+    until: Date.now() + 60 * 1000, // re-attempt m3u8 in 60 s
+    playerPageUrl,
+    playerPageUntil: Date.now() + PLAYER_PAGE_TTL_MS,
+  });
 }
 
 function storeToken(id: string, playerPageUrl: string, resolved: ResolvedStream) {

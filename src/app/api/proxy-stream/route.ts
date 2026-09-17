@@ -50,14 +50,16 @@ export async function GET(request: NextRequest) {
     console.log(`[Proxy Stream] GET fetching: ${targetUrl}`);
 
     // Determine the correct Referer for the upstream request.
-    // DaddyLive chain: dlive.sx → hamis.romponalis.st → m3u8 CDN (xameleon.phantemlis.top)
+    // DaddyLive chain (Task 27, Sep 2026): dlive.sx → tiestep.top → m3u8 CDN
     // - dlive.sx serves the real player only when Referer is present (any https origin works)
-    // - hamis.romponalis.st REQUIRES Referer: https://dlive.sx/ (returns 403 otherwise)
+    // - tiestep.top (NEW player host, replaces hamis.romponalis.st) REQUIRES
+    //   Referer: https://dlive.sx/ (returns 403 otherwise — verified)
     // - xameleon.phantemlis.top (m3u8) is Cloudflare-protected — try Referer: https://dlive.sx/
     let upstreamReferer = targetUrl;
     try {
       const targetOrigin = new URL(targetUrl).origin;
-      if (targetOrigin.includes('hamis.romponalis.st') ||
+      if (targetOrigin.includes('tiestep.top') ||
+          targetOrigin.includes('hamis.romponalis.st') ||
           targetOrigin.includes('dlive.sx') ||
           targetOrigin.includes('dlhd.st') ||
           targetOrigin.includes('phantemlis.top') ||
@@ -106,6 +108,19 @@ export async function GET(request: NextRequest) {
     const baseUrl = new URL(targetUrl);
     const baseOrigin = baseUrl.origin;
     const basePath = baseUrl.pathname.substring(0, baseUrl.pathname.lastIndexOf('/') + 1);
+    // Our own origin (for rewriting script srcs through our proxy so they
+    // bypass the upstream <base href="https://tiestep.top/..."> tag which
+    // would otherwise route relative URLs to the upstream host).
+    const ownOrigin = new URL(request.url).origin;
+
+    // ── Step 0: Remove the upstream <base href="..."> tag ─────────────────────
+    // DaddyLive's player page sets <base href="https://tiestep.top/e/..."> which
+    // forces ALL relative URLs (script src, link href, fetch()) to resolve
+    // against the upstream host. When we proxy the page and rewrite script srcs
+    // to /api/proxy-stream?url=..., the <base> tag would route those to
+    // https://tiestep.top/api/proxy-stream?url=... (wrong origin). Stripping
+    // the <base> tag lets relative URLs resolve against OUR origin.
+    html = html.replace(/<base\s+href="[^"]*"[^>]*>/gi, '');
 
     // ── Step 1: Remove referrer-blocking and anti-iframe-breakout scripts ──────
     // Remove scripts that check document.referrer and redirect away
@@ -197,6 +212,33 @@ export async function GET(request: NextRequest) {
         // Don't proxy same-origin URLs
         if (url.startsWith('/') || url.startsWith('./')) return `${prefix}${url}${suffix}`;
         const proxyUrl = `/api/proxy-stream?url=${btoa(url)}`;
+        return `${prefix}${proxyUrl}${suffix}`;
+      }
+    );
+
+    // ── Step 4b: Route external <script src> through proxy (CORS for ES modules) ──
+    // DaddyLive's player page (tiestep.top) loads stream.js as
+    // <script type="module" src="https://tiestep.top/assets/stream.js">.
+    // ES modules REQUIRE CORS — but tiestep.top doesn't return
+    // Access-Control-Allow-Origin, so the module fails to load → Clappr
+    // never initializes → "STREAM IS OFFLINE" error.
+    // Proxying the script src through our own origin (which serves the JS
+    // with `Access-Control-Allow-Origin: *` and the correct Referer
+    // upstream) lets the module load and decode _econfig → m3u8 URL.
+    // NOTE: must be ABSOLUTE URL (http://localhost:3000/...) because the
+    // page's <base href="https://tiestep.top/..."> tag (now stripped, but
+    // keep absolute for safety) would route relative URLs to upstream.
+    html = html.replace(
+      /(<script[^>]+src=["'])(https?:\/\/[^"']+)(["'])/gi,
+      (_match, prefix: string, url: string, suffix: string) => {
+        if (url.includes('/api/proxy-stream')) return `${prefix}${url}${suffix}`;
+        if (url.startsWith('/') || url.startsWith('./')) return `${prefix}${url}${suffix}`;
+        // Skip CDN scripts that DO return CORS headers (jsdelivr, unpkg, etc.)
+        // — they work fine cross-origin and proxying them just adds latency.
+        if (/(?:jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net)/.test(url)) {
+          return `${prefix}${url}${suffix}`;
+        }
+        const proxyUrl = `${ownOrigin}/api/proxy-stream?url=${btoa(url)}`;
         return `${prefix}${proxyUrl}${suffix}`;
       }
     );

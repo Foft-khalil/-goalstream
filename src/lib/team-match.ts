@@ -608,6 +608,29 @@ function scoreTeamInPhrase(teamName: string, phraseNorm: string): number {
     }
     if (!fullyExplained) score = Math.min(score, 0.5);
 
+    // ── SPONSOR-PREFIX / SHORT-NAME BOOST (Task 27 fix) ──────────────────
+    // Common case: ESPN provides the full sponsor/city name ("RB Salzburg",
+    // "TSG Hoffenheim", "OFI Crete", "NEC Nijmegen") while DaddyLive's
+    // schedule uses the SHORT name ("Salzburg", "Hoffenheim", "OFI", "NEC").
+    // Without this rule, "RB Salzburg" only covers 1 of its 2 tokens against
+    // the phrase "salzburg" → score 0.5 < 0.75 → strict match REJECTED →
+    // user sees "Aucune chaîne disponible" even though a real channel exists.
+    //
+    // Rule: if (a) every PHRASE token is explained by the variant (reverse
+    // coverage = 1.0 — the team IS a superset of the schedule name), and
+    // (b) the variant has at most 2 EXTRA tokens beyond the phrase's
+    // meaningful tokens (i.e., 1-2 sponsor/city prefix words — not a wholly
+    // different club), and (c) every phrase identity token has length ≥ 3
+    // (so ambiguous 2-char shorthands like "rb"/"ne" cannot fire the boost),
+    // THEN boost the score to 0.85 (above the 0.75 strict threshold).
+    if (fullyExplained && phraseIdentityToks.length >= 1) {
+      const allPhraseToksLongEnough = phraseIdentityToks.every(t => t.length >= 3);
+      const extraToks = vToks.length - phraseIdentityToks.length;
+      if (allPhraseToksLongEnough && extraToks >= 1 && extraToks <= 2) {
+        if (score < 0.85) score = 0.85;
+      }
+    }
+
     if (score > best) best = score;
   }
   return best;

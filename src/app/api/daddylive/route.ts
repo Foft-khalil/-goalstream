@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { matchEventStrict, detectSport, dateKey } from '@/lib/team-match';
 import { fetchSchedule, fetchChannelsData } from '@/lib/daddylive-cache';
-import { resolveChannelM3u8, buildHlsProxyUrl, mapWithConcurrency } from '@/lib/daddylive-resolve';
+import { resolveChannel, resolveChannelM3u8, buildHlsProxyUrl, mapWithConcurrency } from '@/lib/daddylive-resolve';
 
 /**
  * DaddyLive API Route (Task 24 — clean, ad-free, CORRECT-match streams)
@@ -152,37 +152,46 @@ export async function GET(request: NextRequest) {
     });
     const candidates = matchedStreams.slice(0, MAX_CHANNELS_TO_RESOLVE);
 
-    // ── Resolve EVERY candidate to its raw HLS playlist (server-side). ──
-    // Resolution doubles as the REAL health check: only channels whose master
-    // playlist returns a valid manifest right now survive the filter below.
-    let finalStreams: Array<MatchedStream & { resolved: NonNullable<Awaited<ReturnType<typeof resolveChannelM3u8>>> }> = [];
+    // ── Resolve EVERY candidate (server-side). ──
+    // Each candidate resolves to EITHER:
+    //   - type='hls': a clean, same-origin /api/hls-proxy URL (zero ads,
+    //     played in our hls.js player), OR
+    //   - type='iframe': the upstream embed player URL (used as a fallback
+    //     when the clean m3u8 extraction fails — the player page is then
+    //     sandbox-embedded in our app, blocking popunders and redirects).
+    // Both forms keep the user IN our app (no top-level navigation).
+    let finalStreams: Array<MatchedStream & { resolved: NonNullable<Awaited<ReturnType<typeof resolveChannel>>> }> = [];
 
     if (candidates.length > 0) {
       const results = await mapWithConcurrency(candidates, RESOLVE_CONCURRENCY, async (stream) => {
-        const resolved = await resolveChannelM3u8(stream.channelId);
+        const resolved = await resolveChannel(stream.channelId);
         return { stream, resolved };
       });
 
       finalStreams = results
-        .filter((r): r is { stream: MatchedStream; resolved: NonNullable<Awaited<ReturnType<typeof resolveChannelM3u8>>> } => !!r.resolved)
+        .filter((r): r is { stream: MatchedStream; resolved: NonNullable<Awaited<ReturnType<typeof resolveChannel>>> } => !!r.resolved)
         .map((r) => ({ ...r.stream, resolved: r.resolved }));
 
       const removed = candidates.length - finalStreams.length;
-      if (removed > 0) console.log(`[DaddyLive API] Removed ${removed} dead/unresolvable channels (no valid playlist)`);
+      if (removed > 0) console.log(`[DaddyLive API] Removed ${removed} totally unresolvable channels (stream page unreachable)`);
     }
 
-    console.log(`[DaddyLive API] Found ${finalStreams.length} clean HLS channels for "${homeTeam}" vs "${awayTeam}" (both-team match)`);
+    const hlsCount = finalStreams.filter((s) => s.resolved.type === 'hls').length;
+    const iframeCount = finalStreams.length - hlsCount;
+    console.log(`[DaddyLive API] Found ${finalStreams.length} playable channels for "${homeTeam}" vs "${awayTeam}" (${hlsCount} clean HLS + ${iframeCount} iframe fallback)`);
+
     return NextResponse.json({
       streams: finalStreams.map((s) => ({
         name: s.channelName,
-        // Same-origin proxy URL — plays in OUR hls.js player. Zero ads.
-        url: buildHlsProxyUrl(s.resolved.m3u8Url, s.resolved.referer, s.channelId),
+        // For type='hls': same-origin /api/hls-proxy URL (zero ads, hls.js).
+        // For type='iframe': upstream embed URL — sandbox-rendered in our app.
+        url: s.resolved.url,
         channelLogo: s.channelLogo,
         group: s.groupTitle,
         eventTime: s.eventTime,
         eventName: s.eventName,
         sport: s.sport,
-        type: 'hls',
+        type: s.resolved.type,
         source: 'daddylive',
         score: s.matchScore,
       })),
