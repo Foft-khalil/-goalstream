@@ -187,12 +187,17 @@ export default function StreamOptions({
               <div className="w-14 h-14 rounded-2xl bg-secondary/50 flex items-center justify-center mb-3">
                 <Tv className="h-7 w-7 text-muted-foreground/30" />
               </div>
-              <p className="text-sm font-semibold">Aucune chaîne ne diffuse ce match pour le moment</p>
-              <p className="text-xs text-muted-foreground/50 mt-1.5">
-                Aucune chaîne dédiée à ce match n&apos;a été trouvée dans le programme
-                DaddyLive. Réessayez au coup d&apos;envoi ou pendant la rencontre — la liste
-                se met à jour automatiquement.
+              <p className="text-sm font-semibold">Aucune chaîne ne diffuse ce match</p>
+              <p className="text-xs text-muted-foreground/50 mt-1.5 max-w-[280px]">
+                DaddyLive ne propose pas de chaîne pour ce match (ligues mineures
+                ou peu diffusées). Les grandes compétitions (Premier League, La Liga,
+                Champions League, NBA, NFL…) ont généralement 5 à 10 chaînes.
               </p>
+              <div className="mt-3 px-3 py-1.5 rounded-lg bg-emerald-500/8 border border-emerald-500/15">
+                <p className="text-[10px] text-emerald-500/80 font-medium">
+                  Essayez un match d&apos;une compétition plus populaire
+                </p>
+              </div>
             </div>
           )}
 
